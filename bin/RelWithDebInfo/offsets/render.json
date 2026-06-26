@@ -1,0 +1,23 @@
+{
+  "namespace": "render",
+  "patterns": {
+    "window_handle_ptr": {
+      "pattern": "\\x83\\xC4\\x04\\x83\\x3D\\x00\\x00\\x00\\x00\\x00\\x75\\x31",
+      "mask": "xxxxx????xxx",
+      "offset": "-0xC",
+      "section": "text"
+    },
+    "reset_target": {
+      "pattern": "\\x3B\\x4D\\xB4\\x89",
+      "mask": "xxxx",
+      "offset": "0x0FFF",
+      "section": "text"
+    },
+    "end_scene_target": {
+      "pattern": "\\x75\\x28\\x68\\xC4\\x06\\x00\\x00",
+      "mask": "xxxxxxx",
+      "offset": "0x0",
+      "section": "text"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "namespace": "crash",
+  "patterns": {
+    "append_stack_anchor": {
+      "pattern": "%p  %08x %08x %08x %08x \\x00",
+      "mask": "xxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "offset": "0",
+      "section": "rdata"
+    }
+  }
+}

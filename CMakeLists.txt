@@ -1,0 +1,155 @@
+cmake_minimum_required(VERSION 3.24)
+
+project(Py4GW VERSION 0.1.0 LANGUAGES C CXX)
+
+if(NOT WIN32)
+    message(FATAL_ERROR "Py4GW currently targets Windows only.")
+endif()
+
+if(CMAKE_SIZEOF_VOID_P AND NOT CMAKE_SIZEOF_VOID_P EQUAL 4)
+    message(FATAL_ERROR "Py4GW must be configured as a 32-bit build. Use -A Win32.")
+endif()
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+option(PY4GW_BUILD_IMGUI_DEMO "Compile Dear ImGui demo sources." ON)
+
+# Match the original Py4GW workflow: build/ is the generator+intermediate tree,
+# bin/ is the runtime payload tree that you actually care about.
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin")
+
+find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
+
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/third_party/pybind11)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/third_party/minhook)
+
+set(IMGUI_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/imgui.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/imgui_draw.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/imgui_tables.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/imgui_widgets.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/backends/imgui_impl_dx9.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/backends/imgui_impl_win32.cpp
+)
+
+if(PY4GW_BUILD_IMGUI_DEMO)
+    list(APPEND IMGUI_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/imgui_demo.cpp)
+endif()
+
+add_library(imgui STATIC ${IMGUI_SOURCES})
+target_include_directories(imgui
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/backends
+)
+target_compile_definitions(imgui
+    PRIVATE
+        IMGUI_DISABLE_OBSOLETE_FUNCTIONS
+        NOMINMAX
+        WIN32_LEAN_AND_MEAN
+)
+target_link_libraries(imgui PUBLIC d3d9.lib)
+
+set(IMGUI_ADDON_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/imgui/addons/filebrowser_demo.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/imgui/addons/hotkey_demo.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/imgui/addons/markdown_demo.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/imgui/addons/imanim_demo.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/imgui/addons/imgui_club_demo.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/addons/ImAnim/im_anim.cpp
+)
+
+add_library(imgui_addons STATIC ${IMGUI_ADDON_SOURCES})
+target_include_directories(imgui_addons
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/backends
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/addons/imgui-filebrowser
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/addons/ImHotKey
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/addons/imgui_markdown
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/addons/ImAnim
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/addons/imgui_club/imgui_memory_editor
+)
+target_compile_definitions(imgui_addons
+    PRIVATE
+        NOMINMAX
+        WIN32_LEAN_AND_MEAN
+        _CRT_SECURE_NO_WARNINGS
+)
+target_compile_options(imgui_addons PRIVATE /FIbase/error_handling.h)
+target_link_libraries(imgui_addons PUBLIC imgui d3d9.lib)
+
+set(PY4GW_SOURCES
+    src/base/file_scanner.cpp
+    src/base/panic.cpp
+    src/GW/GuildWars.cpp
+    src/GW/render/render_methods.cpp
+    src/GW/render/render.cpp
+    src/base/hooker.cpp
+    src/base/patterns.cpp
+    src/base/CrashHandler.cpp
+    src/dllmain.cpp
+    src/imgui/demo_ui.cpp
+    src/imgui/compact_ui.cpp
+    src/imgui/console_ui.cpp
+    src/imgui/font_manager.cpp
+    src/imgui/imgui_manager.cpp
+    src/base/logger.cpp
+    src/base/process_manager.cpp
+    src/Py4GW.cpp
+    src/base/python_runtime.cpp
+    src/base/scanner.cpp
+)
+
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${IMGUI_SOURCES})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${PY4GW_SOURCES})
+
+add_library(Py4GW SHARED ${PY4GW_SOURCES})
+
+set_target_properties(Py4GW PROPERTIES
+    OUTPUT_NAME "Py4GW"
+    PREFIX ""
+)
+
+target_include_directories(Py4GW
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/addons/imgui-filebrowser
+)
+
+target_compile_definitions(Py4GW
+    PRIVATE
+        NOMINMAX
+        WIN32_LEAN_AND_MEAN
+        _CRT_SECURE_NO_WARNINGS
+        PYBIND11_DETAILED_ERROR_MESSAGES
+)
+target_compile_options(Py4GW PRIVATE /FIbase/error_handling.h)
+
+target_link_libraries(Py4GW
+    PRIVATE
+        pybind11::embed
+        imgui
+        imgui_addons
+        minhook
+        Python3::Python
+        d3d9.lib
+        dbghelp.lib
+)
+
+add_custom_command(TARGET Py4GW POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_CURRENT_SOURCE_DIR}/fonts
+        $<TARGET_FILE_DIR:Py4GW>/fonts
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_CURRENT_SOURCE_DIR}/scripts
+        $<TARGET_FILE_DIR:Py4GW>/scripts
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_CURRENT_SOURCE_DIR}/offsets
+        $<TARGET_FILE_DIR:Py4GW>/offsets
+)

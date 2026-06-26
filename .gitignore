@@ -1,0 +1,35 @@
+# Generated build tree
+/build/
+/.vs/
+/.build/
+/.artifacts/
+
+# Visual Studio / MSBuild
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.VC.db
+*.VC.opendb
+
+# CMake / generated metadata
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+CMakeFiles/
+
+# Compiler and linker artifacts outside bin/
+*.obj
+*.iobj
+*.ipdb
+*.ilk
+*.idb
+*.exp
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Logs and dumps
+*.log
+*.dmp

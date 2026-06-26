@@ -1,0 +1,36 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 24,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "vs2022-win32",
+      "displayName": "Visual Studio 2022 Win32",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "Win32",
+      "binaryDir": "${sourceDir}/vs2022-win32",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "vs2022-win32-relwithdebinfo",
+      "displayName": "Visual Studio 2022 Win32 RelWithDebInfo",
+      "configurePreset": "vs2022-win32",
+      "configuration": "RelWithDebInfo"
+    },
+    {
+      "name": "vs2022-win32-debug",
+      "displayName": "Visual Studio 2022 Win32 Debug",
+      "configurePreset": "vs2022-win32",
+      "configuration": "Debug"
+    }
+  ]
+}
