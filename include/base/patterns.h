@@ -13,7 +13,11 @@ struct PatternObject {
     std::string name;
     std::string pattern;
     std::string mask;
+    std::string assertion_file;
+    std::string assertion_message;
     int offset = 0;
+    int line_number = 0;
+    int range = 0;
     ScannerSection section = ScannerSection::Text;
 };
 

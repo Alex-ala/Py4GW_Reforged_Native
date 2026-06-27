@@ -33,3 +33,8 @@ Documents:
 - `10-current-observations-and-risks.md`
 - `11-error-handling-and-panic.md`
 - `12-project-style-guide.md`
+- `imgui-ini-persistence.md`
+- `module-migration-guide.md`
+- `uimgr-migration-plan.md`
+- `uimgr-migration-map.md`
+- `gwca-manager-dependency-map.md`

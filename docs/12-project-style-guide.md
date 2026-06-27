@@ -38,11 +38,27 @@ This document defines mandatory conventions for `Py4GW_Reforged` project-owned c
 - Port behavior intentionally; do not copy foreign modules blindly.
 - Refit imported code to this project's scanner, logger, lifecycle, and panic systems.
 - Preserve the smallest dependency surface needed for the current project stage.
+- Do not add functionality or behavioral redesign during migration unless an existing project doc explicitly requires it.
+- If a migration must intentionally differ from legacy behavior, document that deviation explicitly instead of mixing it into parity work.
+- Shared GW structs and helper methods must live in shared GW locations such as `GW/context/`, not in fake module folders.
+- If a migrated manager depends on unmigrated shared legacy code, migrate that prerequisite first instead of adding a compatibility shim or local substitute.
+- Do not use temporary glue to hide missing legacy dependencies; parity work must stay directly traceable to migrated legacy code.
+
+## Documentation Encoding Policy
+
+- Project documentation should use plain ASCII unless there is a clear reason not to.
+- Do not introduce mojibake or mixed-encoding text into `docs/`.
+- Treat mojibake as a documentation defect and fix it when found.
+- When importing text from other sources, normalize punctuation and encoding before committing it.
 
 ## Review Checklist
 
 - Does the header include `base/error_handling.h`?
 - Are fatal invariants using `PY4GW_ASSERT`, `PY4GW_REQUIRE`, or `PY4GW_PANIC`?
 - Does hook resolution go through project scanning and assertion paths?
+- Does the migration avoid adding new behavior beyond documented project rules?
+- If behavior changed intentionally, is the deviation documented explicitly?
+- If the migrated code depends on legacy shared behavior, was that prerequisite migrated first instead of replaced with a shim?
 - Is third-party code isolated from project-owned policy changes?
 - Is the module documented if it introduces a new subsystem rule?
+- Does the documentation remain free of mojibake and mixed-encoding artifacts?

@@ -15,8 +15,8 @@ enum class ScriptState {
 
 bool Initialize();
 void Shutdown();
-void Update();
-void Draw();
+void ExecutePythonUpdate();
+void ExecutePythonDraw();
 void ProcessDeferredActions();
 
 bool SetSelectedScriptPath(const std::string& path);

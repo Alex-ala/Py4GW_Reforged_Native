@@ -151,14 +151,36 @@ bool LoadFile(const std::filesystem::path& path) {
         py4gw::PatternObject pattern_object;
         pattern_object.name = name;
         pattern_object.mask = value.value("mask", "");
+        pattern_object.assertion_file = value.value("assertion_file", "");
+        pattern_object.assertion_message = value.value("assertion_message", "");
         pattern_object.section = ParseSection(value.value("section", "text"));
+
+        const bool has_pattern_field = value.contains("pattern");
+        const bool has_mask_field = value.contains("mask");
+        const bool has_assertion_file_field = value.contains("assertion_file");
+        const bool has_assertion_message_field = value.contains("assertion_message");
+        const bool has_offset_field = value.contains("offset");
+        const bool has_line_field = value.contains("line_number");
+        const bool has_range_field = value.contains("range");
+        const bool has_section_field = value.contains("section");
 
         const std::string pattern_literal = value.value("pattern", "");
         const std::string offset_text = value.value("offset", "0");
-        if (pattern_object.mask.empty() ||
-            !DecodePatternLiteral(pattern_literal, &pattern_object.pattern) ||
-            !ParseInt(offset_text, &pattern_object.offset)) {
+        const std::string line_text = value.value("line_number", "0");
+        const std::string range_text = value.value("range", "0");
+        if ((!pattern_literal.empty() && !DecodePatternLiteral(pattern_literal, &pattern_object.pattern)) ||
+            !ParseInt(offset_text, &pattern_object.offset) ||
+            !ParseInt(line_text, &pattern_object.line_number) ||
+            !ParseInt(range_text, &pattern_object.range)) {
             Logger::Instance().LogError("Invalid pattern entry: " + name, "patterns");
+            return false;
+        }
+
+        const bool has_byte_pattern = has_pattern_field || has_mask_field;
+        const bool has_assertion = has_assertion_file_field || has_assertion_message_field;
+        const bool has_scan_config = has_offset_field || has_line_field || has_range_field || has_section_field;
+        if (!has_byte_pattern && !has_assertion && !has_scan_config) {
+            Logger::Instance().LogError("Pattern entry has no usable scanner inputs: " + name, "patterns");
             return false;
         }
 
@@ -222,9 +244,6 @@ const PatternObject* Patterns::Get(const std::string& name) {
 
     const auto it = g_patterns.find(name);
     if (it == g_patterns.end()) {
-        return nullptr;
-    }
-    if (it->second.pattern.empty() || it->second.mask.empty()) {
         return nullptr;
     }
     return &it->second;

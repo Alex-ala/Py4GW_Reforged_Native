@@ -123,27 +123,33 @@ PYBIND11_EMBEDDED_MODULE(Py4GW, m) {
     });
 
     py::module_ console = m.def_submodule("Console", "Console and logger bindings");
-    console.def("log", [](const std::string& module_name, const std::string& message, const std::string& level) {
-        Logger::Instance().Log(module_name, level, message);
-    }, py::arg("module_name"), py::arg("message"), py::arg("level") = "INFO");
-    console.def("info", [](const std::string& module_name, const std::string& message) {
-        Logger::Instance().Log(module_name, "INFO", message);
-    });
-    console.def("warning", [](const std::string& module_name, const std::string& message) {
-        Logger::Instance().Log(module_name, "WARNING", message);
-    });
-    console.def("error", [](const std::string& module_name, const std::string& message) {
-        Logger::Instance().Log(module_name, "ERROR", message);
-    });
-    console.def("notice", [](const std::string& module_name, const std::string& message) {
-        Logger::Instance().Log(module_name, "NOTICE", message);
-    });
-    console.def("success", [](const std::string& module_name, const std::string& message) {
-        Logger::Instance().Log(module_name, "SUCCESS", message);
-    });
-    console.def("print", [](const std::string& message) {
-        Logger::Instance().Log("Python", "INFO", message);
-    });
+    console.def("log", [](const std::string& module_name, const std::string& message, const std::string& level, bool export_to_disk) {
+        Logger::Instance().Log(module_name, level, message, export_to_disk);
+    }, py::arg("module_name"), py::arg("message"), py::arg("level") = "INFO", py::arg("export") = false);
+    console.def("info", [](const std::string& module_name, const std::string& message, bool export_to_disk) {
+        Logger::Instance().Log(module_name, "INFO", message, export_to_disk);
+    }, py::arg("module_name"), py::arg("message"), py::arg("export") = false);
+    console.def("warning", [](const std::string& module_name, const std::string& message, bool export_to_disk) {
+        Logger::Instance().Log(module_name, "WARNING", message, export_to_disk);
+    }, py::arg("module_name"), py::arg("message"), py::arg("export") = false);
+    console.def("error", [](const std::string& module_name, const std::string& message, bool export_to_disk) {
+        Logger::Instance().Log(module_name, "ERROR", message, export_to_disk);
+    }, py::arg("module_name"), py::arg("message"), py::arg("export") = false);
+    console.def("notice", [](const std::string& module_name, const std::string& message, bool export_to_disk) {
+        Logger::Instance().Log(module_name, "NOTICE", message, export_to_disk);
+    }, py::arg("module_name"), py::arg("message"), py::arg("export") = false);
+    console.def("success", [](const std::string& module_name, const std::string& message, bool export_to_disk) {
+        Logger::Instance().Log(module_name, "SUCCESS", message, export_to_disk);
+    }, py::arg("module_name"), py::arg("message"), py::arg("export") = false);
+    console.def("debug", [](const std::string& module_name, const std::string& message, bool export_to_disk) {
+        Logger::Instance().Log(module_name, "DEBUG", message, export_to_disk);
+    }, py::arg("module_name"), py::arg("message"), py::arg("export") = false);
+    console.def("performance", [](const std::string& module_name, const std::string& message, bool export_to_disk) {
+        Logger::Instance().Log(module_name, "PERFORMANCE", message, export_to_disk);
+    }, py::arg("module_name"), py::arg("message"), py::arg("export") = false);
+    console.def("print", [](const std::string& message, bool export_to_disk) {
+        Logger::Instance().Log("Python", "INFO", message, export_to_disk);
+    }, py::arg("message"), py::arg("export") = false);
     console.def("load", [](const std::string& path) {
         SetSelectedScriptPath(path);
         return LoadSelectedScript();
@@ -221,7 +227,7 @@ void Shutdown() {
     g_python_runtime.reset();
 }
 
-void Update() {
+void ExecutePythonUpdate() {
     if (g_script_state != ScriptState::Running || g_loaded_script_content.empty()) {
         return;
     }
@@ -229,7 +235,7 @@ void Update() {
     CallPythonFunctionSafe(g_update_function, "update()");
 }
 
-void Draw() {
+void ExecutePythonDraw() {
     if (g_script_state != ScriptState::Running || g_loaded_script_content.empty()) {
         return;
     }
@@ -449,9 +455,9 @@ bool ExecuteCommand(const std::string& command) {
         }
 
         py::object result = py::eval(command, scope.attr("__dict__"));
-        Logger::Instance().Log("Python", "INFO", ">>> " + command);
+        Logger::Instance().Log("Python", "INFO", ">>> " + command, false);
         if (!result.is_none()) {
-            Logger::Instance().Log("Python", "INFO", py::str(result).cast<std::string>());
+            Logger::Instance().Log("Python", "INFO", py::str(result).cast<std::string>(), false);
         }
         return true;
     } catch (const py::error_already_set& error) {

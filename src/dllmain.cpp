@@ -1,6 +1,7 @@
 #include "base/error_handling.h"
 
 #include "Py4GW.h"
+#include "base/CrashHandler.h"
 #include "base/logger.h"
 #include "base/process_manager.h"
 
@@ -23,6 +24,7 @@ BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID reserved) {
     case DLL_PROCESS_DETACH:
         if (reserved == nullptr) {
             Py4GW_Shutdown();
+            CrashHandler::Instance().Terminate();
         }
         break;
     default:

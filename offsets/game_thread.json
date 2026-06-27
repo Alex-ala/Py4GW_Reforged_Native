@@ -1,0 +1,11 @@
+{
+  "namespace": "game_thread",
+  "patterns": {
+    "leave_game_thread_target": {
+      "pattern": "\\x8B\\x75\\x08\\x57\\x8B\\x7D\\x0C\\xDD",
+      "mask": "xxxxxxxx",
+      "offset": "-0x20",
+      "section": "text"
+    }
+  }
+}

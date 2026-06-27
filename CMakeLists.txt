@@ -16,10 +16,16 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(PY4GW_BUILD_IMGUI_DEMO "Compile Dear ImGui demo sources." ON)
 
-# Match the original Py4GW workflow: build/ is the generator+intermediate tree,
-# bin/ is the runtime payload tree that you actually care about.
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin")
+# Keep the injected DLL beside the runtime payload directories so the module can
+# resolve fonts/, scripts/, and offsets/ directly from the repository root.
+set(PY4GW_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PY4GW_RUNTIME_OUTPUT_DIRECTORY}")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PY4GW_RUNTIME_OUTPUT_DIRECTORY}")
+
+foreach(config DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${config} "${PY4GW_RUNTIME_OUTPUT_DIRECTORY}")
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_${config} "${PY4GW_RUNTIME_OUTPUT_DIRECTORY}")
+endforeach()
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
 
@@ -85,15 +91,28 @@ target_link_libraries(imgui_addons PUBLIC imgui d3d9.lib)
 
 set(PY4GW_SOURCES
     src/base/file_scanner.cpp
+    src/base/memory_manager.cpp
+    src/base/memory_patcher.cpp
     src/base/panic.cpp
     src/GW/GuildWars.cpp
+    src/GW/camera/camera_methods.cpp
+    src/GW/camera/camera.cpp
+    src/GW/context/context.cpp
+    src/GW/context/skill.cpp
+    src/GW/effects/effects_methods.cpp
+    src/GW/effects/effects.cpp
+    src/GW/game_thread/game_thread_methods.cpp
+    src/GW/game_thread/game_thread.cpp
     src/GW/render/render_methods.cpp
     src/GW/render/render.cpp
+    src/GW/ui/ui.cpp
+    src/GW/ui/ui_methods.cpp
     src/base/hooker.cpp
     src/base/patterns.cpp
     src/base/CrashHandler.cpp
     src/dllmain.cpp
-    src/imgui/demo_ui.cpp
+    src/imgui/console_host_ui.cpp
+    src/imgui/test_ui.cpp
     src/imgui/compact_ui.cpp
     src/imgui/console_ui.cpp
     src/imgui/font_manager.cpp
@@ -105,10 +124,18 @@ set(PY4GW_SOURCES
     src/base/scanner.cpp
 )
 
+file(GLOB_RECURSE PY4GW_HEADERS CONFIGURE_DEPENDS
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp
+)
+
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${IMGUI_SOURCES})
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${PY4GW_SOURCES})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${PY4GW_HEADERS})
 
-add_library(Py4GW SHARED ${PY4GW_SOURCES})
+add_library(Py4GW SHARED ${PY4GW_SOURCES} ${PY4GW_HEADERS})
 
 set_target_properties(Py4GW PROPERTIES
     OUTPUT_NAME "Py4GW"
@@ -140,6 +167,7 @@ target_link_libraries(Py4GW
         Python3::Python
         d3d9.lib
         dbghelp.lib
+        winmm.lib
 )
 
 add_custom_command(TARGET Py4GW POST_BUILD

@@ -47,11 +47,7 @@ int GetIsFullscreen();
 uint32_t GetViewportWidth();
 uint32_t GetViewportHeight();
 Mat4x3f* GetTransform(Transform transform);
-// Forward-only parity placeholder:
-// Original RenderMgr exposes GetFieldOfView(), but the required CameraMgr/Camera
-// path has not been migrated yet, so the declaration stays commented out until
-// that dependency exists in this project.
-// float GetFieldOfView();
+float GetFieldOfView();
 
 RenderCallback GetRenderCallback();
 void SetRenderCallback(RenderCallback callback);
@@ -89,10 +85,12 @@ extern ResetFn g_reset_original;
 extern GetTransformFn g_get_transform_func;
 
 extern CRITICAL_SECTION g_render_lock;
+extern std::atomic<int> g_active_render_hooks;
 extern std::atomic<bool> g_in_render_loop;
 extern bool g_render_lock_initialized;
 extern bool g_hooks_enabled;
 extern std::atomic<bool> g_initialized;
+extern std::atomic<bool> g_shutting_down;
 
 extern RenderCallback g_render_callback;
 extern RenderCallback g_reset_callback;

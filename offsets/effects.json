@@ -1,0 +1,17 @@
+{
+  "namespace": "effects",
+  "patterns": {
+    "post_process_target": {
+      "pattern": "\\xD9\\x5D\\x0C\\xD9\\x45\\x0C\\x8D\\x45\\xF8",
+      "mask": "xxxxxxxxx",
+      "offset": "-0x1C",
+      "section": "text"
+    },
+    "drop_buff_callsite": {
+      "pattern": "\\xF6\\x40\\x04\\x01\\x74\\x10",
+      "mask": "xxxxxx",
+      "offset": "0x9",
+      "section": "text"
+    }
+  }
+}

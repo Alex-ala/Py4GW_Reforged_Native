@@ -1,0 +1,37 @@
+{
+  "namespace": "camera",
+  "patterns": {
+    "camera_ptr_anchor": {
+      "assertion_file": "GmCam.cpp",
+      "assertion_message": "fov",
+      "line_number": "0",
+      "offset": "0x0F",
+      "range": "0x0F",
+      "section": "text"
+    },
+    "camera_ptr_scan": {
+      "pattern": "\\xD9\\xEE\\xB9",
+      "mask": "xxx",
+      "offset": "0x3",
+      "section": "text"
+    },
+    "fog_patch": {
+      "pattern": "\\x83\\xE0\\x01\\x50\\x6A\\x1C\\xFF\\x75",
+      "mask": "xxxxxxxx",
+      "offset": "0x2",
+      "section": "text"
+    },
+    "camera_update_patch_vs2017": {
+      "pattern": "\\x89\\x0E\\xDD\\xD9\\x89\\x56\\x04\\xDD",
+      "mask": "xxxxxxxx",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "camera_update_patch_vs2022": {
+      "pattern": "\\x8B\\x45\\xE8\\x8B\\x4D\\xEC\\x8B\\x55\\xF0",
+      "mask": "xxxxxxxxx",
+      "offset": "0x0",
+      "section": "text"
+    }
+  }
+}

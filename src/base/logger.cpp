@@ -48,40 +48,49 @@ void Logger::SetLogFile(const std::string& file_path) {
     log_file_path_ = path.string();
 }
 
-bool Logger::LogInfo(const std::string& message) {
-    return WriteLog("Py4GW", "INFO", message);
+bool Logger::LogInfo(const std::string& message, bool export_to_disk) {
+    return WriteLog("Py4GW", "INFO", MessageType::Info, message, export_to_disk);
 }
 
-bool Logger::LogOk(const std::string& message) {
-    return WriteLog("Py4GW", "SUCCESS", message);
+bool Logger::LogOk(const std::string& message, bool export_to_disk) {
+    return WriteLog("Py4GW", "SUCCESS", MessageType::Success, message, export_to_disk);
 }
 
-bool Logger::LogHook(const std::string& message) {
-    return WriteLog("Py4GW", "HOOK", message);
+bool Logger::LogHook(const std::string& message, bool export_to_disk) {
+    return WriteLog("Py4GW", "HOOK", MessageType::Hook, message, export_to_disk);
 }
 
-bool Logger::LogDebug(const std::string& message) {
-    return WriteLog("Py4GW", "DEBUG", message);
+bool Logger::LogDebug(const std::string& message, bool export_to_disk) {
+    return WriteLog("Py4GW", "DEBUG", MessageType::Debug, message, export_to_disk);
 }
 
-bool Logger::LogNotice(const std::string& message) {
-    return WriteLog("Py4GW", "NOTICE", message);
+bool Logger::LogNotice(const std::string& message, bool export_to_disk) {
+    return WriteLog("Py4GW", "NOTICE", MessageType::Notice, message, export_to_disk);
 }
 
-bool Logger::LogWarning(const std::string& message) {
-    return WriteLog("Py4GW", "WARNING", message);
+bool Logger::LogPerformance(const std::string& message, bool export_to_disk) {
+    return WriteLog("Py4GW", "PERFORMANCE", MessageType::Performance, message, export_to_disk);
 }
 
-bool Logger::LogError(const std::string& message) {
-    return WriteLog("Py4GW", "ERROR", message);
+bool Logger::LogWarning(const std::string& message, bool export_to_disk) {
+    return WriteLog("Py4GW", "WARNING", MessageType::Warning, message, export_to_disk);
 }
 
-bool Logger::LogError(const std::string& message, const std::string& module_name) {
-    return WriteLog(module_name, "ERROR", message);
+bool Logger::LogError(const std::string& message, bool export_to_disk) {
+    return WriteLog("Py4GW", "ERROR", MessageType::Error, message, export_to_disk);
 }
 
-bool Logger::Log(const std::string& module_name, const std::string& level, const std::string& message) {
-    return WriteLog(module_name.empty() ? "Py4GW" : module_name, level, message);
+bool Logger::LogError(const std::string& message, const std::string& module_name, bool export_to_disk) {
+    return WriteLog(module_name, "ERROR", MessageType::Error, message, export_to_disk);
+}
+
+bool Logger::Log(const std::string& module_name, const std::string& level, const std::string& message, bool export_to_disk) {
+    const MessageType message_type = LevelToMessageType(level);
+    return WriteLog(module_name.empty() ? "Py4GW" : module_name, MessageTypeToLevel(message_type), message_type, message, export_to_disk);
+}
+
+bool Logger::Log(const std::string& module_name, MessageType message_type, const std::string& message, bool export_to_disk) {
+    return WriteLog(module_name.empty() ? "Py4GW" : module_name, MessageTypeToLevel(message_type), message_type, message, export_to_disk);
 }
 
 bool Logger::AssertAddress(const std::string& name, uintptr_t address) {
@@ -128,17 +137,44 @@ bool Logger::AssertHook(const std::string& name, int status, const std::string& 
     return true;
 }
 
-bool Logger::WriteLog(const std::string& module_name, const std::string& level, const std::string& message) {
+const char* Logger::MessageTypeToLevel(MessageType message_type) {
+    switch (message_type) {
+    case MessageType::Warning: return "WARNING";
+    case MessageType::Error: return "ERROR";
+    case MessageType::Debug: return "DEBUG";
+    case MessageType::Success: return "SUCCESS";
+    case MessageType::Performance: return "PERFORMANCE";
+    case MessageType::Notice: return "NOTICE";
+    case MessageType::Hook: return "HOOK";
+    case MessageType::Info:
+    default:
+        return "INFO";
+    }
+}
+
+MessageType Logger::LevelToMessageType(const std::string& level) {
+    if (level == "ERROR") return MessageType::Error;
+    if (level == "WARNING") return MessageType::Warning;
+    if (level == "SUCCESS") return MessageType::Success;
+    if (level == "DEBUG") return MessageType::Debug;
+    if (level == "PERFORMANCE") return MessageType::Performance;
+    if (level == "NOTICE") return MessageType::Notice;
+    if (level == "HOOK") return MessageType::Hook;
+    return MessageType::Info;
+}
+
+bool Logger::WriteLog(const std::string& module_name, const std::string& level, MessageType message_type, const std::string& message, bool export_to_disk) {
     std::lock_guard<std::mutex> lock(log_mutex_);
-    const std::string timestamp = GetTimestamp();
+    const std::string timestamp = GetTimestamp("%Y-%m-%d %H:%M:%S");
+    const std::string display_timestamp = GetTimestamp("%H:%M:%S");
     const std::string line = timestamp + " [" + module_name + "] [" + level + "] " + message;
-    entries_.push_back({ timestamp, module_name, level, message });
-    if (entries_.size() > 100) {
-        entries_.erase(entries_.begin(), entries_.begin() + (entries_.size() - 100));
+    entries_.push_back({ timestamp, display_timestamp, module_name, level, message_type, message });
+    if (entries_.size() > max_entries) {
+        entries_.erase(entries_.begin(), entries_.begin() + (entries_.size() - max_entries));
     }
 
     try {
-        if (!log_file_path_.empty()) {
+        if (export_to_disk && !log_file_path_.empty()) {
             std::ofstream log_file(log_file_path_, std::ios::out | std::ios::app);
             if (log_file.is_open()) {
                 log_file << line << std::endl;
@@ -149,14 +185,14 @@ bool Logger::WriteLog(const std::string& module_name, const std::string& level, 
     }
     catch (...) {
     }
-    return !log_file_path_.empty();
+    return true;
 }
 
-std::string Logger::GetTimestamp() const {
+std::string Logger::GetTimestamp(const char* format) const {
     auto now = std::time(nullptr);
     std::tm time_info = {};
     localtime_s(&time_info, &now);
     std::ostringstream timestamp;
-    timestamp << std::put_time(&time_info, "%Y-%m-%d %H:%M:%S");
+    timestamp << std::put_time(&time_info, format);
     return timestamp.str();
 }

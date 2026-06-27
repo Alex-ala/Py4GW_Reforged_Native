@@ -25,6 +25,7 @@ CMakeFiles/
 *.ilk
 *.idb
 *.exp
+*.pdb
 
 # Python cache
 __pycache__/

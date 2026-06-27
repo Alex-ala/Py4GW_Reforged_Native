@@ -18,6 +18,12 @@
       "mask": "xxxxxxx",
       "offset": "0x0",
       "section": "text"
+    },
+    "get_transform_target": {
+      "pattern": "\\x7C\\x14\\x68\\xDB\\x02\\x00\\x00",
+      "mask": "xxxxxxx",
+      "offset": "0x0",
+      "section": "text"
     }
   }
 }

@@ -27,6 +27,10 @@ char g_command_buffer[256] = {};
 char g_path_buffer[512] = {};
 bool g_auto_scroll = true;
 
+ImVec2 console_pos = ImVec2(5, 30);
+ImVec2 console_size = ImVec2(800, 700);
+bool console_collapsed = false;
+
 void ShowTooltipInternal(const char* tooltip_text) {
     if (ImGui::IsItemHovered()) {
         ImGui::BeginTooltip();
@@ -61,14 +65,25 @@ int TextEditCallback(ImGuiInputTextCallbackData* data) {
     return 0;
 }
 
-ImVec4 LevelColor(const std::string& level) {
-    if (level == "ERROR") return {1.0f, 0.0f, 0.0f, 1.0f};
-    if (level == "WARNING") return {1.0f, 1.0f, 0.0f, 1.0f};
-    if (level == "SUCCESS") return {0.0f, 1.0f, 0.0f, 1.0f};
-    if (level == "DEBUG") return {0.0f, 1.0f, 1.0f, 1.0f};
-    if (level == "NOTICE") return {0.6f, 1.0f, 0.6f, 1.0f};
-    if (level == "HOOK") return {0.0f, 1.0f, 1.0f, 1.0f};
-    return {1.0f, 1.0f, 1.0f, 1.0f};
+ImVec4 MessageTypeColor(MessageType message_type) {
+    switch (message_type) {
+    case MessageType::Error:
+        return {1.0f, 0.0f, 0.0f, 1.0f};// Red for errors
+    case MessageType::Warning:
+        return {1.0f, 1.0f, 0.0f, 1.0f};// Yellow for warnings
+    case MessageType::Success:
+        return {0.0f, 1.0f, 0.0f, 1.0f};// Green for success
+    case MessageType::Debug:
+    case MessageType::Hook:
+        return {0.0f, 1.0f, 1.0f, 1.0f};// Cyan for debug / hook
+    case MessageType::Performance: 
+        return {1.0f, 0.6f, 0.0f, 1.0f};// Orange for performance
+    case MessageType::Notice:
+        return {0.6f, 1.0f, 0.6f, 1.0f};// Light green for notices
+    case MessageType::Info:
+    default:
+        return {1.0f, 1.0f, 1.0f, 1.0f};// White for info
+    }
 }
 
 ImGui::FileBrowser& ScriptBrowser() {
@@ -91,7 +106,7 @@ void RenderScriptBrowser() {
     browser.Display();
     if (browser.HasSelected()) {
         python_runtime::SetSelectedScriptPath(browser.GetSelected().string());
-        Logger::Instance().LogInfo("Selected script: " + python_runtime::GetSelectedScriptPath());
+        Logger::Instance().LogInfo("Selected script: " + python_runtime::GetSelectedScriptPath(), false);
         browser.ClearSelected();
     }
 }
@@ -121,7 +136,7 @@ void SaveLogToDefaultFile() {
     for (const auto& entry : entries) {
         output << "[" << entry.timestamp << "] [" << entry.module_name << "] " << entry.message << "\n";
     }
-    Logger::Instance().LogNotice("Console log saved to " + output_path.string());
+    Logger::Instance().LogNotice("Console log saved to " + output_path.string(), false);
 }
 
 void RenderControls(bool* show_console, bool* show_compact_console) {
@@ -130,18 +145,22 @@ void RenderControls(bool* show_console, bool* show_compact_console) {
     if (ImGui::BeginTable("ScriptOptionsTable", 4, ImGuiTableFlags_SizingStretchProp)) {
         ImGui::TableNextRow();
 
+        // Script Path Input (disable if script is running)
         ImGui::TableSetColumnIndex(0);
         ImGui::SetNextItemWidth(-FLT_MIN);
+
         if (python_runtime::GetScriptState() == python_runtime::ScriptState::Running) {
             ImGui::BeginDisabled();
         }
-        if (ImGui::InputText("##Path", g_path_buffer, sizeof(g_path_buffer))) {
+        if (ImGui::InputText("##Path", g_path_buffer, IM_ARRAYSIZE(g_path_buffer))) {
             python_runtime::SetSelectedScriptPath(g_path_buffer);
         }
+
         if (python_runtime::GetScriptState() == python_runtime::ScriptState::Running) {
             ImGui::EndDisabled();
         }
 
+        // Browse Button (disable if script is running)
         ImGui::TableSetColumnIndex(1);
         if (python_runtime::GetScriptState() == python_runtime::ScriptState::Running) {
             ImGui::BeginDisabled();
@@ -154,6 +173,7 @@ void RenderControls(bool* show_console, bool* show_compact_console) {
         }
         ShowTooltipInternal("Select a Python script");
 
+        // Control Buttons (Load, Run, Pause, Stop)
         ImGui::TableSetColumnIndex(2);
         if (g_path_buffer[0] != '\0') {
             const auto state = python_runtime::GetScriptState();
@@ -181,13 +201,6 @@ void RenderControls(bool* show_console, bool* show_compact_console) {
             ShowTooltipInternal("Reset environment");
         }
 
-        ImGui::TableSetColumnIndex(3);
-        if (ImGui::Button(ICON_FA_WINDOW_MINIMIZE "##Compact")) {
-            *show_console = false;
-            *show_compact_console = true;
-        }
-        ShowTooltipInternal("Show compact console");
-
         ImGui::EndTable();
     }
 }
@@ -198,18 +211,21 @@ void RenderLog(bool* show_console, bool* show_compact_console) {
     if (ImGui::BeginTable("ConsoleControlsTable", 6, ImGuiTableFlags_SizingStretchProp)) {
         ImGui::TableNextRow();
 
+        // Clear Console Button
         ImGui::TableSetColumnIndex(0);
         if (ImGui::Button("Clear")) {
             Logger::Instance().ClearEntries();
         }
         ShowTooltipInternal("Clear the console output");
 
+        // Save Log Button
         ImGui::TableSetColumnIndex(1);
         if (ImGui::Button("Save Log")) {
             SaveLogToDefaultFile();
         }
         ShowTooltipInternal("Save console output to file");
 
+        // Copy All Button
         ImGui::TableSetColumnIndex(2);
         if (ImGui::Button("Copy All")) {
             CopyLogToClipboard();
@@ -220,7 +236,7 @@ void RenderLog(bool* show_console, bool* show_compact_console) {
         if (ImGui::Button(ICON_FA_WINDOW_MAXIMIZE "##MaximizeFULL")) {
             *show_console = false;
             *show_compact_console = true;
-            Logger::Instance().LogNotice("Toggled Compact Cosole.");
+            Logger::Instance().LogNotice("Toggled Compact Cosole.", false);
         }
         if (*show_console) {
             ShowTooltipInternal("Hide Console");
@@ -245,6 +261,8 @@ void RenderLog(bool* show_console, bool* show_compact_console) {
     }
 
     ImGui::Separator();
+
+    // Main console area with adjusted size for the status bar
     ImGui::BeginChild("ConsoleArea", ImVec2(0.0f, -ImGui::GetFrameHeightWithSpacing() * 2.0f), false, ImGuiWindowFlags_HorizontalScrollbar);
 
     if (ImGui::BeginPopupContextWindow()) {
@@ -254,23 +272,24 @@ void RenderLog(bool* show_console, bool* show_compact_console) {
         ImGui::EndPopup();
     }
 
+    // Display each log entry with different colors
     for (const auto& entry : entries) {
-        const std::string full_message = "[" + entry.timestamp + "] [" + entry.module_name + "] " + entry.message;
+        const std::string full_message = "[" + entry.display_timestamp + "] [" + entry.module_name + "] " + entry.message;
         if (!g_log_filter.PassFilter(full_message.c_str())) {
             continue;
         }
 
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f));
-        ImGui::Text("[%s]", entry.timestamp.c_str());
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f));// Gray for timestamp
+        ImGui::Text("[%s]", entry.display_timestamp.c_str());
         ImGui::PopStyleColor();
         ImGui::SameLine();
 
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.75f, 1.0f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.75f, 1.0f, 1.0f)); // Light blue for module name
         ImGui::Text("[%s]", entry.module_name.c_str());
         ImGui::PopStyleColor();
         ImGui::SameLine();
 
-        ImGui::PushStyleColor(ImGuiCol_Text, LevelColor(entry.level));
+        ImGui::PushStyleColor(ImGuiCol_Text, MessageTypeColor(entry.message_type));
         ImGui::TextUnformatted(entry.message.c_str());
         ImGui::PopStyleColor();
     }
@@ -303,18 +322,24 @@ void RenderCommandInput() {
 
 }  // namespace
 
-void Render(bool* show_console, bool* show_compact_console) {
-    ImGui::SetNextWindowSize(ImVec2(860.0f, 620.0f), ImGuiCond_FirstUseEver);
+void RenderFullConsole(bool* show_console, bool* show_compact_console) {
+    ImGui::SetNextWindowPos(console_pos, ImGuiCond_Once);
+    ImGui::SetNextWindowSize(console_size, ImGuiCond_Once);
+    ImGui::SetNextWindowCollapsed(console_collapsed, ImGuiCond_Once);
+
+
+
     if (!ImGui::Begin("Py4GW Console", show_console)) {
         ImGui::End();
-        RenderScriptBrowser();
+        //RenderScriptBrowser();
         return;
     }
 
     RenderControls(show_console, show_compact_console);
     RenderLog(show_console, show_compact_console);
-    RenderCommandInput();
+    //RenderCommandInput();
 
+    // Get current time from the custom timer
     const auto state = python_runtime::GetScriptState();
     const double elapsed_time_ms = python_runtime::GetScriptElapsedMilliseconds();
     const int minutes = static_cast<int>(elapsed_time_ms) / 60000;

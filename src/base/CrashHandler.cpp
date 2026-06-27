@@ -4,7 +4,6 @@
 
 #include "base/panic.h"
 #include "base/hooker.h"
-#include "base/patterns.h"
 #include "base/process_manager.h"
 #include "base/scanner.h"
 #include "base/logger.h"
@@ -18,8 +17,10 @@ namespace {
 volatile LONG s_handling = 0;
 bool s_installed = false;
 LPTOP_LEVEL_EXCEPTION_FILTER s_prev_filter = nullptr;
+PVOID s_vectored_handler = nullptr;
 uintptr_t s_append_stack_fn = 0;
 void* s_append_stack_orig = nullptr;
+bool s_symbols_ready = false;
 DWORD s_prev_policy = 0;
 bool s_policy_changed = false;
 
@@ -33,6 +34,10 @@ char s_panic_message[1024] = {0};
 char s_panic_file[260] = {0};
 char s_panic_function[128] = {0};
 unsigned int s_panic_line = 0;
+char s_context_phase[64] = {0};
+char s_context_module[64] = {0};
+char s_context_operation[128] = {0};
+char s_context_detail[256] = {0};
 
 const char* ExceptionLabel(DWORD code) {
     switch (code) {
@@ -46,6 +51,47 @@ const char* ExceptionLabel(DWORD code) {
     case 0xE06D7363: return "cpp_exception";
     case 0x80000003: return "breakpoint";
     default: return "exception";
+    }
+}
+
+const char* SourceLabel(const char* source) {
+    if (!source) {
+        return "unknown";
+    }
+    if (strcmp(source, "veh") == 0) {
+        return "vectored_exception_handler";
+    }
+    if (strcmp(source, "seh") == 0) {
+        return "structured_exception_handler";
+    }
+    if (strcmp(source, "gw_engine") == 0) {
+        return "guild_wars_crash_handler";
+    }
+    if (strcmp(source, "panic") == 0) {
+        return "py4gw_panic_handler";
+    }
+    return source;
+}
+
+bool ShouldWriteDumpForSource(const char* source) {
+    if (!source) {
+        return false;
+    }
+    return strcmp(source, "panic") == 0 || strcmp(source, "seh") == 0;
+}
+
+bool IsCrashCandidate(DWORD code) {
+    switch (code) {
+    case EXCEPTION_ACCESS_VIOLATION:
+    case EXCEPTION_STACK_OVERFLOW:
+    case EXCEPTION_ILLEGAL_INSTRUCTION:
+    case EXCEPTION_INT_DIVIDE_BY_ZERO:
+    case EXCEPTION_PRIV_INSTRUCTION:
+    case EXCEPTION_IN_PAGE_ERROR:
+    case 0xC0000409:
+        return true;
+    default:
+        return false;
     }
 }
 
@@ -157,6 +203,45 @@ CrashHandler& CrashHandler::Instance() {
     return instance;
 }
 
+CrashContextScope::CrashContextScope(const char* phase, const char* module, const char* operation, const char* detail) {
+    snapshot_ = CrashHandler::CaptureContext();
+    CrashHandler::SetContext(phase, module, operation, detail);
+}
+
+CrashContextScope::~CrashContextScope() {
+    CrashHandler::RestoreContext(snapshot_);
+}
+
+void CrashHandler::SetContext(const char* phase, const char* module, const char* operation, const char* detail) {
+    strncpy_s(s_context_phase, phase ? phase : "", _TRUNCATE);
+    strncpy_s(s_context_module, module ? module : "", _TRUNCATE);
+    strncpy_s(s_context_operation, operation ? operation : "", _TRUNCATE);
+    strncpy_s(s_context_detail, detail ? detail : "", _TRUNCATE);
+}
+
+void CrashHandler::ClearContext() {
+    s_context_phase[0] = 0;
+    s_context_module[0] = 0;
+    s_context_operation[0] = 0;
+    s_context_detail[0] = 0;
+}
+
+CrashContextSnapshot CrashHandler::CaptureContext() {
+    CrashContextSnapshot snapshot;
+    strncpy_s(snapshot.phase.data(), snapshot.phase.size(), s_context_phase, _TRUNCATE);
+    strncpy_s(snapshot.module.data(), snapshot.module.size(), s_context_module, _TRUNCATE);
+    strncpy_s(snapshot.operation.data(), snapshot.operation.size(), s_context_operation, _TRUNCATE);
+    strncpy_s(snapshot.detail.data(), snapshot.detail.size(), s_context_detail, _TRUNCATE);
+    return snapshot;
+}
+
+void CrashHandler::RestoreContext(const CrashContextSnapshot& snapshot) {
+    strncpy_s(s_context_phase, snapshot.phase.data(), _TRUNCATE);
+    strncpy_s(s_context_module, snapshot.module.data(), _TRUNCATE);
+    strncpy_s(s_context_operation, snapshot.operation.data(), _TRUNCATE);
+    strncpy_s(s_context_detail, snapshot.detail.data(), _TRUNCATE);
+}
+
 std::string CrashHandler::CrashDirUtf8() const {
     return s_crash_dir_utf8;
 }
@@ -196,7 +281,10 @@ void CrashHandler::Initialize() {
     EnsureCrashDir();
     ClearCallbackFilterPolicy();
     ::SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
+    ::SymSetOptions(SYMOPT_UNDNAME | SYMOPT_LOAD_LINES | SYMOPT_DEFERRED_LOADS);
+    s_symbols_ready = !!::SymInitialize(::GetCurrentProcess(), nullptr, TRUE);
     py4gw::RegisterPanicHandler(&CrashHandler::OnPanic, this);
+    s_vectored_handler = ::AddVectoredExceptionHandler(1, &CrashHandler::VectoredHandler);
     InstallPathA();
     InstallPathC();
     Logger::Instance().LogInfo("[CrashHandler] installed.");
@@ -213,6 +301,14 @@ void CrashHandler::Terminate() {
         py4gw::HookBase::RemoveHook(reinterpret_cast<void*>(s_append_stack_fn));
         s_append_stack_fn = 0;
         s_append_stack_orig = nullptr;
+    }
+    if (s_vectored_handler) {
+        ::RemoveVectoredExceptionHandler(s_vectored_handler);
+        s_vectored_handler = nullptr;
+    }
+    if (s_symbols_ready) {
+        ::SymCleanup(::GetCurrentProcess());
+        s_symbols_ready = false;
     }
     ::SetUnhandledExceptionFilter(s_prev_filter);
     py4gw::RegisterPanicHandler(nullptr, nullptr);
@@ -264,29 +360,15 @@ void CrashHandler::InstallPathA() {
 }
 
 void CrashHandler::InstallPathC() {
-    const auto* pattern = py4gw::Patterns::Get("crash.append_stack_anchor");
-    if (!pattern) {
-        Logger::Instance().LogWarning("[CrashHandler] Missing pattern: crash.append_stack_anchor");
-        return;
-    }
-
-    const uintptr_t anchor = py4gw::Scanner::Find(
-        pattern->pattern.c_str(),
-        pattern->mask.c_str(),
-        pattern->offset,
-        pattern->section);
-    if (!Logger::AssertAddress("append_stack_anchor", anchor, "crash")) {
-        return;
-    }
-
-    const uintptr_t use = py4gw::Scanner::FindUseOfAddress(anchor, 0, py4gw::ScannerSection::Text);
+    const uintptr_t use = py4gw::Scanner::FindUseOfString("%p  %08x %08x %08x %08x ");
     if (!Logger::AssertAddress("append_stack_anchor_use", use, "crash")) {
+        Logger::Instance().LogWarning("[CrashHandler] Path C anchor miss; SEH/VEH only.");
         return;
     }
 
-    s_append_stack_fn = py4gw::Scanner::ToFunctionStart(use, 0x0fff);
+    s_append_stack_fn = py4gw::Scanner::ToFunctionStart(use, 0xFFF);
     if (!Logger::AssertAddress("append_stack_target", s_append_stack_fn, "crash")) {
-        Logger::Instance().LogWarning("[CrashHandler] Path C prologue miss; SEH only.");
+        Logger::Instance().LogWarning("[CrashHandler] Path C prologue miss; SEH/VEH only.");
         return;
     }
 
@@ -306,6 +388,20 @@ void CrashHandler::InstallPathC() {
 LONG WINAPI CrashHandler::TopLevelFilter(EXCEPTION_POINTERS* info) {
     Instance().OnException(info, "seh", false);
     return EXCEPTION_EXECUTE_HANDLER;
+}
+
+LONG WINAPI CrashHandler::VectoredHandler(EXCEPTION_POINTERS* info) {
+    if (!s_installed || !info || !info->ExceptionRecord) {
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
+    if (!IsCrashCandidate(info->ExceptionRecord->ExceptionCode)) {
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
+    if (::InterlockedCompareExchange(&s_handling, 0, 0) != 0) {
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
+    Instance().OnException(info, "veh", true);
+    return EXCEPTION_CONTINUE_SEARCH;
 }
 
 void CrashHandler::OnPanic(
@@ -354,6 +450,8 @@ uintptr_t __cdecl CrashHandler::AppendStackDetour(void* debug_info, uint32_t a2,
 }
 
 bool CrashHandler::OnException(EXCEPTION_POINTERS* info, const char* source, bool recoverable) {
+    const char* source_label = SourceLabel(source);
+    const bool write_dump = ShouldWriteDumpForSource(source);
     if (::InterlockedCompareExchange(&s_handling, 1, 0) != 0) {
         if (!recoverable) {
             ::TerminateProcess(::GetCurrentProcess(), 1);
@@ -365,12 +463,16 @@ bool CrashHandler::OnException(EXCEPTION_POINTERS* info, const char* source, boo
         wchar_t stem[MAX_PATH] = {};
         wchar_t dump_path[MAX_PATH] = {};
         wchar_t json_path[MAX_PATH] = {};
+        wchar_t stack_path[MAX_PATH] = {};
         BuildStem(stem, MAX_PATH);
         _snwprintf_s(dump_path, MAX_PATH, _TRUNCATE, L"%s.dmp", stem);
         _snwprintf_s(json_path, MAX_PATH, _TRUNCATE, L"%s.json", stem);
+        _snwprintf_s(stack_path, MAX_PATH, _TRUNCATE, L"%s-stack.txt", stem);
 
         const wchar_t* dump_name = wcsrchr(dump_path, L'\\');
         dump_name = dump_name ? dump_name + 1 : dump_path;
+        const wchar_t* stack_name = wcsrchr(stack_path, L'\\');
+        stack_name = stack_name ? stack_name + 1 : stack_path;
 
         wchar_t gw_text_path[MAX_PATH] = {};
         const wchar_t* gw_text_name = L"";
@@ -387,13 +489,16 @@ bool CrashHandler::OnException(EXCEPTION_POINTERS* info, const char* source, boo
             sizeof(comment),
             _TRUNCATE,
             "Py4GW | %s | 0x%08lX | panic:%s | %s",
-            source,
+            source_label,
             static_cast<unsigned long>(code),
             s_panic_expr[0] ? s_panic_expr : "?",
             s_panic_message[0] ? s_panic_message : "");
 
-        WriteSidecar(info, json_path, dump_name, gw_text_name, source);
-        WriteDump(info, dump_path, comment);
+        WriteStackTrace(info, stack_path);
+        WriteSidecar(info, json_path, dump_name, gw_text_name, stack_name, source_label, write_dump);
+        if (write_dump) {
+            WriteDump(info, dump_path, comment);
+        }
         if (gw_text_path[0]) {
             WriteGwText(gw_text_path, s_gw_text);
         }
@@ -403,14 +508,20 @@ bool CrashHandler::OnException(EXCEPTION_POINTERS* info, const char* source, boo
             dump_name_u8[0] = 0;
         }
         char log_line[320] = {};
+        const char* artifact_name = nullptr;
+        if (write_dump) {
+            artifact_name = dump_name_u8;
+        } else {
+            artifact_name = "json/stack sidecars";
+        }
         _snprintf_s(
             log_line,
             sizeof(log_line),
             _TRUNCATE,
             "CRASH %s 0x%08lX -> see crashes\\%s\r\n",
-            source,
+            source_label,
             static_cast<unsigned long>(code),
-            dump_name_u8);
+            artifact_name);
         AppendInjectionLog(log_line);
     }
 
@@ -422,7 +533,7 @@ bool CrashHandler::OnException(EXCEPTION_POINTERS* info, const char* source, boo
 
 void CrashHandler::WriteSidecar(EXCEPTION_POINTERS* info, const wchar_t* json_path,
                                 const wchar_t* dmp_name, const wchar_t* gwtext_name,
-                                const char* source) {
+                                const wchar_t* stack_name, const char* source, bool dump_generated) {
     HANDLE file = ::CreateFileW(json_path, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (file == INVALID_HANDLE_VALUE) {
         return;
@@ -435,10 +546,15 @@ void CrashHandler::WriteSidecar(EXCEPTION_POINTERS* info, const wchar_t* json_pa
     char escaped_dump[160] = {};
     char escaped_gw[1100] = {};
     char escaped_gw_name[MAX_PATH] = {};
+    char escaped_stack_name[MAX_PATH] = {};
     char escaped_panic_expr[600] = {};
     char escaped_panic_message[1200] = {};
     char escaped_panic_file[320] = {};
     char escaped_panic_function[180] = {};
+    char escaped_context_phase[96] = {};
+    char escaped_context_module[96] = {};
+    char escaped_context_operation[160] = {};
+    char escaped_context_detail[320] = {};
 
     char dump_u8[MAX_PATH] = {};
     if (::WideCharToMultiByte(CP_UTF8, 0, dmp_name, -1, dump_u8, sizeof(dump_u8), nullptr, nullptr) > 0) {
@@ -449,35 +565,158 @@ void CrashHandler::WriteSidecar(EXCEPTION_POINTERS* info, const wchar_t* json_pa
     JsonEscape(escaped_panic_message, sizeof(escaped_panic_message), s_panic_message);
     JsonEscape(escaped_panic_file, sizeof(escaped_panic_file), s_panic_file);
     JsonEscape(escaped_panic_function, sizeof(escaped_panic_function), s_panic_function);
+    JsonEscape(escaped_context_phase, sizeof(escaped_context_phase), s_context_phase);
+    JsonEscape(escaped_context_module, sizeof(escaped_context_module), s_context_module);
+    JsonEscape(escaped_context_operation, sizeof(escaped_context_operation), s_context_operation);
+    JsonEscape(escaped_context_detail, sizeof(escaped_context_detail), s_context_detail);
     if (gwtext_name && gwtext_name[0]) {
         char gw_name_u8[MAX_PATH] = {};
         if (::WideCharToMultiByte(CP_UTF8, 0, gwtext_name, -1, gw_name_u8, sizeof(gw_name_u8), nullptr, nullptr) > 0) {
             JsonEscape(escaped_gw_name, sizeof(escaped_gw_name), gw_name_u8);
         }
     }
+    if (stack_name && stack_name[0]) {
+        char stack_name_u8[MAX_PATH] = {};
+        if (::WideCharToMultiByte(CP_UTF8, 0, stack_name, -1, stack_name_u8, sizeof(stack_name_u8), nullptr, nullptr) > 0) {
+            JsonEscape(escaped_stack_name, sizeof(escaped_stack_name), stack_name_u8);
+        }
+    }
 
     char buffer[4096] = {};
     JBuf json{ buffer, buffer + sizeof(buffer) };
-    JAppend(json, "{\"source\":\"%s\",\"crash_class\":\"%s\",", source, ExceptionLabel(code));
-    JAppend(json, "\"exception_code\":\"0x%08lX\",\"fault_address\":\"0x%08lX\",",
-            static_cast<unsigned long>(code),
+    JAppend(json, "{\n");
+    JAppend(json, "  \"source\": \"%s\",\n", source);
+    JAppend(json, "  \"crash_class\": \"%s\",\n", ExceptionLabel(code));
+    JAppend(json, "  \"exception_code\": \"0x%08lX\",\n", static_cast<unsigned long>(code));
+    JAppend(json, "  \"fault_address\": \"0x%08lX\",\n",
             static_cast<unsigned long>(address));
-    JAppend(json, "\"faulting_tid\":%lu,\"dump_file\":\"%s\"", ::GetCurrentThreadId(), escaped_dump);
+    JAppend(json, "  \"faulting_tid\": %lu,\n", ::GetCurrentThreadId());
+    JAppend(json, "  \"dump_generated\": %s,\n", dump_generated ? "true" : "false");
+    JAppend(json, "  \"dump_file\": \"%s\"", escaped_dump);
     if (escaped_gw_name[0]) {
-        JAppend(json, ",\"gw_text_file\":\"%s\"", escaped_gw_name);
+        JAppend(json, ",\n  \"gw_text_file\": \"%s\"", escaped_gw_name);
     }
-    JAppend(
-        json,
-        ",\"panic\":{\"expr\":\"%s\",\"message\":\"%s\",\"file\":\"%s\",\"line\":%u,\"function\":\"%s\"},\"gw_text\":\"%s\"}\n",
-        escaped_panic_expr,
-        escaped_panic_message,
-        escaped_panic_file,
-        s_panic_line,
-        escaped_panic_function,
-        escaped_gw);
+    if (escaped_stack_name[0]) {
+        JAppend(json, ",\n  \"stack_trace_file\": \"%s\"", escaped_stack_name);
+    }
+    JAppend(json, ",\n");
+    JAppend(json, "  \"panic\": {\n");
+    JAppend(json, "    \"expr\": \"%s\",\n", escaped_panic_expr);
+    JAppend(json, "    \"message\": \"%s\",\n", escaped_panic_message);
+    JAppend(json, "    \"file\": \"%s\",\n", escaped_panic_file);
+    JAppend(json, "    \"line\": %u,\n", s_panic_line);
+    JAppend(json, "    \"function\": \"%s\"\n", escaped_panic_function);
+    JAppend(json, "  },\n");
+    JAppend(json, "  \"context\": {\n");
+    JAppend(json, "    \"phase\": \"%s\",\n", escaped_context_phase);
+    JAppend(json, "    \"module\": \"%s\",\n", escaped_context_module);
+    JAppend(json, "    \"operation\": \"%s\",\n", escaped_context_operation);
+    JAppend(json, "    \"detail\": \"%s\"\n", escaped_context_detail);
+    JAppend(json, "  },\n");
+    JAppend(json, "  \"gw_text\": \"%s\"\n", escaped_gw);
+    JAppend(json, "}\n");
 
     DWORD written = 0;
     ::WriteFile(file, buffer, static_cast<DWORD>(json.p - buffer), &written, nullptr);
+    ::CloseHandle(file);
+}
+
+void CrashHandler::WriteStackTrace(EXCEPTION_POINTERS* info, const wchar_t* stack_path) {
+    HANDLE file = ::CreateFileW(stack_path, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (file == INVALID_HANDLE_VALUE) {
+        return;
+    }
+
+    if (!info || !info->ContextRecord || !s_symbols_ready) {
+        const char* message = "Stack trace unavailable.\r\n";
+        DWORD written = 0;
+        ::WriteFile(file, message, static_cast<DWORD>(strlen(message)), &written, nullptr);
+        ::CloseHandle(file);
+        return;
+    }
+
+    CONTEXT context = *info->ContextRecord;
+    STACKFRAME64 frame = {};
+    DWORD machine = IMAGE_FILE_MACHINE_I386;
+    frame.AddrPC.Offset = context.Eip;
+    frame.AddrPC.Mode = AddrModeFlat;
+    frame.AddrFrame.Offset = context.Ebp;
+    frame.AddrFrame.Mode = AddrModeFlat;
+    frame.AddrStack.Offset = context.Esp;
+    frame.AddrStack.Mode = AddrModeFlat;
+
+    HANDLE process = ::GetCurrentProcess();
+    HANDLE thread = ::GetCurrentThread();
+    char line[1024] = {};
+    DWORD written = 0;
+    for (int index = 0; index < 32; ++index) {
+        if (!::StackWalk64(
+                machine,
+                process,
+                thread,
+                &frame,
+                &context,
+                nullptr,
+                ::SymFunctionTableAccess64,
+                ::SymGetModuleBase64,
+                nullptr) ||
+            frame.AddrPC.Offset == 0) {
+            break;
+        }
+
+        char symbol_buffer[sizeof(SYMBOL_INFO) + 256] = {};
+        auto* symbol = reinterpret_cast<SYMBOL_INFO*>(symbol_buffer);
+        symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+        symbol->MaxNameLen = 255;
+        DWORD64 displacement = 0;
+        IMAGEHLP_LINE64 line_info = {};
+        line_info.SizeOfStruct = sizeof(IMAGEHLP_LINE64);
+        DWORD line_displacement = 0;
+        const BOOL have_symbol = ::SymFromAddr(process, frame.AddrPC.Offset, &displacement, symbol);
+        const BOOL have_line = ::SymGetLineFromAddr64(process, frame.AddrPC.Offset, &line_displacement, &line_info);
+
+        char module_name[MAX_PATH] = "<unknown>";
+        if (DWORD64 module_base = ::SymGetModuleBase64(process, frame.AddrPC.Offset)) {
+            ::GetModuleFileNameA(reinterpret_cast<HMODULE>(module_base), module_name, MAX_PATH);
+        }
+
+        if (have_symbol && have_line) {
+            _snprintf_s(
+                line,
+                sizeof(line),
+                _TRUNCATE,
+                "#%02d 0x%08llX %s!%s +0x%llX (%s:%lu)\r\n",
+                index,
+                frame.AddrPC.Offset,
+                module_name,
+                symbol->Name,
+                displacement,
+                line_info.FileName,
+                line_info.LineNumber);
+        } else if (have_symbol) {
+            _snprintf_s(
+                line,
+                sizeof(line),
+                _TRUNCATE,
+                "#%02d 0x%08llX %s!%s +0x%llX\r\n",
+                index,
+                frame.AddrPC.Offset,
+                module_name,
+                symbol->Name,
+                displacement);
+        } else {
+            _snprintf_s(
+                line,
+                sizeof(line),
+                _TRUNCATE,
+                "#%02d 0x%08llX %s\r\n",
+                index,
+                frame.AddrPC.Offset,
+                module_name);
+        }
+        ::WriteFile(file, line, static_cast<DWORD>(strlen(line)), &written, nullptr);
+    }
+
     ::CloseHandle(file);
 }
 

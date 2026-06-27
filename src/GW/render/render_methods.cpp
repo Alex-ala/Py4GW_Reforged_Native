@@ -1,6 +1,10 @@
 #include "base/error_handling.h"
 
+#include "base/CrashHandler.h"
+#include "GW/camera/camera_methods.h"
 #include "GW/render/render_methods.h"
+
+#include <cmath>
 
 namespace gw::render {
 
@@ -13,10 +17,12 @@ ResetFn g_reset_original = nullptr;
 GetTransformFn g_get_transform_func = nullptr;
 
 CRITICAL_SECTION g_render_lock;
+std::atomic<int> g_active_render_hooks = 0;
 std::atomic<bool> g_in_render_loop = false;
 bool g_render_lock_initialized = false;
 bool g_hooks_enabled = false;
 std::atomic<bool> g_initialized = false;
+std::atomic<bool> g_shutting_down = false;
 
 RenderCallback g_render_callback = nullptr;
 RenderCallback g_reset_callback = nullptr;
@@ -61,30 +67,33 @@ Mat4x3f* GetTransform(Transform transform) {
     return g_get_transform_func ? g_get_transform_func(static_cast<int>(transform)) : nullptr;
 }
 
-/*
-float GetFieldOfView()
-{
-    // Original RenderMgr implementation:
-    // const Camera* cam = CameraMgr::GetCamera();
-    // if (!cam) return 0.f;
-    // constexpr float dividend = 2.f/3.f + 1.f;
-    // return atan2(1.0f, dividend / tan(cam->GetFieldOfView() * 0.5f)) * 2.0f;
-}
+float GetFieldOfView() {
+    const camera::Camera* camera = camera::GetCamera();
+    if (!camera) {
+        return 0.0f;
+    }
 
-Forward parity note:
-- This function is intentionally left commented out until CameraMgr/Camera are migrated.
-- Keeping the original shape here is preferable to shipping a fake implementation that returns 0.
-*/
+    constexpr float kDividend = 2.0f / 3.0f + 1.0f;
+    return std::atan2(1.0f, kDividend / std::tan(camera->GetFieldOfView() * 0.5f)) * 2.0f;
+}
 
 RenderCallback GetRenderCallback() {
     return g_render_callback;
 }
 
 void SetRenderCallback(RenderCallback callback) {
+    CrashContextScope context("runtime", "render", "set_render_callback", callback ? "assign" : "clear");
+    if (g_shutting_down && callback) {
+        return;
+    }
     g_render_callback = callback;
 }
 
 void SetResetCallback(RenderCallback callback) {
+    CrashContextScope context("runtime", "render", "set_reset_callback", callback ? "assign" : "clear");
+    if (g_shutting_down && callback) {
+        return;
+    }
     g_reset_callback = callback;
 }
 

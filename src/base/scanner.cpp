@@ -16,12 +16,17 @@ py4gw::FileScanner fileScanner;
 
 uintptr_t section_offset_from_disk = 0;
 py4gw::ScannerSectionRange mem_sections[static_cast<size_t>(py4gw::ScannerSection::Count)] = {};
+bool g_initialized = false;
 
 }
 
 namespace py4gw {
 
 bool Scanner::Initialize(HMODULE hModule) {
+    if (g_initialized) {
+        return true;
+    }
+
     if (!hModule) {
         hModule = GetModuleHandleW(nullptr);
         if (!hModule) {
@@ -70,6 +75,7 @@ bool Scanner::Initialize(HMODULE hModule) {
     section_offset_from_disk =
         fileScanner.sections[static_cast<size_t>(ScannerSection::Text)].start -
         mem_sections[static_cast<size_t>(ScannerSection::Text)].start;
+    g_initialized = true;
     return true;
 }
 

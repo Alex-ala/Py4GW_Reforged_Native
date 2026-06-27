@@ -6,8 +6,10 @@
 #include "base/CrashHandler.h"
 #include "imgui/imgui_manager.h"
 #include "base/logger.h"
+#include "base/patterns.h"
 #include "base/process_manager.h"
 #include "base/python_runtime.h"
+#include "base/scanner.h"
 
 #include <d3d9.h>
 #include <mutex>
@@ -36,7 +38,7 @@ void BeginShutdown() {
 }
 
 void UpdateLoopStep() {
-    py4gw::python_runtime::Update();
+    py4gw::python_runtime::ExecutePythonUpdate();
     ::Sleep(10);
 }
 
@@ -48,11 +50,11 @@ void DrawLoop(IDirect3DDevice9* device) {
         return;
     }
 
-    py4gw::python_runtime::Draw();
+    py4gw::python_runtime::ExecutePythonDraw();
     py4gw::python_runtime::ProcessDeferredActions();
 
     bool request_shutdown = false;
-    py4gw::imgui::RenderDemoUi(&request_shutdown);
+    py4gw::imgui::RenderConsoleUi(&request_shutdown);
     py4gw::imgui::EndFrame(device);
 }
 
@@ -72,18 +74,39 @@ bool Py4GW_Initialize() {
 
     Logger::Instance().SetLogFile("Py4GW_injection_log.txt");
     g_shutdown_requested = false;
-
-    if (!py4gw::python_runtime::Initialize()) {
+    CrashHandler::SetContext("startup", "bootstrap", "scanner_initialize");
+    Logger::Instance().LogInfo("Initializing scanner.");
+    if (!py4gw::Scanner::Initialize()) {
+        Logger::Instance().LogError("Scanner initialization failed.");
         return false;
     }
 
+    CrashHandler::SetContext("startup", "bootstrap", "patterns_initialize");
+    Logger::Instance().LogInfo("Initializing patterns.");
+    if (!py4gw::Patterns::Initialize()) {
+        Logger::Instance().LogError("Pattern initialization failed.");
+        return false;
+    }
+
+    CrashHandler::SetContext("startup", "python_runtime", "initialize");
+    Logger::Instance().LogInfo("Initializing Python runtime.");
+    if (!py4gw::python_runtime::Initialize()) {
+        Logger::Instance().LogError("Python runtime initialization failed.");
+        return false;
+    }
+
+    CrashHandler::SetContext("startup", "gw", "initialize");
+    Logger::Instance().LogInfo("Initializing Guild Wars modules.");
     if (!gw::Initialize()) {
         Logger::Instance().LogError("Guild Wars hook initialization failed.");
         py4gw::python_runtime::Shutdown();
         return false;
     }
 
+    CrashHandler::SetContext("startup", "crash_handler", "initialize");
+    Logger::Instance().LogInfo("Initializing crash handler.");
     CrashHandler::Instance().Initialize();
+    CrashHandler::SetContext("runtime", "bootstrap", "initialized");
 
     py4gw::imgui::SetShutdownCallback(&BeginShutdown);
     gw::render::SetResetCallback(&OnReset);
@@ -105,12 +128,18 @@ void Py4GW_Shutdown() {
     gw::render::SetRenderCallback(nullptr);
     gw::render::SetResetCallback(nullptr);
 
-    CrashHandler::Instance().Terminate();
+    CrashHandler::SetContext("shutdown", "imgui", "shutdown");
+    Logger::Instance().LogInfo("Shutting down ImGui.");
     py4gw::imgui::Shutdown();
+    CrashHandler::SetContext("shutdown", "gw", "shutdown");
+    Logger::Instance().LogInfo("Shutting down Guild Wars modules.");
     gw::Shutdown();
+    CrashHandler::SetContext("shutdown", "python_runtime", "shutdown");
+    Logger::Instance().LogInfo("Shutting down Python runtime.");
     py4gw::python_runtime::Shutdown();
     g_running = false;
     g_shutdown_requested = false;
+    CrashHandler::SetContext("shutdown", "bootstrap", "shutdown_complete");
     Logger::Instance().LogInfo("Py4GW shutdown complete.");
 }
 

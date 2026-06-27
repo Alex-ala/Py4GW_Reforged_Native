@@ -1,0 +1,47 @@
+{
+  "namespace": "memory",
+  "patterns": {
+    "skill_timer_anchor": {
+      "assertion_file": "\\Code\\Gw\\Download\\DnArchive.cpp",
+      "assertion_message": "dlg",
+      "line_number": "0",
+      "offset": "0x0F"
+    },
+    "window_handle_ptr": {
+      "pattern": "\\x83\\xC4\\x04\\x83\\x3D\\x00\\x00\\x00\\x00\\x00\\x75\\x31",
+      "mask": "xxxxx????xxx",
+      "offset": "-0x0C",
+      "section": "text"
+    },
+    "personal_dir_target": {
+      "assertion_file": "\\Code\\Base\\Os\\Win32\\OsAnsi.cpp",
+      "assertion_message": "chars>=MAX_PATH",
+      "line_number": "0",
+      "offset": "-0x24"
+    },
+    "gw_version_anchor": {
+      "assertion_file": "\\Code\\Engine\\Event\\EvtRec.cpp",
+      "assertion_message": "filename",
+      "line_number": "0",
+      "offset": "0x4B"
+    },
+    "mem_alloc_helper": {
+      "pattern": "\\x57\\xE8\\x00\\x00\\x00\\x00\\x8B\\xF0\\x83\\xC4\\x04\\x85\\xF6\\x75\\x00\\x8B",
+      "mask": "xx????xxxxxxxx?x",
+      "offset": "0",
+      "section": "text"
+    },
+    "mem_realloc_helper": {
+      "pattern": "\\x56\\xE8\\x00\\x00\\x00\\x00\\x8B\\xF8\\x83\\xC4\\x04\\x85\\xFF\\x75\\x00\\x8B",
+      "mask": "xx????xxxxxxxx?x",
+      "offset": "0",
+      "section": "text"
+    },
+    "mem_free_anchor": {
+      "assertion_file": "\\Code\\Base\\Os\\Win32\\Exe\\ExeIo.cpp",
+      "assertion_message": "!s_api.initialize",
+      "line_number": "0",
+      "offset": "0x14"
+    }
+  }
+}

@@ -4,6 +4,6 @@
 
 namespace py4gw::imgui::compact_ui {
 
-void Render(bool* show_console, bool* show_compact_console);
+void RenderCompactConsole(bool* show_console, bool* show_compact_console);
 
 }  // namespace py4gw::imgui::compact_ui

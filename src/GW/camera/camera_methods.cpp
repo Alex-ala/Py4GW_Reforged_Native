@@ -1,0 +1,160 @@
+#include "base/error_handling.h"
+
+#include "GW/camera/camera_methods.h"
+
+#include <cmath>
+
+namespace gw::camera {
+
+Camera* g_camera = nullptr;
+py4gw::MemoryPatcher g_patch_cam_update = {};
+py4gw::MemoryPatcher g_patch_fog = {};
+std::atomic<bool> g_initialized = false;
+
+float Camera::GetCurrentYaw() const {
+    const Vec3f dir = position - look_at_target;
+    const float curtan = std::atan2(dir.y, dir.x);
+    constexpr float kPi = 3.141592741f;
+    return curtan >= 0.0f ? curtan - kPi : curtan + kPi;
+}
+
+Camera* GetCamera() {
+    return g_camera;
+}
+
+bool SetMaxDist(float dist) {
+    Camera* camera = GetCamera();
+    if (!camera) {
+        return false;
+    }
+    camera->max_distance2 = dist;
+    return true;
+}
+
+bool SetFieldOfView(float fov) {
+    Camera* camera = GetCamera();
+    if (!camera) {
+        return false;
+    }
+    camera->field_of_view = fov;
+    return true;
+}
+
+bool UnlockCam(bool flag) {
+    return g_patch_cam_update.TogglePatch(flag);
+}
+
+bool GetCameraUnlock() {
+    return g_patch_cam_update.GetIsActive();
+}
+
+bool SetFog(bool flag) {
+    return g_patch_fog.TogglePatch(flag);
+}
+
+bool ForwardMovement(float amount, bool true_forward) {
+    Camera* camera = GetCamera();
+    if (!camera || amount == 0.0f) {
+        return false;
+    }
+
+    if (true_forward) {
+        const float pitch_x = std::sqrt(1.0f - camera->pitch * camera->pitch);
+        camera->look_at_target.x += amount * pitch_x * std::cos(camera->yaw);
+        camera->look_at_target.y += amount * pitch_x * std::sin(camera->yaw);
+        camera->look_at_target.z += amount * camera->pitch;
+        return true;
+    }
+
+    camera->look_at_target.x += amount * std::cos(camera->yaw);
+    camera->look_at_target.y += amount * std::sin(camera->yaw);
+    return true;
+}
+
+bool VerticalMovement(float amount) {
+    Camera* camera = GetCamera();
+    if (!camera) {
+        return false;
+    }
+
+    camera->look_at_target.z += amount;
+    return true;
+}
+
+bool SideMovement(float amount) {
+    Camera* camera = GetCamera();
+    if (!camera || amount == 0.0f) {
+        return false;
+    }
+
+    camera->look_at_target.x += amount * -std::sin(camera->yaw);
+    camera->look_at_target.y += amount * std::cos(camera->yaw);
+    return true;
+}
+
+bool RotateMovement(float angle) {
+    if (angle == 0.0f) {
+        return false;
+    }
+
+    Camera* camera = GetCamera();
+    if (!camera) {
+        return false;
+    }
+
+    const float pos_x = camera->position.x;
+    const float pos_y = camera->position.y;
+    const float px = camera->look_at_target.x - pos_x;
+    const float py = camera->look_at_target.y - pos_y;
+
+    Vec3f new_position = {};
+    new_position.x = pos_x + (std::cos(angle) * px - std::sin(angle) * py);
+    new_position.y = pos_y + (std::sin(angle) * px + std::cos(angle) * py);
+    new_position.z = camera->look_at_target.z;
+
+    camera->SetYaw(camera->yaw + angle);
+    camera->look_at_target = new_position;
+    return true;
+}
+
+Vec3f ComputeCamPos(float dist) {
+    Camera* camera = GetCamera();
+    if (!camera) {
+        return {};
+    }
+
+    if (dist == 0.0f) {
+        dist = camera->GetCameraZoom();
+    }
+
+    Vec3f new_position = camera->GetLookAtTarget();
+    const float pitch_x = std::sqrt(1.0f - camera->pitch * camera->pitch);
+
+    new_position.x -= dist * pitch_x * std::cos(camera->yaw);
+    new_position.y -= dist * pitch_x * std::sin(camera->yaw);
+    new_position.z -= dist * 0.95f * camera->pitch;
+
+    return new_position;
+}
+
+bool UpdateCameraPos() {
+    Camera* camera = GetCamera();
+    if (!camera) {
+        return false;
+    }
+
+    camera->SetCameraPos(ComputeCamPos());
+    return true;
+}
+
+float GetFieldOfView() {
+    Camera* camera = GetCamera();
+    return camera ? camera->GetFieldOfView() : 0.0f;
+}
+
+float GetYaw() {
+    Camera* camera = GetCamera();
+    return camera ? camera->GetYaw() : 0.0f;
+}
+
+}  // namespace gw::camera

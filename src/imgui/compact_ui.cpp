@@ -19,6 +19,9 @@ namespace py4gw::imgui::compact_ui {
 namespace {
 
 char g_path_buffer[512] = {};
+ImVec2 compact_console_pos = ImVec2(5, 30);
+bool compact_console_collapsed = false;
+
 
 void ShowTooltipInternal(const char* tooltip_text) {
     if (ImGui::IsItemHovered()) {
@@ -48,7 +51,7 @@ void RenderScriptBrowser() {
     browser.Display();
     if (browser.HasSelected()) {
         python_runtime::SetSelectedScriptPath(browser.GetSelected().string());
-        Logger::Instance().LogInfo("Selected script: " + python_runtime::GetSelectedScriptPath());
+        Logger::Instance().LogInfo("Selected script: " + python_runtime::GetSelectedScriptPath(), false);
         browser.ClearSelected();
     }
 }
@@ -60,11 +63,14 @@ void SyncPathBuffer() {
 
 }  // namespace
 
-void Render(bool* show_console, bool* show_compact_console) {
+void RenderCompactConsole(bool* show_console, bool* show_compact_console) {
+    ImGui::SetNextWindowPos(compact_console_pos, ImGuiCond_Once);
+    ImGui::SetNextWindowCollapsed(compact_console_collapsed, ImGuiCond_Once);
+
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_AlwaysAutoResize;
     if (!ImGui::Begin("Py4GW##compactPy4GWconsole", show_compact_console, flags)) {
         ImGui::End();
-        RenderScriptBrowser();
+        //RenderScriptBrowser();
         return;
     }
 
@@ -75,17 +81,19 @@ void Render(bool* show_console, bool* show_compact_console) {
         ImGui::TableSetupColumn("ButtonColumn");
         ImGui::TableNextRow();
 
+        // First Column: Script Path Input
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(70.0f);
-        if (ImGui::InputText("##compact_script_path", g_path_buffer, sizeof(g_path_buffer))) {
+        if (ImGui::InputText("##compact_script_path", g_path_buffer, IM_ARRAYSIZE(g_path_buffer))) {
             python_runtime::SetSelectedScriptPath(g_path_buffer);
         }
         if (ImGui::IsItemHovered() && g_path_buffer[0] != '\0') {
             ShowTooltipInternal(g_path_buffer);
         }
 
+        // Second Column: Browse Button
         ImGui::TableNextColumn();
-        if (ImGui::Button(ICON_FA_FOLDER_OPEN "##Open")) {
+        if (ImGui::Button(ICON_FA_FOLDER_OPEN "##Open", ImVec2(30, 30))) {
             ScriptBrowser().Open();
         }
         ShowTooltipInternal("Open Python script");
@@ -123,7 +131,7 @@ void Render(bool* show_console, bool* show_compact_console) {
             const bool next_show_console = !*show_console;
             *show_console = next_show_console;
             *show_compact_console = !next_show_console;
-            Logger::Instance().LogNotice("Toggled Full Cosole.");
+            Logger::Instance().LogNotice("Toggled Full Cosole.", false);
         }
         if (*show_console) {
             ShowTooltipInternal("Hide Full Console");
@@ -146,7 +154,7 @@ void Render(bool* show_console, bool* show_compact_console) {
                 for (const auto& entry : entries) {
                     output << "[" << entry.timestamp << "] [" << entry.module_name << "] " << entry.message << "\n";
                 }
-                Logger::Instance().LogNotice("Console log saved to " + output_path.string());
+                Logger::Instance().LogNotice("Console log saved to " + output_path.string(), false);
             }
         }
         ShowTooltipInternal("Save console output to file");

@@ -1,0 +1,11 @@
+{
+  "namespace": "context",
+  "patterns": {
+    "base_ptr_ref": {
+      "pattern": "\\x50\\x6A\\x0F\\x6A\\x00\\xFF\\x35",
+      "mask": "xxxxxxx",
+      "offset": "0x7",
+      "section": "text"
+    }
+  }
+}

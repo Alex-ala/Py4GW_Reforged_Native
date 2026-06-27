@@ -1,0 +1,211 @@
+{
+  "namespace": "ui",
+  "patterns": {
+    "frame_array_anchor": {
+      "assertion_file": "\\Code\\Engine\\Frame\\FrMsg.cpp",
+      "assertion_message": "frame",
+      "line_number": "0",
+      "offset": "-0x14",
+      "section": "text"
+    },
+    "world_map_state": {
+      "pattern": "\\x81\\x0D\\xFF\\xFF\\xFF\\xFF\\x00\\x00\\x08\\x00",
+      "mask": "xx????xxxx",
+      "offset": "0x2",
+      "section": "text"
+    },
+    "send_frame_ui_message_by_id": {
+      "pattern": "\\x83\\xFB\\x56\\x73\\x14",
+      "mask": "xxxxx",
+      "offset": "-0x34",
+      "section": "text"
+    },
+    "create_hash_from_wchar": {
+      "pattern": "\\x85\\xC0\\x74\\x10\\x6A\\xFF\\x50",
+      "mask": "xxxxxxx",
+      "offset": "0x7",
+      "section": "text"
+    },
+    "create_ui_component": {
+      "pattern": "\\x33\\xD2\\x89\\x45\\x08\\xB9\\xC8\\x01\\x00\\x00",
+      "mask": "xxxxxxxxxx",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "button_frame_callback": {
+      "assertion_file": "UiCtlBtn.cpp",
+      "assertion_message": "!s_btnCheckImageList",
+      "line_number": "0",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "ctl_button_proc_callback": {
+      "pattern": "\\x55\\x8B\\xEC\\x83\\xEC\\x30\\x53\\x8B\\x5D\\x08\\x56\\x57\\x8B\\x7D\\x0C\\x8B\\x43\\x04\\x8B\\x53\\x08\\x48\\x83\\xF8\\x5E",
+      "mask": "xxxxxxxxxxxxxxxxxxxxxxxxx",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "text_button_frame_callback": {
+      "pattern": "\\x83\\xC0\\xFC\\x83\\xF8\\x5C\\x0F\\x87",
+      "mask": "xxxxxxxx",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "scrollable_frame_callback": {
+      "pattern": "\\x81\\xE1\\x00\\x00\\xF8\\xFF",
+      "mask": "xxxxxx",
+      "offset": "-0x4",
+      "section": "text"
+    },
+    "text_label_frame_callback": {
+      "assertion_file": "CtlText.cpp",
+      "assertion_message": "FrameTestStyles(hdr.frameId, CTLTEXT_STYLE_MODEL)",
+      "line_number": "0",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "frame_list_callback": {
+      "assertion_file": "CtlFrameList.cpp",
+      "assertion_message": "No valid case for switch variable 'msg.relation'",
+      "line_number": "0",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "dropdown_frame_callback": {
+      "assertion_file": "UiCtlDropMenu.cpp",
+      "assertion_message": "!FrameGetChild(thisFrame, CTL_LIST_ENTRIES)",
+      "line_number": "0",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "slider_frame_callback": {
+      "assertion_file": "CtlSlider.cpp",
+      "assertion_message": "value >= m_range.min",
+      "line_number": "0",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "slider_frame_wrapper_callback": {
+      "pattern": "\\x55\\x8B\\xEC\\x83\\xEC\\x18\\x53\\x8B\\x5D\\x08\\x56\\x57\\x8B\\x43\\x04\\x48\\x83\\xF8\\x58",
+      "mask": "xxxxxxxxxxxxxxxxxxx",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "editable_text_frame_callback": {
+      "assertion_file": "UiCtlEditBox.cpp",
+      "assertion_message": "!s_editCaretMaterial",
+      "line_number": "0",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "progress_bar_callback": {
+      "assertion_file": "UiCtlProgress.cpp",
+      "assertion_message": "!sm_rateArrowImageList",
+      "line_number": "0",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "tabs_frame_callback": {
+      "assertion_file": "CtlPage.cpp",
+      "assertion_message": "!IsBtnCode(pageCode)",
+      "line_number": "0",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "frame_new_subclass": {
+      "pattern": "\\x8D\\xB8\\xA8\\x00\\x00\\x00\\x8B\\xCF",
+      "mask": "xxxxxxxx",
+      "offset": "-0x2D",
+      "section": "text"
+    },
+    "destroy_ui_component": {
+      "assertion_file": "\\Code\\Gw\\Ui\\Frame\\FrApi.cpp",
+      "assertion_message": "frame->state.Test(FRAME_STATE_CREATED)",
+      "line_number": "0",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "game_settings_addr": {
+      "pattern": "\\x8D\\x4B\\x28\\x89\\x73\\x24\\x8B\\xD7",
+      "mask": "xxxxxxxx",
+      "offset": "0x10",
+      "section": "text"
+    },
+    "set_window_visible": {
+      "pattern": "\\x8B\\x75\\x08\\x83\\xFE\\x00\\x7C\\x19\\x68",
+      "mask": "xxxxx?xxx",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "draw_on_compass": {
+      "assertion_file": "\\Code\\Gw\\Char\\CharMsg.cpp",
+      "assertion_message": "knotCount <= arrsize(message.knotData)",
+      "line_number": "0",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "load_settings": {
+      "pattern": "\\xE8\\x00\\x00\\x00\\x00\\xFF\\x75\\x0C\\xFF\\x75\\x08\\x6A\\x00",
+      "mask": "x????xxxxxxxx",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "set_tooltip": {
+      "assertion_file": "\\Code\\Engine\\Frame\\FrTip.cpp",
+      "assertion_message": "CMsg::Validate(id)",
+      "line_number": "0",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "set_volume": {
+      "pattern": "\\x8B\\x75\\x08\\x83\\xFE\\x05\\x72\\x14\\x68\\x67\\x04\\x00\\x00\\xBA",
+      "mask": "xxxxxxxxxxxxxx",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "set_master_volume": {
+      "pattern": "\\xD9\\x45\\x08\\x83\\xC6\\x1C\\x83\\xEF\\x01\\x75\\xEA\\x5F\\xDD\\xD8\\x5E\\x5D",
+      "mask": "xxxxxxxxxxxxxxxx",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "get_child_frame_id_anchor": {
+      "assertion_file": "\\Code\\Engine\\Controls\\CtlView.cpp",
+      "assertion_message": "pageId",
+      "line_number": "0",
+      "offset": "0x19",
+      "section": "text"
+    },
+    "find_related_frame": {
+      "pattern": "\\x50\\xFF\\x75\\x0C\\x8D\\x8E\\x28\\x01\\x00\\x00",
+      "mask": "xxxxxxxxxx",
+      "offset": "-0x42",
+      "section": "text"
+    },
+    "get_root_frame": {
+      "pattern": "\\x05\\xD8\\xFE\\xFF\\xFF\\xC3",
+      "mask": "xxxxxx",
+      "offset": "-0x3C",
+      "section": "text"
+    },
+    "send_ui_message": {
+      "pattern": "\\xB9\\x00\\x00\\x00\\x00\\xE8\\x00\\x00\\x00\\x00\\x5D\\xC3\\x89\\x45\\x08",
+      "mask": "x????x????xxxxx",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "ui_drawn_anchor": {
+      "assertion_file": "\\Code\\Gw\\Ui\\UiRoot.cpp",
+      "assertion_message": "!s_count++",
+      "line_number": "0",
+      "offset": "-0xD",
+      "section": "text"
+    },
+    "shift_screenshot": {
+      "pattern": "\\x75\\x19\\x6A\\x00\\xC7\\x05\\x00\\x00\\x00\\x00\\x01\\x00",
+      "mask": "xxxxxx????xx",
+      "offset": "0x6",
+      "section": "text"
+    }
+  }
+}

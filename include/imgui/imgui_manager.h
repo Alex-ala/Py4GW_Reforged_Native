@@ -15,7 +15,7 @@ class FontManager;
 bool Initialize(IDirect3DDevice9* device);
 void Shutdown();
 bool BeginFrame(IDirect3DDevice9* device);
-bool RenderDemoUi(bool* request_shutdown);
+bool RenderConsoleUi(bool* request_shutdown);
 void EndFrame(IDirect3DDevice9* device);
 void InvalidateDeviceObjects();
 void SetShutdownCallback(ShutdownCallback callback);

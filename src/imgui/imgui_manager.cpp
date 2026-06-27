@@ -6,7 +6,7 @@
 #include "base/process_manager.h"
 #include "base/python_runtime.h"
 #include "base/logger.h"
-#include "imgui/demo_ui.h"
+#include "imgui/console_host_ui.h"
 #include "imgui/font_manager.h"
 
 #include <WindowsX.h>
@@ -87,10 +87,10 @@ void ApplyImGuiTheme() {
     style.Colors[ImGuiCol_TextSelectedBg] = ImVec4(0.10f, 1.00f, 0.10f, 0.43f);
 }
 
-bool RenderDemoUiSafely(bool* request_shutdown) noexcept {
+bool RenderConsoleUiSafely(bool* request_shutdown) noexcept {
     __try {
-        py4gw::imgui::demo_ui::BeginFrame();
-        py4gw::imgui::demo_ui::Render(request_shutdown);
+        py4gw::imgui::console_host_ui::BeginFrame();
+        py4gw::imgui::console_host_ui::Render(request_shutdown);
         return true;
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         return false;
@@ -302,9 +302,9 @@ bool Initialize(IDirect3DDevice9* device) {
     io.ConfigFlags |= ImGuiConfigFlags_NavNoCaptureKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
-    if (!demo_ui::Initialize()) {
+    if (!console_host_ui::Initialize()) {
         ImGui::DestroyContext();
-        Logger::Instance().LogError("Failed to initialize ImGui addon demo UI.");
+        Logger::Instance().LogError("Failed to initialize ImGui console UI.");
         return false;
     }
 
@@ -315,7 +315,7 @@ bool Initialize(IDirect3DDevice9* device) {
     if (!AttachWndProc()) {
         ImGui_ImplDX9_Shutdown();
         ImGui_ImplWin32_Shutdown();
-        demo_ui::Shutdown();
+        console_host_ui::Shutdown();
         ImGui::DestroyContext();
         Logger::Instance().LogError("Failed to attach Guild Wars window procedure.");
         return false;
@@ -335,7 +335,7 @@ void Shutdown() {
     RestoreWndProc();
     ImGui_ImplDX9_Shutdown();
     ImGui_ImplWin32_Shutdown();
-    demo_ui::Shutdown();
+    console_host_ui::Shutdown();
     FontManager::Instance().Reset();
     ImGui::DestroyContext();
     g_imgui_initialized = false;
@@ -361,9 +361,9 @@ bool BeginFrame(IDirect3DDevice9* device) {
     return true;
 }
 
-bool RenderDemoUi(bool* request_shutdown) {
-    if (!RenderDemoUiSafely(request_shutdown)) {
-        Logger::Instance().LogError("ImGui demo UI crashed during render; shutting overlay down.");
+bool RenderConsoleUi(bool* request_shutdown) {
+    if (!RenderConsoleUiSafely(request_shutdown)) {
+        Logger::Instance().LogError("ImGui console UI crashed during render; shutting overlay down.");
         if (g_shutdown_callback) {
             g_shutdown_callback();
         }
