@@ -2,19 +2,19 @@
 
 #include "GW/camera/camera.h"
 
-namespace gw::camera {
+namespace GW::camera {
 
-context::Camera* g_camera = nullptr;
-py4gw::MemoryPatcher g_patch_cam_update = {};
-py4gw::MemoryPatcher g_patch_fog = {};
+Context::Camera* g_camera = nullptr;
+PY4GW::MemoryPatcher g_patch_cam_update = {};
+PY4GW::MemoryPatcher g_patch_fog = {};
 std::atomic<bool> g_initialized = false;
 
-context::Camera* GetCamera() {
+Context::Camera* GetCamera() {
     return g_camera;
 }
 
 bool SetMaxDist(float dist) {
-    context::Camera* camera = GetCamera();
+    Context::Camera* camera = GetCamera();
     if (!camera) {
         return false;
     }
@@ -23,7 +23,7 @@ bool SetMaxDist(float dist) {
 }
 
 bool SetFieldOfView(float fov) {
-    context::Camera* camera = GetCamera();
+    Context::Camera* camera = GetCamera();
     if (!camera) {
         return false;
     }
@@ -44,7 +44,7 @@ bool SetFog(bool flag) {
 }
 
 bool ForwardMovement(float amount, bool true_forward) {
-    context::Camera* camera = GetCamera();
+    Context::Camera* camera = GetCamera();
     if (!camera || amount == 0.0f) {
         return false;
     }
@@ -63,7 +63,7 @@ bool ForwardMovement(float amount, bool true_forward) {
 }
 
 bool VerticalMovement(float amount) {
-    context::Camera* camera = GetCamera();
+    Context::Camera* camera = GetCamera();
     if (!camera) {
         return false;
     }
@@ -73,7 +73,7 @@ bool VerticalMovement(float amount) {
 }
 
 bool SideMovement(float amount) {
-    context::Camera* camera = GetCamera();
+    Context::Camera* camera = GetCamera();
     if (!camera || amount == 0.0f) {
         return false;
     }
@@ -88,7 +88,7 @@ bool RotateMovement(float angle) {
         return false;
     }
 
-    context::Camera* camera = GetCamera();
+    Context::Camera* camera = GetCamera();
     if (!camera) {
         return false;
     }
@@ -109,7 +109,7 @@ bool RotateMovement(float angle) {
 }
 
 Vec3f ComputeCamPos(float dist) {
-    context::Camera* camera = GetCamera();
+    Context::Camera* camera = GetCamera();
     if (!camera) {
         return {};
     }
@@ -129,7 +129,7 @@ Vec3f ComputeCamPos(float dist) {
 }
 
 bool UpdateCameraPos() {
-    context::Camera* camera = GetCamera();
+    Context::Camera* camera = GetCamera();
     if (!camera) {
         return false;
     }
@@ -139,13 +139,13 @@ bool UpdateCameraPos() {
 }
 
 float GetFieldOfView() {
-    context::Camera* camera = GetCamera();
+    Context::Camera* camera = GetCamera();
     return camera ? camera->GetFieldOfView() : 0.0f;
 }
 
 float GetYaw() {
-    context::Camera* camera = GetCamera();
+    Context::Camera* camera = GetCamera();
     return camera ? camera->GetYaw() : 0.0f;
 }
 
-}  // namespace gw::camera
+}  // namespace GW::camera

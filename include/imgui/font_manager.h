@@ -6,7 +6,7 @@
 
 struct ImFont;
 
-namespace py4gw::imgui {
+namespace PY4GW::imgui {
 
 enum class FontId : int {
     Regular14,
@@ -62,4 +62,4 @@ private:
     bool initialized_ = false;
 };
 
-}  // namespace py4gw::imgui
+}  // namespace PY4GW::imgui

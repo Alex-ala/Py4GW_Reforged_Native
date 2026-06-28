@@ -89,55 +89,24 @@ target_compile_definitions(imgui_addons
 target_compile_options(imgui_addons PRIVATE /FIbase/error_handling.h)
 target_link_libraries(imgui_addons PUBLIC imgui d3d9.lib)
 
-set(PY4GW_SOURCES
-    src/base/file_scanner.cpp
-    src/base/memory_manager.cpp
-    src/base/memory_patcher.cpp
-    src/base/panic.cpp
-    src/GW/GuildWars.cpp
-    src/GW/camera/camera_methods.cpp
-    src/GW/camera/camera.cpp
-    src/GW/context/context.cpp
-    src/GW/context/context_methods.cpp
-    src/GW/context/skill.cpp
-    src/GW/effects/effects_methods.cpp
-    src/GW/effects/effects.cpp
-    src/GW/events/events_methods.cpp
-    src/GW/events/events.cpp
-    src/GW/friend_list/friend_list_methods.cpp
-    src/GW/friend_list/friend_list.cpp
-    src/GW/game_thread/game_thread_methods.cpp
-    src/GW/game_thread/game_thread.cpp
-    src/GW/guild/guild_methods.cpp
-    src/GW/guild/guild.cpp
-    src/GW/map/map_methods.cpp
-    src/GW/map/map.cpp
-    src/GW/player/player_methods.cpp
-    src/GW/player/player.cpp
-    src/GW/quest/quest_methods.cpp
-    src/GW/quest/quest.cpp
-    src/GW/render/render_methods.cpp
-    src/GW/render/render.cpp
-    src/GW/stoc/stoc_methods.cpp
-    src/GW/stoc/stoc.cpp
-    src/GW/ui/ui_methods.cpp
-    src/GW/ui/ui.cpp
-    src/base/hooker.cpp
-    src/base/patterns.cpp
-    src/base/CrashHandler.cpp
-    src/dllmain.cpp
-    src/imgui/console_host_ui.cpp
-    src/imgui/test_ui.cpp
-    src/imgui/compact_ui.cpp
-    src/imgui/console_ui.cpp
-    src/imgui/font_manager.cpp
-    src/imgui/imgui_manager.cpp
-    src/base/logger.cpp
-    src/base/process_manager.cpp
-    src/Py4GW.cpp
-    src/base/python_runtime.cpp
-    src/base/scanner.cpp
+file(GLOB_RECURSE PY4GW_ALL_SOURCE_FILES CONFIGURE_DEPENDS
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
 )
+
+# imgui_addons owns these sources; keep them out of the main DLL target.
+set(PY4GW_NON_TARGET_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/GW/context/agent.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/GW/context/party.cpp
+)
+
+set(PY4GW_SOURCES ${PY4GW_ALL_SOURCE_FILES})
+list(FILTER PY4GW_SOURCES EXCLUDE REGEX ".*/src/imgui/addons/.*\\.cpp$")
+
+foreach(non_target_source IN LISTS PY4GW_NON_TARGET_SOURCES)
+    list(REMOVE_ITEM PY4GW_SOURCES ${non_target_source})
+endforeach()
+
+set_source_files_properties(${PY4GW_NON_TARGET_SOURCES} PROPERTIES HEADER_FILE_ONLY TRUE)
 
 file(GLOB_RECURSE PY4GW_HEADERS CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
@@ -147,10 +116,10 @@ file(GLOB_RECURSE PY4GW_HEADERS CONFIGURE_DEPENDS
 )
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${IMGUI_SOURCES})
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${PY4GW_SOURCES})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${PY4GW_ALL_SOURCE_FILES})
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${PY4GW_HEADERS})
 
-add_library(Py4GW SHARED ${PY4GW_SOURCES} ${PY4GW_HEADERS})
+add_library(Py4GW SHARED ${PY4GW_SOURCES} ${PY4GW_HEADERS} ${PY4GW_NON_TARGET_SOURCES})
 
 set_target_properties(Py4GW PROPERTIES
     OUTPUT_NAME "Py4GW"

@@ -4,7 +4,7 @@
 
 #include <algorithm>
 
-namespace gw::game_thread {
+namespace GW::game_thread {
 
 CRITICAL_SECTION g_mutex;
 bool g_mutex_initialized = false;
@@ -52,7 +52,7 @@ bool IsInGameThread() {
 }
 
 void RegisterGameThreadCallback(
-    py4gw::HookEntry* entry,
+    PY4GW::HookEntry* entry,
     const GameThreadCallback& callback,
     int altitude) {
     if (!g_mutex_initialized) {
@@ -73,7 +73,7 @@ void RegisterGameThreadCallback(
     ::LeaveCriticalSection(&g_mutex);
 }
 
-void RemoveGameThreadCallback(py4gw::HookEntry* entry) {
+void RemoveGameThreadCallback(PY4GW::HookEntry* entry) {
     if (!g_mutex_initialized) {
         return;
     }
@@ -86,4 +86,4 @@ void RemoveGameThreadCallback(py4gw::HookEntry* entry) {
     }
 }
 
-}  // namespace gw::game_thread
+}  // namespace GW::game_thread

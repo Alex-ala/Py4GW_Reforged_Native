@@ -9,9 +9,8 @@
 #include "GW/common/constants/maps.h"
 #include "GW/common/constants/quest_ids.h"
 #include "GW/common/constants/skills.h"
-
-namespace gw {
-    namespace constants {
+namespace GW {
+    namespace Constants {
 
         enum class Campaign : uint32_t { Core, Prophecies, Factions, Nightfall, EyeOfTheNorth, BonusMissionPack };
         enum class Difficulty { Normal, Hard };
@@ -27,33 +26,33 @@ namespace gw {
         };
         static const char* GetProfessionAcronym(Profession prof) {
             switch (prof) {
-            case gw::constants::Profession::None: return "X";
-            case gw::constants::Profession::Warrior: return "W";
-            case gw::constants::Profession::Ranger: return "R";
-            case gw::constants::Profession::Monk: return "Mo";
-            case gw::constants::Profession::Necromancer: return "N";
-            case gw::constants::Profession::Mesmer: return "Me";
-            case gw::constants::Profession::Elementalist: return "E";
-            case gw::constants::Profession::Assassin: return "A";
-            case gw::constants::Profession::Ritualist: return "Rt";
-            case gw::constants::Profession::Paragon: return "P";
-            case gw::constants::Profession::Dervish: return "D";
+            case GW::Constants::Profession::None: return "X";
+            case GW::Constants::Profession::Warrior: return "W";
+            case GW::Constants::Profession::Ranger: return "R";
+            case GW::Constants::Profession::Monk: return "Mo";
+            case GW::Constants::Profession::Necromancer: return "N";
+            case GW::Constants::Profession::Mesmer: return "Me";
+            case GW::Constants::Profession::Elementalist: return "E";
+            case GW::Constants::Profession::Assassin: return "A";
+            case GW::Constants::Profession::Ritualist: return "Rt";
+            case GW::Constants::Profession::Paragon: return "P";
+            case GW::Constants::Profession::Dervish: return "D";
             default: return "";
             }
         }
         static const wchar_t* GetWProfessionAcronym(Profession prof) {
             switch (prof) {
-            case gw::constants::Profession::None: return L"X";
-            case gw::constants::Profession::Warrior: return L"W";
-            case gw::constants::Profession::Ranger: return L"R";
-            case gw::constants::Profession::Monk: return L"Mo";
-            case gw::constants::Profession::Necromancer: return L"N";
-            case gw::constants::Profession::Mesmer: return L"Me";
-            case gw::constants::Profession::Elementalist: return L"E";
-            case gw::constants::Profession::Assassin: return L"A";
-            case gw::constants::Profession::Ritualist: return L"Rt";
-            case gw::constants::Profession::Paragon: return L"P";
-            case gw::constants::Profession::Dervish: return L"D";
+            case GW::Constants::Profession::None: return L"X";
+            case GW::Constants::Profession::Warrior: return L"W";
+            case GW::Constants::Profession::Ranger: return L"R";
+            case GW::Constants::Profession::Monk: return L"Mo";
+            case GW::Constants::Profession::Necromancer: return L"N";
+            case GW::Constants::Profession::Mesmer: return L"Me";
+            case GW::Constants::Profession::Elementalist: return L"E";
+            case GW::Constants::Profession::Assassin: return L"A";
+            case GW::Constants::Profession::Ritualist: return L"Rt";
+            case GW::Constants::Profession::Paragon: return L"P";
+            case GW::Constants::Profession::Dervish: return L"D";
             default: return L"";
             }
         }
@@ -113,9 +112,9 @@ namespace gw {
 
         // Order of storage panes.
         enum class StoragePane : uint8_t {
-            Storage_1,Storage_2,Storage_3,Storage_4,Storage_5,
-            Storage_6,Storage_7,Storage_8,Storage_9,Storage_10,
-            Storage_11,Storage_12,Storage_13,Storage_14,Material_Storage
+            Storage_1, Storage_2, Storage_3, Storage_4, Storage_5,
+            Storage_6, Storage_7, Storage_8, Storage_9, Storage_10,
+            Storage_11, Storage_12, Storage_13, Storage_14, Material_Storage
         };
 
         constexpr size_t BagMax = (size_t)Bag::Max;

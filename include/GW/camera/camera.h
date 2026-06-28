@@ -8,12 +8,12 @@
 #include <atomic>
 #include <cstdint>
 
-namespace gw::camera {
+namespace GW::camera {
 
 bool Initialize();
 void Shutdown();
 
-context::Camera* GetCamera();
+Context::Camera* GetCamera();
 
 bool ForwardMovement(float amount, bool true_forward);
 bool VerticalMovement(float amount);
@@ -32,9 +32,9 @@ bool UnlockCam(bool flag);
 bool GetCameraUnlock();
 bool SetFog(bool flag);
 
-extern context::Camera* g_camera;
-extern py4gw::MemoryPatcher g_patch_cam_update;
-extern py4gw::MemoryPatcher g_patch_fog;
+extern Context::Camera* g_camera;
+extern PY4GW::MemoryPatcher g_patch_cam_update;
+extern PY4GW::MemoryPatcher g_patch_fog;
 extern std::atomic<bool> g_initialized;
 
-}  // namespace gw::camera
+}  // namespace GW::camera

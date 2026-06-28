@@ -6,7 +6,7 @@
 
 struct IDirect3DDevice9;
 
-namespace py4gw::imgui {
+namespace PY4GW::imgui {
 
 using ShutdownCallback = void(*)();
 
@@ -20,4 +20,4 @@ void EndFrame(IDirect3DDevice9* device);
 void InvalidateDeviceObjects();
 void SetShutdownCallback(ShutdownCallback callback);
 
-}  // namespace py4gw::imgui
+}  // namespace PY4GW::imgui

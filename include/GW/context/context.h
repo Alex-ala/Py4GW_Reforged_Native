@@ -4,7 +4,7 @@
 
 #include <cstdint>
 
-namespace gw::context {
+namespace GW::Context {
 
 struct AccountContext;
 struct AgentContext;
@@ -38,4 +38,4 @@ GameplayContext* GetGameplayContext();
 TextParser* GetTextParser();
 uint32_t GetControlledCharacterId();
 
-}  // namespace gw::context
+}  // namespace GW::Context

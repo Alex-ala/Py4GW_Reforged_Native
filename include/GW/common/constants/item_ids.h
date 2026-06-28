@@ -2,8 +2,9 @@
 
 #include <cstdint>
 
-namespace gw {
-    namespace constants {
+
+namespace GW {
+    namespace Constants {
         namespace ItemID { // aka item modelIDs
             constexpr int Dye = 146;
 

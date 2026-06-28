@@ -11,14 +11,14 @@ namespace {
 
 bool ResolveRequestQuestFunctions() {
     CrashContextScope context("startup", "quest", "resolve_request_quest_functions");
-    const auto* anchor_pattern = py4gw::Patterns::Get("quest.request_anchor");
-    const auto* call_pattern = py4gw::Patterns::Get("quest.request_data_call");
+    const auto* anchor_pattern = PY4GW::Patterns::Get("quest.request_anchor");
+    const auto* call_pattern = PY4GW::Patterns::Get("quest.request_data_call");
     if (!anchor_pattern || !call_pattern) {
         Logger::Instance().LogError("Missing or invalid quest request pattern.", "quest");
         return false;
     }
 
-    const uintptr_t anchor = py4gw::Scanner::Find(
+    const uintptr_t anchor = PY4GW::Scanner::Find(
         anchor_pattern->pattern.c_str(),
         anchor_pattern->mask.c_str(),
         anchor_pattern->offset,
@@ -27,7 +27,7 @@ bool ResolveRequestQuestFunctions() {
         return false;
     }
 
-    const uintptr_t callsite = py4gw::Scanner::FindInRange(
+    const uintptr_t callsite = PY4GW::Scanner::FindInRange(
         call_pattern->pattern.c_str(),
         call_pattern->mask.c_str(),
         call_pattern->offset,
@@ -37,20 +37,20 @@ bool ResolveRequestQuestFunctions() {
         return false;
     }
 
-    gw::quest::g_request_quest_data_func = reinterpret_cast<gw::quest::RequestQuestDataFn>(
-        py4gw::Scanner::FunctionFromNearCall(callsite));
+    GW::quest::g_request_quest_data_func = reinterpret_cast<GW::quest::RequestQuestDataFn>(
+        PY4GW::Scanner::FunctionFromNearCall(callsite));
     if (!Logger::AssertAddress(
             "RequestQuestData_Func",
-            reinterpret_cast<uintptr_t>(gw::quest::g_request_quest_data_func),
+            reinterpret_cast<uintptr_t>(GW::quest::g_request_quest_data_func),
             "quest")) {
         return false;
     }
 
-    gw::quest::g_request_quest_info_func = reinterpret_cast<gw::quest::RequestQuestInfoFn>(
-        py4gw::Scanner::ToFunctionStart(anchor, 0xFF));
+    GW::quest::g_request_quest_info_func = reinterpret_cast<GW::quest::RequestQuestInfoFn>(
+        PY4GW::Scanner::ToFunctionStart(anchor, 0xFF));
     return Logger::AssertAddress(
         "RequestQuestInfo_Func",
-        reinterpret_cast<uintptr_t>(gw::quest::g_request_quest_info_func),
+        reinterpret_cast<uintptr_t>(GW::quest::g_request_quest_info_func),
         "quest");
 }
 
@@ -61,13 +61,13 @@ bool Init() {
 
 void Exit() {
     CrashContextScope context("shutdown", "quest", "exit");
-    gw::quest::g_request_quest_info_func = nullptr;
-    gw::quest::g_request_quest_data_func = nullptr;
+    GW::quest::g_request_quest_info_func = nullptr;
+    GW::quest::g_request_quest_data_func = nullptr;
 }
 
 }  // namespace
 
-namespace gw::quest {
+namespace GW::quest {
 
 bool Initialize() {
     CrashContextScope context("startup", "quest", "initialize");
@@ -75,8 +75,8 @@ bool Initialize() {
         return true;
     }
 
-    PY4GW_ASSERT(py4gw::Scanner::Initialize());
-    PY4GW_ASSERT(py4gw::Patterns::Initialize());
+    PY4GW_ASSERT(PY4GW::Scanner::Initialize());
+    PY4GW_ASSERT(PY4GW::Patterns::Initialize());
 
     if (!Init()) {
         Exit();
@@ -97,4 +97,4 @@ void Shutdown() {
     g_initialized = false;
 }
 
-}  // namespace gw::quest
+}  // namespace GW::quest

@@ -2,7 +2,7 @@
 
 #include "GW/context/agent.h"
 
-namespace gw::context {
+namespace GW::Context {
 
 AgentItem* Agent::GetAsAgentItem() {
     return GetIsItemType() ? static_cast<AgentItem*>(this) : nullptr;
@@ -28,4 +28,4 @@ const AgentLiving* Agent::GetAsAgentLiving() const {
     return GetIsLivingType() ? static_cast<const AgentLiving*>(this) : nullptr;
 }
 
-}  // namespace gw::context
+}  // namespace GW::Context

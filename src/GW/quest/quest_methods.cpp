@@ -8,28 +8,28 @@
 
 #include <cwchar>
 
-namespace gw::quest {
+namespace GW::quest {
 
 RequestQuestInfoFn g_request_quest_info_func = nullptr;
 RequestQuestDataFn g_request_quest_data_func = nullptr;
 std::atomic<bool> g_initialized = false;
 
-gw::constants::QuestID GetActiveQuestId() {
-    auto* world = context::GetWorldContext();
-    return world ? world->active_quest_id : static_cast<gw::constants::QuestID>(0);
+GW::Constants::QuestID GetActiveQuestId() {
+    auto* world = Context::GetWorldContext();
+    return world ? world->active_quest_id : static_cast<GW::Constants::QuestID>(0);
 }
 
-context::Quest* GetActiveQuest() {
+Context::Quest* GetActiveQuest() {
     return GetQuest(GetActiveQuestId());
 }
 
-context::QuestLog* GetQuestLog() {
-    auto* world = context::GetWorldContext();
+Context::QuestLog* GetQuestLog() {
+    auto* world = Context::GetWorldContext();
     return world && world->quest_log.valid() ? &world->quest_log : nullptr;
 }
 
-context::Quest* GetQuest(gw::constants::QuestID quest_id) {
-    if (quest_id == static_cast<gw::constants::QuestID>(0)) {
+Context::Quest* GetQuest(GW::Constants::QuestID quest_id) {
+    if (quest_id == static_cast<GW::Constants::QuestID>(0)) {
         return nullptr;
     }
 
@@ -46,7 +46,7 @@ context::Quest* GetQuest(gw::constants::QuestID quest_id) {
     return nullptr;
 }
 
-bool GetQuestEntryGroupName(gw::constants::QuestID quest_id, wchar_t* out, size_t out_len) {
+bool GetQuestEntryGroupName(GW::Constants::QuestID quest_id, wchar_t* out, size_t out_len) {
     const auto* quest = GetQuest(quest_id);
     if (!(quest && out && out_len)) {
         return false;
@@ -67,11 +67,11 @@ bool GetQuestEntryGroupName(gw::constants::QuestID quest_id, wchar_t* out, size_
     return false;
 }
 
-bool RequestQuestInfo(const context::Quest* quest, bool update_markers) {
+bool RequestQuestInfo(const Context::Quest* quest, bool update_markers) {
     return quest && RequestQuestInfoId(quest->quest_id, update_markers);
 }
 
-bool RequestQuestInfoId(gw::constants::QuestID quest_id, bool update_markers) {
+bool RequestQuestInfoId(GW::Constants::QuestID quest_id, bool update_markers) {
     if (!(g_request_quest_info_func && g_request_quest_data_func && GetQuest(quest_id))) {
         return false;
     }
@@ -81,7 +81,7 @@ bool RequestQuestInfoId(gw::constants::QuestID quest_id, bool update_markers) {
     return true;
 }
 
-void AsyncGetQuestName(const context::Quest* quest, std::wstring& res) {
+void AsyncGetQuestName(const Context::Quest* quest, std::wstring& res) {
     if (quest && quest->name) {
         ui::AsyncDecodeStr(quest->name, &res);
     }
@@ -93,28 +93,28 @@ void AsyncDecodeAnyEncStr(const wchar_t* str, std::wstring& res) {
     }
 }
 
-void AsyncGetQuestDescription(const context::Quest* quest, std::wstring& res) {
+void AsyncGetQuestDescription(const Context::Quest* quest, std::wstring& res) {
     if (quest && quest->description) {
         ui::AsyncDecodeStr(quest->description, &res);
     }
 }
 
-void AsyncGetQuestObjectives(const context::Quest* quest, std::wstring& res) {
+void AsyncGetQuestObjectives(const Context::Quest* quest, std::wstring& res) {
     if (quest && quest->objectives) {
         ui::AsyncDecodeStr(quest->objectives, &res);
     }
 }
 
-void AsyncGetQuestLocation(const context::Quest* quest, std::wstring& res) {
+void AsyncGetQuestLocation(const Context::Quest* quest, std::wstring& res) {
     if (quest && quest->location) {
         ui::AsyncDecodeStr(quest->location, &res);
     }
 }
 
-void AsyncGetQuestNPC(const context::Quest* quest, std::wstring& res) {
+void AsyncGetQuestNPC(const Context::Quest* quest, std::wstring& res) {
     if (quest && quest->npc) {
         ui::AsyncDecodeStr(quest->npc, &res);
     }
 }
 
-}  // namespace gw::quest
+}  // namespace GW::quest

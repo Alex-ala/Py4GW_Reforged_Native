@@ -7,7 +7,7 @@
 #include <atomic>
 #include <cstdint>
 
-namespace gw::effects {
+namespace GW::effects {
 
 bool Initialize();
 void Shutdown();
@@ -18,16 +18,16 @@ using DropBuffFn = void(__cdecl*)(uint32_t buff_id);
 uint32_t GetAlcoholLevel();
 void GetDrunkAf(uint32_t intensity, uint32_t tint);
 
-context::AgentEffectsArray* GetPartyEffectsArray();
-context::AgentEffects* GetAgentEffectsArray(uint32_t agent_id);
-context::AgentEffects* GetPlayerEffectsArray();
-context::EffectArray* GetAgentEffects(uint32_t agent_id);
-context::BuffArray* GetAgentBuffs(uint32_t agent_id);
-context::EffectArray* GetPlayerEffects();
-context::BuffArray* GetPlayerBuffs();
+Context::AgentEffectsArray* GetPartyEffectsArray();
+Context::AgentEffects* GetAgentEffectsArray(uint32_t agent_id);
+Context::AgentEffects* GetPlayerEffectsArray();
+Context::EffectArray* GetAgentEffects(uint32_t agent_id);
+Context::BuffArray* GetAgentBuffs(uint32_t agent_id);
+Context::EffectArray* GetPlayerEffects();
+Context::BuffArray* GetPlayerBuffs();
 bool DropBuff(uint32_t buff_id);
-context::Effect* GetPlayerEffectBySkillId(gw::constants::SkillID skill_id);
-context::Buff* GetPlayerBuffBySkillId(gw::constants::SkillID skill_id);
+Context::Effect* GetPlayerEffectBySkillId(GW::Constants::SkillID skill_id);
+Context::Buff* GetPlayerBuffBySkillId(GW::Constants::SkillID skill_id);
 
 extern PostProcessEffectFn g_post_process_effect_func;
 extern PostProcessEffectFn g_post_process_effect_original;
@@ -35,4 +35,4 @@ extern DropBuffFn g_drop_buff_func;
 extern std::atomic<uint32_t> g_alcohol_level;
 extern std::atomic<bool> g_initialized;
 
-}  // namespace gw::effects
+}  // namespace GW::effects

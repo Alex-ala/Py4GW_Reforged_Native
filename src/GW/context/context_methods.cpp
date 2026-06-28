@@ -15,15 +15,15 @@
 #include "GW/context/trade_context.h"
 #include "GW/context/world_context.h"
 
-namespace gw::context {
+namespace GW::Context {
 
 extern uintptr_t g_base_ptr;
 extern uintptr_t g_pregame_context_addr;
 extern uintptr_t g_gameplay_context_addr;
 
-}  // namespace gw::context
+}  // namespace GW::Context
 
-namespace gw::context {
+namespace GW::Context {
 
 GameContext* GetGameContext() {
     auto** base_context = g_base_ptr ? *reinterpret_cast<uintptr_t***>(g_base_ptr) : nullptr;
@@ -90,7 +90,7 @@ TextParser* GetTextParser() {
 
 uint32_t GetControlledCharacterId() {
     WorldContext* world = GetWorldContext();
-    return world && world->player_controlled_character ? world->player_controlled_character->agent_id : 0;
+    return world && world->playerControlledChar ? world->playerControlledChar->agent_id : 0;
 }
 
-}  // namespace gw::context
+}  // namespace GW::Context

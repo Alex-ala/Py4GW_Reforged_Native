@@ -7,7 +7,7 @@
 
 #include <array>
 
-namespace py4gw::imgui::addons::imgui_club_demo {
+namespace PY4GW::imgui::addons::imgui_club_demo {
 
 void Render() {
     static MemoryEditor editor;
@@ -27,4 +27,4 @@ void Render() {
     editor.DrawContents(memory.data(), memory.size(), 0x1000);
 }
 
-}  // namespace py4gw::imgui::addons::imgui_club_demo
+}  // namespace PY4GW::imgui::addons::imgui_club_demo

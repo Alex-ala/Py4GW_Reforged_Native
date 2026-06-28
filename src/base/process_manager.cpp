@@ -2,7 +2,7 @@
 
 #include "base/process_manager.h"
 
-namespace py4gw::process_manager {
+namespace PY4GW::process_manager {
 
 namespace {
 
@@ -42,4 +42,4 @@ std::filesystem::path GetProcessDirectory() {
     return std::filesystem::path(buffer).parent_path();
 }
 
-}  // namespace py4gw::process_manager
+}  // namespace PY4GW::process_manager

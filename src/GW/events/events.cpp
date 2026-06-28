@@ -13,18 +13,18 @@ namespace {
 uint32_t __cdecl OnSendEventMessage(
     void* event_context,
     uint32_t unk1,
-    gw::events::EventID event_id,
+    GW::events::EventID event_id,
     void* data_buffer,
     uint32_t data_length) {
-    py4gw::HookBase::EnterHook();
-    py4gw::HookStatus status = {};
+    PY4GW::HookBase::EnterHook();
+    PY4GW::HookStatus status = {};
     uint32_t result = 1;
 
-    auto found = gw::events::g_callbacks.find(event_id);
-    if (found == gw::events::g_callbacks.end()) {
-        py4gw::HookBase::LeaveHook();
-        return gw::events::g_send_event_message_original
-            ? gw::events::g_send_event_message_original(event_context, unk1, event_id, data_buffer, data_length)
+    auto found = GW::events::g_callbacks.find(event_id);
+    if (found == GW::events::g_callbacks.end()) {
+        PY4GW::HookBase::LeaveHook();
+        return GW::events::g_send_event_message_original
+            ? GW::events::g_send_event_message_original(event_context, unk1, event_id, data_buffer, data_length)
             : result;
     }
 
@@ -39,8 +39,8 @@ uint32_t __cdecl OnSendEventMessage(
         ++it;
     }
 
-    if (!status.blocked && gw::events::g_send_event_message_original) {
-        result = gw::events::g_send_event_message_original(event_context, unk1, event_id, data_buffer, data_length);
+    if (!status.blocked && GW::events::g_send_event_message_original) {
+        result = GW::events::g_send_event_message_original(event_context, unk1, event_id, data_buffer, data_length);
     }
 
     while (it != end) {
@@ -49,19 +49,19 @@ uint32_t __cdecl OnSendEventMessage(
         ++it;
     }
 
-    py4gw::HookBase::LeaveHook();
+    PY4GW::HookBase::LeaveHook();
     return result;
 }
 
 bool ResolveSendEventMessageTarget() {
     CrashContextScope context("startup", "events", "resolve_send_event_message_target");
-    const auto* pattern = py4gw::Patterns::Get("events.send_event_message_callsite");
+    const auto* pattern = PY4GW::Patterns::Get("events.send_event_message_callsite");
     if (!pattern) {
         Logger::Instance().LogError("Missing or invalid pattern: events.send_event_message_callsite", "events");
         return false;
     }
 
-    const uintptr_t callsite = py4gw::Scanner::Find(
+    const uintptr_t callsite = PY4GW::Scanner::Find(
         pattern->pattern.c_str(),
         pattern->mask.c_str(),
         pattern->offset,
@@ -70,11 +70,11 @@ bool ResolveSendEventMessageTarget() {
         return false;
     }
 
-    gw::events::g_send_event_message_func = reinterpret_cast<gw::events::SendEventMessageFn>(
-        py4gw::Scanner::FunctionFromNearCall(callsite));
+    GW::events::g_send_event_message_func = reinterpret_cast<GW::events::SendEventMessageFn>(
+        PY4GW::Scanner::FunctionFromNearCall(callsite));
     return Logger::AssertAddress(
         "SendEventMessage_Func",
-        reinterpret_cast<uintptr_t>(gw::events::g_send_event_message_func),
+        reinterpret_cast<uintptr_t>(GW::events::g_send_event_message_func),
         "events");
 }
 
@@ -84,10 +84,10 @@ bool Init() {
         return false;
     }
 
-    const int status = py4gw::HookBase::CreateHook(
-        reinterpret_cast<void**>(&gw::events::g_send_event_message_func),
+    const int status = PY4GW::HookBase::CreateHook(
+        reinterpret_cast<void**>(&GW::events::g_send_event_message_func),
         reinterpret_cast<void*>(&OnSendEventMessage),
-        reinterpret_cast<void**>(&gw::events::g_send_event_message_original));
+        reinterpret_cast<void**>(&GW::events::g_send_event_message_original));
     return Logger::AssertHook("SendEventMessage_Func", status, "events");
 }
 
@@ -99,25 +99,25 @@ void EnableHooks() {
 
 void DisableHooks() {
     CrashContextScope context("shutdown", "events", "disable_hooks");
-    if (gw::events::g_send_event_message_func) {
-        py4gw::HookBase::DisableHooks(reinterpret_cast<void*>(gw::events::g_send_event_message_func));
+    if (GW::events::g_send_event_message_func) {
+        PY4GW::HookBase::DisableHooks(reinterpret_cast<void*>(GW::events::g_send_event_message_func));
     }
 }
 
 void Exit() {
     CrashContextScope context("shutdown", "events", "exit");
-    if (gw::events::g_send_event_message_func) {
-        py4gw::HookBase::RemoveHook(reinterpret_cast<void*>(gw::events::g_send_event_message_func));
+    if (GW::events::g_send_event_message_func) {
+        PY4GW::HookBase::RemoveHook(reinterpret_cast<void*>(GW::events::g_send_event_message_func));
     }
 
-    gw::events::g_send_event_message_func = nullptr;
-    gw::events::g_send_event_message_original = nullptr;
-    gw::events::g_callbacks.clear();
+    GW::events::g_send_event_message_func = nullptr;
+    GW::events::g_send_event_message_original = nullptr;
+    GW::events::g_callbacks.clear();
 }
 
 }  // namespace
 
-namespace gw::events {
+namespace GW::events {
 
 bool Initialize() {
     CrashContextScope context("startup", "events", "initialize");
@@ -125,13 +125,13 @@ bool Initialize() {
         return true;
     }
 
-    PY4GW_ASSERT(py4gw::Scanner::Initialize());
-    PY4GW_ASSERT(py4gw::Patterns::Initialize());
+    PY4GW_ASSERT(PY4GW::Scanner::Initialize());
+    PY4GW_ASSERT(PY4GW::Patterns::Initialize());
 
-    py4gw::HookBase::Initialize();
+    PY4GW::HookBase::Initialize();
     if (!Init()) {
         Exit();
-        py4gw::HookBase::Deinitialize();
+        PY4GW::HookBase::Deinitialize();
         return false;
     }
 
@@ -148,8 +148,8 @@ void Shutdown() {
 
     DisableHooks();
     Exit();
-    py4gw::HookBase::Deinitialize();
+    PY4GW::HookBase::Deinitialize();
     g_initialized = false;
 }
 
-}  // namespace gw::events
+}  // namespace GW::events

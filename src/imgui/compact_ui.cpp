@@ -14,7 +14,7 @@
 #include <fstream>
 #include <memory>
 
-namespace py4gw::imgui::compact_ui {
+namespace PY4GW::imgui::compact_ui {
 
 namespace {
 
@@ -182,4 +182,4 @@ void RenderCompactConsole(bool* show_console, bool* show_compact_console) {
     RenderScriptBrowser();
 }
 
-}  // namespace py4gw::imgui::compact_ui
+}  // namespace PY4GW::imgui::compact_ui

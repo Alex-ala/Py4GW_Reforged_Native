@@ -4,7 +4,7 @@
 
 #include <cstdint>
 
-namespace gw {
+namespace GW {
     typedef struct Mat4x3f {
         float _11;
         float _12;
@@ -49,7 +49,7 @@ namespace gw {
         {
         }
 
-        constexpr Vec3f(gw::Vec2f v, float _z = 0.f)
+        constexpr Vec3f(GW::Vec2f v, float _z = 0.f)
             : x(v.x), y(v.y), z(_z)
         {
         }
@@ -89,7 +89,7 @@ namespace gw {
     }
 
     constexpr Vec3f operator-(const Vec3f& v) {
-        return {-v.x, -v.y, -v.z};
+        return { -v.x, -v.y, -v.z };
     }
 
     constexpr Vec3f& operator*=(Vec3f& lhs, float rhs) {
@@ -155,7 +155,7 @@ namespace gw {
     }
 
     constexpr Vec2f operator-(Vec2f v) {
-        return {-v.x, -v.y};
+        return { -v.x, -v.y };
     }
 
     constexpr Vec2f& operator*=(Vec2f& lhs, float rhs) {
@@ -273,4 +273,5 @@ namespace gw {
         return (lhs.x == rhs.x) && (lhs.y == rhs.y) && (lhs.zplane == rhs.zplane);
     }
 }
+
 

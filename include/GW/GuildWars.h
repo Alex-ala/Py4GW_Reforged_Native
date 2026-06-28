@@ -2,9 +2,9 @@
 
 #include "base/error_handling.h"
 
-namespace gw {
+namespace GW {
 
 bool Initialize();
 void Shutdown();
 
-}  // namespace gw
+}  // namespace GW

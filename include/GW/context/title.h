@@ -7,40 +7,40 @@
 
 #include <cstdint>
 
-namespace gw::context {
+namespace GW::Context {
 
-struct Title {
-    uint32_t props;
-    uint32_t current_points;
-    uint32_t current_title_tier_index;
-    uint32_t points_needed_current_rank;
-    uint32_t next_title_tier_index;
-    uint32_t points_needed_next_rank;
-    uint32_t max_title_rank;
-    uint32_t max_title_tier_index;
-    uint32_t h0020;
-    wchar_t* points_desc;
-    wchar_t* h0028;
+    struct Title { // total: 0x28/40
+        /* +h0000 */ uint32_t props;
+        /* +h0004 */ uint32_t current_points;
+        /* +h0008 */ uint32_t current_title_tier_index;
+        /* +h000C */ uint32_t points_needed_current_rank;
+        /* +h0010 */ uint32_t next_title_tier_index;
+        /* +h0014 */ uint32_t points_needed_next_rank;
+        /* +h0018 */ uint32_t max_title_rank;
+        /* +h001C */ uint32_t max_title_tier_index;
+        /* +h0020 */ uint32_t h0020;
+        /* +h0024 */ wchar_t* points_desc; // Pretty sure these are ptrs to title hash strings
+        /* +h0028 */ wchar_t* h0028; // Pretty sure these are ptrs to title hash strings
 
-    bool IsPercentageBased() const { return (props & 1U) != 0; }
-    bool HasTiers() const { return (props & 3U) == 2U; }
-};
-static_assert(sizeof(Title) == 0x2C, "Title size mismatch");
+        inline bool is_percentage_based() { return (props & 1) != 0; };
+        inline bool has_tiers() { return (props & 3) == 2; };
 
-struct TitleTier {
-    uint32_t props;
-    uint32_t tier_number;
-    wchar_t* tier_name_enc;
+    };
+    static_assert(sizeof(Title) == 0x2C, "Title size mismatch");
 
-    bool IsPercentageBased() const { return (props & 1U) != 0; }
-};
-static_assert(sizeof(TitleTier) == 0xC, "TitleTier size mismatch");
+    struct TitleTier {
+        uint32_t props;
+        uint32_t tier_number;
+        wchar_t* tier_name_enc;
+        inline bool is_percentage_based() { return (props & 1) != 0; };
+    };
+    static_assert(sizeof(TitleTier) == 0xC, "TitleTier size mismatch");
 
-struct TitleClientData {
-    gw::constants::TitleID title_id;
-    uint32_t name_id;
-};
+    struct TitleClientData {
+        uint32_t title_id;
+        uint32_t name_id;
+    };
 
-using TitleArray = gw::GwArray<Title>;
+    using TitleArray = GW::GWArray<Title>;
 
-}  // namespace gw::context
+}  // namespace GW::Context

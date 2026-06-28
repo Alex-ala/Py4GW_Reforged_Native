@@ -16,7 +16,7 @@
 
 namespace {
 
-using namespace gw;
+using namespace GW;
 
 struct AsyncBuffer {
     void* buffer = nullptr;
@@ -131,9 +131,9 @@ bool RawSendUiMessage(ui::UIMessage message_id, void* wparam, void* lparam) {
         return true;
     }
 
-    py4gw::HookBase::EnterHook();
+    PY4GW::HookBase::EnterHook();
     ui::g_send_ui_message_original(message_id, wparam, lparam);
-    py4gw::HookBase::LeaveHook();
+    PY4GW::HookBase::LeaveHook();
     return true;
 }
 
@@ -259,7 +259,7 @@ uint32_t ClampPreference(ui::NumberPreference pref, uint32_t value) {
 
 }  // namespace
 
-namespace gw::ui {
+namespace GW::ui {
 
 Frame* FrameRelation::GetFrame() {
     return reinterpret_cast<Frame*>(reinterpret_cast<uintptr_t>(this) - offsetof(Frame, relation));
@@ -603,7 +603,7 @@ void* GetFrameContext(Frame* frame) {
     if (!frame) {
         return nullptr;
     }
-    auto* callbacks = reinterpret_cast<gw::GwArray<FrameInteractionCallback>*>(&frame->frame_callbacks);
+    auto* callbacks = reinterpret_cast<GW::GWArray<FrameInteractionCallback>*>(&frame->frame_callbacks);
     if (!callbacks->valid() || !callbacks->size()) {
         return nullptr;
     }
@@ -646,9 +646,9 @@ bool DestroyUIComponent(Frame* frame) {
     if (!(frame && frame->IsCreated() && g_destroy_ui_component_func)) {
         return false;
     }
-    py4gw::HookBase::EnterHook();
+    PY4GW::HookBase::EnterHook();
     const bool result = g_destroy_ui_component_func(frame->frame_id);
-    py4gw::HookBase::LeaveHook();
+    PY4GW::HookBase::LeaveHook();
     return result;
 }
 
@@ -656,11 +656,11 @@ bool AddFrameUIInteractionCallback(Frame* frame, UIInteractionCallback callback,
     if (!(frame && frame->IsCreated() && callback)) {
         return false;
     }
-    auto* callbacks = reinterpret_cast<gw::GwArray<FrameInteractionCallback>*>(&frame->frame_callbacks);
+    auto* callbacks = reinterpret_cast<GW::GWArray<FrameInteractionCallback>*>(&frame->frame_callbacks);
     if (!(callbacks->valid() && callbacks->size() < callbacks->capacity())) {
         return false;
     }
-    auto& entry = callbacks->buffer[callbacks->size_value++];
+    auto& entry = callbacks->m_buffer[callbacks->m_size++];
     entry.callback = callback;
     entry.uictl_context = wparam;
     entry.h0008 = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(wparam));
@@ -731,14 +731,14 @@ bool SetFrameMargins(Frame* frame, uint32_t flags, float size[4], float input_ma
     if (!(frame && g_typed_component_passthrough_func)) {
         return false;
     }
-    py4gw::HookBase::EnterHook();
+    PY4GW::HookBase::EnterHook();
     g_typed_component_passthrough_func(
         reinterpret_cast<void*>(frame->frame_id),
         reinterpret_cast<void*>(flags),
         size,
         input_mask,
         reinterpret_cast<void*>(type));
-    py4gw::HookBase::LeaveHook();
+    PY4GW::HookBase::LeaveHook();
     return true;
 }
 
@@ -1077,13 +1077,13 @@ bool SendFrameUIMessage(Frame* frame, UIMessage message_id, void* wparam, void* 
 
     auto callbacks = CopyFrameCallbacks(message_id);
     if (callbacks.empty()) {
-        py4gw::HookBase::EnterHook();
+        PY4GW::HookBase::EnterHook();
         g_send_frame_ui_message_original(&frame->frame_callbacks, nullptr, message_id, wparam, lparam);
-        py4gw::HookBase::LeaveHook();
+        PY4GW::HookBase::LeaveHook();
         return true;
     }
 
-    py4gw::HookStatus status;
+    PY4GW::HookStatus status;
     auto it = callbacks.begin();
     const auto end = callbacks.end();
     while (it != end) {
@@ -1097,9 +1097,9 @@ bool SendFrameUIMessage(Frame* frame, UIMessage message_id, void* wparam, void* 
 
     const bool result = !status.blocked;
     if (result) {
-        py4gw::HookBase::EnterHook();
+        PY4GW::HookBase::EnterHook();
         g_send_frame_ui_message_original(&frame->frame_callbacks, nullptr, message_id, wparam, lparam);
-        py4gw::HookBase::LeaveHook();
+        PY4GW::HookBase::LeaveHook();
     }
 
     while (it != end) {
@@ -1120,7 +1120,7 @@ bool SendUIMessage(UIMessage message_id, void* wparam, void* lparam, bool skip_h
         return RawSendUiMessage(message_id, wparam, lparam);
     }
 
-    py4gw::HookStatus status;
+    PY4GW::HookStatus status;
     auto it = callbacks.begin();
     const auto end = callbacks.end();
     while (it != end) {
@@ -1161,8 +1161,8 @@ bool Keypress(ControlAction key, Frame* target) {
     return true;
 }
 
-gw::constants::Language GetTextLanguage() {
-    return static_cast<gw::constants::Language>(GetPreference(NumberPreference::TextLanguage));
+GW::Constants::Language GetTextLanguage() {
+    return static_cast<GW::Constants::Language>(GetPreference(NumberPreference::TextLanguage));
 }
 
 uint32_t GetPreference(EnumPreference pref) {
@@ -2318,7 +2318,7 @@ void AsyncDecodeStr(const wchar_t* enc_str, wchar_t* buffer, size_t size) {
     AsyncDecodeStr(enc_str, &CallbackCopyWchar, async_buffer);
 }
 
-void AsyncDecodeStr(const wchar_t* enc_str, DecodeStr_Callback callback, void* callback_param, gw::constants::Language language_id) {
+void AsyncDecodeStr(const wchar_t* enc_str, DecodeStr_Callback callback, void* callback_param, GW::Constants::Language language_id) {
     if (!(g_validate_async_decode_str_func && enc_str && callback)) {
         if (callback) {
             callback(callback_param, L"");
@@ -2331,21 +2331,21 @@ void AsyncDecodeStr(const wchar_t* enc_str, DecodeStr_Callback callback, void* c
         return;
     }
 
-    context::TextParser* text_parser = context::GetTextParser();
+    Context::TextParser* text_parser = Context::GetTextParser();
     if (!text_parser) {
         callback(callback_param, L"");
         return;
     }
 
     const auto previous_language = text_parser->language_id;
-    if (language_id != gw::constants::Language::Unknown) {
+    if (language_id != GW::Constants::Language::Unknown) {
         text_parser->language_id = language_id;
     }
     g_validate_async_decode_str_func(enc_str, callback, callback_param);
     text_parser->language_id = previous_language;
 }
 
-void AsyncDecodeStr(const wchar_t* enc_str, std::wstring* out, gw::constants::Language language_id) {
+void AsyncDecodeStr(const wchar_t* enc_str, std::wstring* out, GW::Constants::Language language_id) {
     AsyncDecodeStr(enc_str, &CallbackCopyWstring, out, language_id);
 }
 
@@ -2398,7 +2398,7 @@ TooltipInfo* GetCurrentTooltip() {
     return g_current_tooltip_ptr && *g_current_tooltip_ptr ? **g_current_tooltip_ptr : nullptr;
 }
 
-void RegisterUIMessageCallback(py4gw::HookEntry* entry, UIMessage message_id, const UIMessageCallback& callback, int altitude) {
+void RegisterUIMessageCallback(PY4GW::HookEntry* entry, UIMessage message_id, const UIMessageCallback& callback, int altitude) {
     if (!(g_callback_mutex_initialized && entry)) {
         return;
     }
@@ -2418,7 +2418,7 @@ void RegisterUIMessageCallback(py4gw::HookEntry* entry, UIMessage message_id, co
     ::LeaveCriticalSection(&g_callback_mutex);
 }
 
-void RemoveUIMessageCallback(py4gw::HookEntry* entry, UIMessage message_id) {
+void RemoveUIMessageCallback(PY4GW::HookEntry* entry, UIMessage message_id) {
     if (!(g_callback_mutex_initialized && entry)) {
         return;
     }
@@ -2446,7 +2446,7 @@ void RemoveUIMessageCallback(py4gw::HookEntry* entry, UIMessage message_id) {
     ::LeaveCriticalSection(&g_callback_mutex);
 }
 
-void RegisterFrameUIMessageCallback(py4gw::HookEntry* entry, UIMessage message_id, const FrameUIMessageCallback& callback, int altitude) {
+void RegisterFrameUIMessageCallback(PY4GW::HookEntry* entry, UIMessage message_id, const FrameUIMessageCallback& callback, int altitude) {
     if (!(g_callback_mutex_initialized && entry)) {
         return;
     }
@@ -2466,7 +2466,7 @@ void RegisterFrameUIMessageCallback(py4gw::HookEntry* entry, UIMessage message_i
     ::LeaveCriticalSection(&g_callback_mutex);
 }
 
-void RemoveFrameUIMessageCallback(py4gw::HookEntry* entry) {
+void RemoveFrameUIMessageCallback(PY4GW::HookEntry* entry) {
     if (!(g_callback_mutex_initialized && entry)) {
         return;
     }
@@ -2482,27 +2482,27 @@ void RemoveFrameUIMessageCallback(py4gw::HookEntry* entry) {
     ::LeaveCriticalSection(&g_callback_mutex);
 }
 
-void RegisterKeydownCallback(py4gw::HookEntry* entry, const KeyCallback& callback) {
-    RegisterFrameUIMessageCallback(entry, UIMessage::kKeyDown, [callback](py4gw::HookStatus* status, const Frame*, UIMessage, void* wparam, void*) {
+void RegisterKeydownCallback(PY4GW::HookEntry* entry, const KeyCallback& callback) {
+    RegisterFrameUIMessageCallback(entry, UIMessage::kKeyDown, [callback](PY4GW::HookStatus* status, const Frame*, UIMessage, void* wparam, void*) {
         callback(status, *static_cast<uint32_t*>(wparam));
     });
 }
 
-void RemoveKeydownCallback(py4gw::HookEntry* entry) {
+void RemoveKeydownCallback(PY4GW::HookEntry* entry) {
     RemoveFrameUIMessageCallback(entry);
 }
 
-void RegisterKeyupCallback(py4gw::HookEntry* entry, const KeyCallback& callback) {
-    RegisterFrameUIMessageCallback(entry, UIMessage::kKeyUp, [callback](py4gw::HookStatus* status, const Frame*, UIMessage, void* wparam, void*) {
+void RegisterKeyupCallback(PY4GW::HookEntry* entry, const KeyCallback& callback) {
+    RegisterFrameUIMessageCallback(entry, UIMessage::kKeyUp, [callback](PY4GW::HookStatus* status, const Frame*, UIMessage, void* wparam, void*) {
         callback(status, *static_cast<uint32_t*>(wparam));
     });
 }
 
-void RemoveKeyupCallback(py4gw::HookEntry* entry) {
+void RemoveKeyupCallback(PY4GW::HookEntry* entry) {
     RemoveFrameUIMessageCallback(entry);
 }
 
-void RegisterCreateUIComponentCallback(py4gw::HookEntry* entry, const CreateUIComponentCallback& callback, int altitude) {
+void RegisterCreateUIComponentCallback(PY4GW::HookEntry* entry, const CreateUIComponentCallback& callback, int altitude) {
     if (!(g_callback_mutex_initialized && entry)) {
         return;
     }
@@ -2521,7 +2521,7 @@ void RegisterCreateUIComponentCallback(py4gw::HookEntry* entry, const CreateUICo
     ::LeaveCriticalSection(&g_callback_mutex);
 }
 
-void RemoveCreateUIComponentCallback(py4gw::HookEntry* entry) {
+void RemoveCreateUIComponentCallback(PY4GW::HookEntry* entry) {
     if (!(g_callback_mutex_initialized && entry)) {
         return;
     }
@@ -2535,4 +2535,4 @@ void RemoveCreateUIComponentCallback(py4gw::HookEntry* entry) {
     ::LeaveCriticalSection(&g_callback_mutex);
 }
 
-}  // namespace gw::ui
+}  // namespace GW::ui

@@ -2,7 +2,7 @@
 
 #include "GW/context/item.h"
 
-namespace gw::context {
+namespace GW::Context {
 
 size_t Bag::find1(uint32_t query_model_id, size_t pos) const {
     for (size_t i = pos; i < items.size(); ++i) {
@@ -37,7 +37,7 @@ size_t Bag::find_dye(uint32_t query_model_id, DyeInfo extra_id, size_t pos) cons
 }
 
 size_t Bag::find2(const Item* item, size_t pos) const {
-    if (item->model_id == gw::constants::ItemID::Dye) {
+    if (item->model_id == GW::Constants::ItemID::Dye) {
         return find_dye(item->model_id, item->dye, pos);
     }
     return find1(item->model_id, pos);
@@ -58,7 +58,7 @@ bool Item::GetIsZcoin() const {
 }
 
 bool Item::GetIsMaterial() const {
-    return type == gw::constants::ItemType::Materials_Zcoins && !GetIsZcoin();
+    return type == GW::Constants::ItemType::Materials_Zcoins && !GetIsZcoin();
 }
 
-}  // namespace gw::context
+}  // namespace GW::Context

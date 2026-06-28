@@ -18,7 +18,7 @@ PY4GW_EXPORT void Py4GW_RequestShutdown();
 
 }
 
-namespace py4gw {
+namespace PY4GW {
 
 DWORD WINAPI RuntimeThread(LPVOID);
 

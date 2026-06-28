@@ -17,7 +17,7 @@ std::atomic<int> in_hook_count = 0;
 
 }
 
-namespace py4gw {
+namespace PY4GW {
 
 void HookBase::Initialize()
 {
@@ -99,4 +99,4 @@ void HookBase::RemoveHook(void* target)
         MH_RemoveHook(target);
 }
 
-}  // namespace py4gw
+}  // namespace PY4GW

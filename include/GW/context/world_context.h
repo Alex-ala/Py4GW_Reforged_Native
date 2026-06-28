@@ -19,276 +19,283 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace gw::context {
+namespace GW::Context {
 
-struct PartyAlly {
-    uint32_t agent_id;
-    uint32_t h0004;
-    uint32_t composite_id;
-};
-static_assert(sizeof(PartyAlly) == 0xC, "PartyAlly size mismatch");
+    struct PartyAlly {
+        uint32_t agent_id;
+        uint32_t unk;
+        uint32_t composite_id;
+    };
+    static_assert(sizeof(PartyAlly) == 0xC, "PartyAlly size mismatch");
 
-struct ControlledMinions {
-    uint32_t agent_id;
-    uint32_t minion_count;
-};
-static_assert(sizeof(ControlledMinions) == 0x8, "ControlledMinions size mismatch");
+    struct ControlledMinions {
+        uint32_t agent_id;
+        uint32_t minion_count;
+    };
+    static_assert(sizeof(ControlledMinions) == 0x8, "ControlledMinions size mismatch");
 
-struct DupeSkill {
-    uint32_t skill_id;
-    uint32_t count;
-};
-static_assert(sizeof(DupeSkill) == 0x8, "DupeSkill size mismatch");
+    struct DupeSkill {
+        uint32_t skill_id;
+        uint32_t count;
+    };
+    static_assert(sizeof(DupeSkill) == 0x8, "DupeSkill size mismatch");
 
-struct ProfessionState {
-    uint32_t agent_id;
-    gw::constants::Profession primary;
-    gw::constants::Profession secondary;
-    uint32_t unlocked_professions;
-    uint32_t h0010;
+    struct ProfessionState {
+        uint32_t agent_id;
+        GW::Constants::Profession primary;
+        GW::Constants::Profession secondary;
+        uint32_t unlocked_professions; // bitwise
+        uint32_t unk;
 
-    bool IsProfessionUnlocked(gw::constants::Profession profession) const {
-        return (unlocked_professions & (1U << static_cast<uint32_t>(profession))) != 0;
-    }
-};
-static_assert(sizeof(ProfessionState) == 0x14, "ProfessionState size mismatch");
+        inline bool IsProfessionUnlocked(GW::Constants::Profession profession) const {
+            return (unlocked_professions & (1 << (uint32_t)profession)) != 0;
+        }
+    };
+    static_assert(sizeof(ProfessionState) == 0x14, "ProfessionState size mismatch");
 
-struct AccountInfo {
-    wchar_t* account_name;
-    uint32_t wins;
-    uint32_t losses;
-    uint32_t rating;
-    uint32_t qualifier_points;
-    uint32_t rank;
-    uint32_t tournament_reward_points;
-};
-static_assert(sizeof(AccountInfo) == 0x1C, "AccountInfo size mismatch");
+    struct AccountInfo {
+        wchar_t* account_name;
+        uint32_t wins;
+        uint32_t losses;
+        uint32_t rating;
+        uint32_t qualifier_points;
+        uint32_t rank;
+        uint32_t tournament_reward_points;
+    };
+    static_assert(sizeof(AccountInfo) == 0x1C, "AccountInfo size mismatch");
 
-struct PartyMemberMoraleInfo {
-    uint32_t agent_id;
-    uint32_t agent_id_dup;
-    uint32_t h0008[4];
-    uint32_t morale;
-};
+    struct PartyMemberMoraleInfo {
+        uint32_t agent_id;
+        uint32_t agent_id_dup;
+        uint32_t unk[4];
+        uint32_t morale;
+        // ... unknown size
+    };
 
-struct PartyMoraleLink {
-    uint32_t h0000;
-    uint32_t h0004;
-    PartyMemberMoraleInfo* party_member_info;
-};
-static_assert(sizeof(PartyMoraleLink) == 0xC, "PartyMoraleLink size mismatch");
+    struct PartyMoraleLink {
+        uint32_t unk;
+        uint32_t unk2;
+        PartyMemberMoraleInfo* party_member_info;
+    };
+    static_assert(sizeof(PartyMoraleLink) == 0xC, "PartyMoraleLink size mismatch");
 
-struct PetInfo {
-    uint32_t agent_id;
-    uint32_t owner_agent_id;
-    wchar_t* pet_name;
-    uint32_t model_file_id1;
-    uint32_t model_file_id2;
-    HeroBehavior behavior;
-    uint32_t locked_target_id;
-};
-static_assert(sizeof(PetInfo) == 0x1C, "PetInfo size mismatch");
+    struct PetInfo {
+        uint32_t agent_id;
+        uint32_t owner_agent_id;
+        wchar_t* pet_name;
+        uint32_t model_file_id1;
+        uint32_t model_file_id2;
+        HeroBehavior behavior;
+        uint32_t locked_target_id;
 
-struct PlayerControlledCharacter {
-    uint32_t h0000[5];
-    uint32_t agent_id;
-    uint32_t composite_id;
-    uint32_t h001c;
-    uint32_t h0020;
-    uint32_t h0024;
-    uint32_t h0028;
-    uint32_t h002c;
-    uint32_t h0030;
-    uint32_t h0034;
-    uint32_t h0038;
-    uint32_t h003c;
-    uint32_t h0040;
-    uint32_t h0044;
-    uint32_t h0048;
-    uint32_t h004c;
-    uint32_t h0050;
-    uint32_t h0054;
-    uint32_t h0058;
-    uint32_t h005c;
-    uint32_t h0060;
-    uint32_t more_flags;
-    uint32_t h0068;
-    uint32_t h006c;
-    uint32_t h0070;
-    uint32_t h0074;
-    uint32_t h0078;
-    uint32_t h007c;
-    uint32_t h0080;
-    uint32_t h0084;
-    uint32_t h0088;
-    uint32_t h008c;
-    uint32_t h0090;
-    uint32_t h0094;
-    uint32_t h0098;
-    uint32_t h009c;
-    uint32_t h00a0;
-    uint32_t h00a4;
-    uint32_t h00a8;
-    uint32_t h00ac;
-    uint32_t h00b0;
-    uint32_t h00b4;
-    uint32_t h00b8;
-    uint32_t h00bc;
-    uint32_t h00c0;
-    uint32_t h00c4;
-    uint32_t h00c8;
-    uint32_t h00cc;
-    uint32_t h00d0;
-    uint32_t h00d4;
-    uint32_t h00d8;
-    uint32_t h00dc;
-    uint32_t h00e0;
-    uint32_t h00e4;
-    uint32_t h00e8;
-    uint32_t h00ec;
-    uint32_t h00f0;
-    uint32_t h00f4;
-    uint32_t h00f8;
-    uint32_t h00fc;
-    uint32_t h0100;
-    uint32_t h0104;
-    uint32_t h0108;
-    uint32_t flags;
-    uint32_t h0110;
-    uint32_t h0114;
-    uint32_t h0118;
-    uint32_t h011c;
-    uint32_t h0120;
-    uint32_t h0124;
-    uint32_t h0128;
-    uint32_t h012c;
-    uint32_t h0130;
-};
-static_assert(sizeof(PlayerControlledCharacter) == 0x134, "PlayerControlledCharacter size mismatch");
+    };
+    static_assert(sizeof(PetInfo) == 0x1C, "PetInfo size mismatch");
 
-struct WorldContext {
-    AccountInfo* account_info;
-    gw::GwArray<wchar_t> message_buffer;
-    gw::GwArray<wchar_t> dialog_buffer;
-    MerchItemArray merch_items;
-    MerchItemArray merch_items2;
-    uint32_t accum_map_init_unk0;
-    uint32_t accum_map_init_unk1;
-    uint32_t accum_map_init_offset;
-    uint32_t accum_map_init_length;
-    uint32_t h0054;
-    uint32_t accum_map_init_unk2;
-    uint32_t h005c[8];
-    MapAgentArray map_agents;
-    gw::GwArray<PartyAlly> party_allies;
-    gw::Vec3f all_flag;
-    uint32_t h00a8;
-    PartyAttributeArray attributes;
-    uint32_t h00bc[255];
-    gw::GwArray<void*> h04b8;
-    gw::GwArray<void*> h04c8;
-    uint32_t h04d8;
-    gw::GwArray<void*> h04dc;
-    uint32_t h04ec[7];
-    AgentEffectsArray party_effects;
-    gw::GwArray<void*> h0518;
-    gw::constants::QuestID active_quest_id;
-    QuestLog quest_log;
-    uint32_t h053c[10];
-    gw::GwArray<MissionObjective> mission_objectives;
-    gw::GwArray<uint32_t> henchmen_agent_ids;
-    HeroFlagArray hero_flags;
-    HeroInfoArray hero_info;
-    gw::GwArray<void*> cartographed_areas;
-    uint32_t h05b4[2];
-    gw::GwArray<ControlledMinions> controlled_minion_count;
-    gw::GwArray<uint32_t> missions_completed;
-    gw::GwArray<uint32_t> missions_bonus;
-    gw::GwArray<uint32_t> missions_completed_hm;
-    gw::GwArray<uint32_t> missions_bonus_hm;
-    gw::GwArray<uint32_t> unlocked_map;
-    uint32_t h061c[2];
-    PartyMemberMoraleInfo* player_morale_info;
-    uint32_t h0628;
-    gw::GwArray<PartyMoraleLink> party_morale_related;
-    uint32_t h063c[16];
-    uint32_t player_number;
-    PlayerControlledCharacter* player_controlled_character;
-    uint32_t is_hard_mode_unlocked;
-    uint32_t h0688[2];
-    uint32_t salvage_session_id;
-    uint32_t h0694[5];
-    uint32_t player_team_token;
-    gw::GwArray<PetInfo> pets;
-    gw::GwArray<ProfessionState> party_profession_states;
-    gw::GwArray<void*> h06cc;
-    uint32_t h06dc;
-    gw::GwArray<void*> h06e0;
-    SkillbarArray skillbar;
-    gw::GwArray<uint32_t> learnable_character_skills;
-    gw::GwArray<uint32_t> unlocked_character_skills;
-    gw::GwArray<DupeSkill> duplicated_character_skills;
-    gw::GwArray<void*> h0730;
-    uint32_t experience;
-    uint32_t experience_dupe;
-    uint32_t current_kurzick;
-    uint32_t current_kurzick_dupe;
-    uint32_t total_earned_kurzick;
-    uint32_t total_earned_kurzick_dupe;
-    uint32_t current_luxon;
-    uint32_t current_luxon_dupe;
-    uint32_t total_earned_luxon;
-    uint32_t total_earned_luxon_dupe;
-    uint32_t current_imperial;
-    uint32_t current_imperial_dupe;
-    uint32_t total_earned_imperial;
-    uint32_t total_earned_imperial_dupe;
-    uint32_t unk_faction4;
-    uint32_t unk_faction4_dupe;
-    uint32_t unk_faction5;
-    uint32_t unk_faction5_dupe;
-    uint32_t level;
-    uint32_t level_dupe;
-    uint32_t morale;
-    uint32_t morale_dupe;
-    uint32_t current_balth;
-    uint32_t current_balth_dupe;
-    uint32_t total_earned_balth;
-    uint32_t total_earned_balth_dupe;
-    uint32_t current_skill_points;
-    uint32_t current_skill_points_dupe;
-    uint32_t total_earned_skill_points;
-    uint32_t total_earned_skill_points_dupe;
-    uint32_t max_kurzick;
-    uint32_t max_luxon;
-    uint32_t max_balth;
-    uint32_t max_imperial;
-    uint32_t equipment_status;
-    AgentInfoArray agent_infos;
-    gw::GwArray<void*> h07dc;
-    MissionMapIconArray mission_map_icons;
-    NPCArray npcs;
-    PlayerArray players;
-    TitleArray titles;
-    gw::GwArray<TitleTier> title_tiers;
-    gw::GwArray<uint32_t> vanquished_areas;
-    uint32_t foes_killed;
-    uint32_t foes_to_kill;
-};
+    struct PlayerControlledCharacter {
+        uint32_t field0_0x0;
+        uint32_t field1_0x4;
+        uint32_t field2_0x8;
+        uint32_t field3_0xc;
+        uint32_t field4_0x10;
+        uint32_t agent_id;
+        uint32_t composite_id; // 0x30000000 | player_number
+        uint32_t field7_0x1c;
+        uint32_t field8_0x20;
+        uint32_t field9_0x24;
+        uint32_t field10_0x28;
+        uint32_t field11_0x2c;
+        uint32_t field12_0x30;
+        uint32_t field13_0x34;
+        uint32_t field14_0x38;
+        uint32_t field15_0x3c;
+        uint32_t field16_0x40;
+        uint32_t field17_0x44;
+        uint32_t field18_0x48;
+        uint32_t field19_0x4c;
+        uint32_t field20_0x50;
+        uint32_t field21_0x54;
+        uint32_t field22_0x58;
+        uint32_t field23_0x5c;
+        uint32_t field24_0x60;
+        uint32_t more_flags;
+        uint32_t field26_0x68;
+        uint32_t field27_0x6c;
+        uint32_t field28_0x70;
+        uint32_t field29_0x74;
+        uint32_t field30_0x78;
+        uint32_t field31_0x7c;
+        uint32_t field32_0x80;
+        uint32_t field33_0x84;
+        uint32_t field34_0x88;
+        uint32_t field35_0x8c;
+        uint32_t field36_0x90;
+        uint32_t field37_0x94;
+        uint32_t field38_0x98;
+        uint32_t field39_0x9c;
+        uint32_t field40_0xa0;
+        uint32_t field41_0xa4;
+        uint32_t field42_0xa8;
+        uint32_t field43_0xac;
+        uint32_t field44_0xb0;
+        uint32_t field45_0xb4;
+        uint32_t field46_0xb8;
+        uint32_t field47_0xbc;
+        uint32_t field48_0xc0;
+        uint32_t field49_0xc4;
+        uint32_t field50_0xc8;
+        uint32_t field51_0xcc;
+        uint32_t field52_0xd0;
+        uint32_t field53_0xd4;
+        uint32_t field54_0xd8;
+        uint32_t field55_0xdc;
+        uint32_t field56_0xe0;
+        uint32_t field57_0xe4;
+        uint32_t field58_0xe8;
+        uint32_t field59_0xec;
+        uint32_t field60_0xf0;
+        uint32_t field61_0xf4;
+        uint32_t field62_0xf8;
+        uint32_t field63_0xfc;
+        uint32_t field64_0x100;
+        uint32_t field65_0x104;
+        uint32_t field66_0x108;
+        uint32_t flags;
+        uint32_t field68_0x110;
+        uint32_t field69_0x114;
+        uint32_t field70_0x118;
+        uint32_t field71_0x11c;
+        uint32_t field72_0x120;
+        uint32_t field73_0x124;
+        uint32_t field74_0x128;
+        uint32_t field75_0x12c;
+        uint32_t field76_0x130;
+    };
+    static_assert(sizeof(PlayerControlledCharacter) == 0x134, "PlayerControlledCharacter size mismatch");
 
-static_assert(offsetof(WorldContext, merch_items) == 0x24, "WorldContext::merch_items offset mismatch");
-static_assert(offsetof(WorldContext, map_agents) == 0x7C, "WorldContext::map_agents offset mismatch");
-static_assert(offsetof(WorldContext, attributes) == 0xAC, "WorldContext::attributes offset mismatch");
-static_assert(offsetof(WorldContext, party_effects) == 0x508, "WorldContext::party_effects offset mismatch");
-static_assert(offsetof(WorldContext, active_quest_id) == 0x528, "WorldContext::active_quest_id offset mismatch");
-static_assert(offsetof(WorldContext, hero_flags) == 0x584, "WorldContext::hero_flags offset mismatch");
-static_assert(offsetof(WorldContext, player_number) == 0x67C, "WorldContext::player_number offset mismatch");
-static_assert(offsetof(WorldContext, player_controlled_character) == 0x680, "WorldContext::player_controlled_character offset mismatch");
-static_assert(offsetof(WorldContext, pets) == 0x6AC, "WorldContext::pets offset mismatch");
-static_assert(offsetof(WorldContext, skillbar) == 0x6F0, "WorldContext::skillbar offset mismatch");
-static_assert(offsetof(WorldContext, agent_infos) == 0x7CC, "WorldContext::agent_infos offset mismatch");
-static_assert(offsetof(WorldContext, players) == 0x80C, "WorldContext::players offset mismatch");
-static_assert(offsetof(WorldContext, title_tiers) == 0x82C, "WorldContext::title_tiers offset mismatch");
-static_assert(sizeof(WorldContext) == 0x854, "WorldContext size mismatch");
+    struct WorldContext {
+        /* +h0000 */ AccountInfo* accountInfo;
+        /* +h0004 */ GW::GWArray<wchar_t> message_buff;
+        /* +h0014 */ GW::GWArray<wchar_t> dialog_buff;
+        /* +h0024 */ MerchItemArray merch_items;
+        /* +h0034 */ MerchItemArray merch_items2;
+        /* +h0044 */ uint32_t accumMapInitUnk0;
+        /* +h0048 */ uint32_t accumMapInitUnk1;
+        /* +h004C */ uint32_t accumMapInitOffset;
+        /* +h0050 */ uint32_t accumMapInitLength;
+        /* +h0054 */ uint32_t h0054;
+        /* +h0058 */ uint32_t accumMapInitUnk2;
+        /* +h005C */ uint32_t h005C[8];
+        /* +h007C */ MapAgentArray map_agents;
+        /* +h008C */ GW::GWArray<PartyAlly> party_allies; // List of allies added to the current party
+        /* +h009C */ Vec3f all_flag;
+        /* +h00A8 */ uint32_t h00A8;
+        /* +h00AC */ PartyAttributeArray attributes;
+        /* +h00BC */ uint32_t h00BC[255];
+        /* +h04B8 */ GW::GWArray<void*> h04B8;
+        /* +h04C8 */ GW::GWArray<void*> h04C8;
+        /* +h04D8 */ uint32_t h04D8;
+        /* +h04DC */ GW::GWArray<void*> h04DC;
+        /* +h04EC */ uint32_t h04EC[7];
+        /* +h0508 */ AgentEffectsArray party_effects;
+        /* +h0518 */ GW::GWArray<void*> h0518;
+        /* +h0528 */ GW::Constants::QuestID active_quest_id;
+        /* +h052C */ QuestLog quest_log;
+        /* +h053C */ uint32_t h053C[10];
+        /* +h0564 */ GW::GWArray<MissionObjective> mission_objectives;
 
-}  // namespace gw::context
+        /* +h0574 */ GW::GWArray<uint32_t> henchmen_agent_ids;
+        /* +h0584 */ HeroFlagArray hero_flags;
+        /* +h0594 */ HeroInfoArray hero_info;
+        /* +h05A4 */ GW::GWArray<void*> cartographed_areas; // Struct size = 0x20
+        /* +h05B4 */ uint32_t h05B4[2];
+        /* +h05BC */ GW::GWArray<ControlledMinions> controlled_minion_count;
+        /* +h05CC */ GW::GWArray<uint32_t> missions_completed;
+        /* +h05DC */ GW::GWArray<uint32_t> missions_bonus;
+        /* +h05EC */ GW::GWArray<uint32_t> missions_completed_hm;
+        /* +h05FC */ GW::GWArray<uint32_t> missions_bonus_hm;
+        /* +h060C */ GW::GWArray<uint32_t> unlocked_map;
+        /* +h061C */ uint32_t h061C[2];
+        /* +h0624 */ PartyMemberMoraleInfo* player_morale_info;
+        /* +h0628 */ uint32_t h028C;
+        /* +h062C */ GW::GWArray<PartyMoraleLink> party_morale_related;
+        /* +h063C */ uint32_t h063C[16];
+        /* +h067C */ uint32_t player_number;
+        /* +h0680 */ PlayerControlledCharacter* playerControlledChar; // Struct size = 0x134 ?
+        /* +h0684 */ uint32_t is_hard_mode_unlocked;
+        /* +h0688 */ uint32_t h0688[2];
+        /* +h0690 */ uint32_t salvage_session_id;
+        /* +h0694 */ uint32_t h0694[5];
+        /* +h06A8 */ uint32_t playerTeamToken;
+        /* +h06AC */ GW::GWArray<PetInfo> pets;
+        /* +h06BC */ GW::GWArray<ProfessionState> party_profession_states; // Current state of primary/secondary/unlocked for current player and party heroes, used in skill window. aka attribStates
+        /* +h06CC */ GW::GWArray<void*> h06CC;
+        /* +h06DC */ uint32_t h06DC;
+        /* +h06E0 */ GW::GWArray<void*> h06E0;
+        /* +h06F0 */ SkillbarArray skillbar;
+        /* +h0700 */ GW::GWArray<uint32_t> learnable_character_skills; // populated at skill trainer and when using signet of capture
+        /* +h0710 */ GW::GWArray<uint32_t> unlocked_character_skills; // bit field
+        /* +h0720 */ GW::GWArray<DupeSkill> duplicated_character_skills; // When res signet is bought more than once, its mapped into this array. Used in skill window.
+        /* +h0730 */ GW::GWArray<void*> h0730;
+        /* +h0740 */ uint32_t experience;
+        /* +h0744 */ uint32_t experience_dupe;
+        /* +h0748 */ uint32_t current_kurzick;
+        /* +h074C */ uint32_t current_kurzick_dupe;
+        /* +h0750 */ uint32_t total_earned_kurzick;
+        /* +h0754 */ uint32_t total_earned_kurzick_dupe;
+        /* +h0758 */ uint32_t current_luxon;
+        /* +h075C */ uint32_t current_luxon_dupe;
+        /* +h0760 */ uint32_t total_earned_luxon;
+        /* +h0764 */ uint32_t total_earned_luxon_dupe;
+        /* +h0768 */ uint32_t current_imperial;
+        /* +h076C */ uint32_t current_imperial_dupe;
+        /* +h0770 */ uint32_t total_earned_imperial;
+        /* +h0774 */ uint32_t total_earned_imperial_dupe;
+        /* +h0778 */ uint32_t unk_faction4;
+        /* +h077C */ uint32_t unk_faction4_dupe;
+        /* +h0780 */ uint32_t unk_faction5;
+        /* +h0784 */ uint32_t unk_faction5_dupe;
+        /* +h0788 */ uint32_t level;
+        /* +h078C */ uint32_t level_dupe;
+        /* +h0790 */ uint32_t morale;
+        /* +h0794 */ uint32_t morale_dupe;
+        /* +h0798 */ uint32_t current_balth;
+        /* +h079C */ uint32_t current_balth_dupe;
+        /* +h07A0 */ uint32_t total_earned_balth;
+        /* +h07A4 */ uint32_t total_earned_balth_dupe;
+        /* +h07A8 */ uint32_t current_skill_points;
+        /* +h07AC */ uint32_t current_skill_points_dupe;
+        /* +h07B0 */ uint32_t total_earned_skill_points;
+        /* +h07B4 */ uint32_t total_earned_skill_points_dupe;
+        /* +h07B8 */ uint32_t max_kurzick;
+        /* +h07BC */ uint32_t max_luxon;
+        /* +h07C0 */ uint32_t max_balth;
+        /* +h07C4 */ uint32_t max_imperial;
+        /* +h07C8 */ uint32_t equipment_status;
+        /* +h07CC */ AgentInfoArray agent_infos;
+        /* +h07DC */ GW::GWArray<void*> h07DC;
+        /* +h07EC */ MissionMapIconArray mission_map_icons;
+        /* +h07FC */ NPCArray npcs;
+        /* +h080C */ PlayerArray players;
+        /* +h081C */ TitleArray titles;
+        /* +h082C */ GW::GWArray<TitleTier> title_tiers;
+        /* +h083C */ GW::GWArray<uint32_t> vanquished_areas;
+        /* +h084C */ uint32_t foes_killed;
+        /* +h0850 */ uint32_t foes_to_kill;
+        //... couple more arrays after this
+    };
+
+    static_assert(offsetof(WorldContext, merch_items) == 0x24, "WorldContext::merch_items offset mismatch");
+    static_assert(offsetof(WorldContext, map_agents) == 0x7C, "WorldContext::map_agents offset mismatch");
+    static_assert(offsetof(WorldContext, attributes) == 0xAC, "WorldContext::attributes offset mismatch");
+    static_assert(offsetof(WorldContext, party_effects) == 0x508, "WorldContext::party_effects offset mismatch");
+    static_assert(offsetof(WorldContext, active_quest_id) == 0x528, "WorldContext::active_quest_id offset mismatch");
+    static_assert(offsetof(WorldContext, hero_flags) == 0x584, "WorldContext::hero_flags offset mismatch");
+    static_assert(offsetof(WorldContext, player_number) == 0x67C, "WorldContext::player_number offset mismatch");
+    static_assert(offsetof(WorldContext, pets) == 0x6AC, "WorldContext::pets offset mismatch");
+    static_assert(offsetof(WorldContext, skillbar) == 0x6F0, "WorldContext::skillbar offset mismatch");
+    static_assert(offsetof(WorldContext, agent_infos) == 0x7CC, "WorldContext::agent_infos offset mismatch");
+    static_assert(offsetof(WorldContext, players) == 0x80C, "WorldContext::players offset mismatch");
+    static_assert(offsetof(WorldContext, title_tiers) == 0x82C, "WorldContext::title_tiers offset mismatch");
+    static_assert(sizeof(WorldContext) == 0x854, "WorldContext size mismatch");
+
+}  // namespace GW::Context

@@ -10,12 +10,12 @@
 
 namespace {
 
-std::vector<py4gw::MemoryPatcher*> g_patches;
+std::vector<PY4GW::MemoryPatcher*> g_patches;
 bool g_patching_enabled = true;
 
 }  // namespace
 
-namespace py4gw {
+namespace PY4GW {
 
 MemoryPatcher::~MemoryPatcher() {
     PY4GW_ASSERT(!(g_patching_enabled && IsValid() && GetIsActive()));
@@ -144,4 +144,4 @@ bool MemoryPatcher::TogglePatch(bool enabled) {
     return enabled;
 }
 
-}  // namespace py4gw
+}  // namespace PY4GW

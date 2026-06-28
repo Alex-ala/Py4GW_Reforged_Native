@@ -4,7 +4,7 @@
 
 #include <ctime>
 
-namespace py4gw {
+namespace PY4GW {
 
 class Timer {
 public:
@@ -85,4 +85,4 @@ private:
     bool paused_ = false;
 };
 
-}  // namespace py4gw
+}  // namespace PY4GW

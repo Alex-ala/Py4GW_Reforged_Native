@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace py4gw {
+namespace PY4GW {
 
 class MemoryPatcher {
 public:
@@ -46,4 +46,4 @@ private:
     bool active_ = false;
 };
 
-}  // namespace py4gw
+}  // namespace PY4GW

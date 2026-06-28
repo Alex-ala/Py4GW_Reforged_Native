@@ -24,18 +24,18 @@ MemReallocHelperFn g_mem_realloc_helper_func = nullptr;
 MemFreeFn g_mem_free_func = nullptr;
 
 bool ResolveSkillTimer() {
-    const auto* pattern = py4gw::Patterns::Get("memory.skill_timer_anchor");
+    const auto* pattern = PY4GW::Patterns::Get("memory.skill_timer_anchor");
     if (!pattern) {
         Logger::Instance().LogError("Missing or invalid pattern: memory.skill_timer_anchor", "memory");
         return false;
     }
 
-    uintptr_t address = py4gw::Scanner::FindAssertion(
+    uintptr_t address = PY4GW::Scanner::FindAssertion(
         pattern->assertion_file.c_str(),
         pattern->assertion_message.c_str(),
         static_cast<uint32_t>(pattern->line_number),
         pattern->offset);
-    address = py4gw::Scanner::FunctionFromNearCall(address);
+    address = PY4GW::Scanner::FunctionFromNearCall(address);
     if (!Logger::AssertAddress("SkillTimer_Func", address, "memory")) {
         return false;
     }
@@ -44,7 +44,7 @@ bool ResolveSkillTimer() {
     if (!Logger::AssertAddress("SkillTimer_PtrRef", address, "memory")) {
         return false;
     }
-    if (!py4gw::Scanner::IsValidPtr(*reinterpret_cast<uintptr_t*>(address))) {
+    if (!PY4GW::Scanner::IsValidPtr(*reinterpret_cast<uintptr_t*>(address))) {
         Logger::Instance().LogError("Skill timer pointer is outside the expected data section.", "memory");
         return false;
     }
@@ -54,13 +54,13 @@ bool ResolveSkillTimer() {
 }
 
 bool ResolveWindowHandlePointer() {
-    const auto* pattern = py4gw::Patterns::Get("memory.window_handle_ptr");
+    const auto* pattern = PY4GW::Patterns::Get("memory.window_handle_ptr");
     if (!pattern) {
         Logger::Instance().LogError("Missing or invalid pattern: memory.window_handle_ptr", "memory");
         return false;
     }
 
-    const uintptr_t address = py4gw::Scanner::Find(
+    const uintptr_t address = PY4GW::Scanner::Find(
         pattern->pattern.c_str(),
         pattern->mask.c_str(),
         pattern->offset,
@@ -68,7 +68,7 @@ bool ResolveWindowHandlePointer() {
     if (!Logger::AssertAddress("WinHandle_PtrRef", address, "memory")) {
         return false;
     }
-    if (!py4gw::Scanner::IsValidPtr(*reinterpret_cast<const uintptr_t*>(address))) {
+    if (!PY4GW::Scanner::IsValidPtr(*reinterpret_cast<const uintptr_t*>(address))) {
         Logger::Instance().LogError("Window handle pointer is outside the expected data section.", "memory");
         return false;
     }
@@ -78,13 +78,13 @@ bool ResolveWindowHandlePointer() {
 }
 
 bool ResolvePersonalDirFunction() {
-    const auto* pattern = py4gw::Patterns::Get("memory.personal_dir_target");
+    const auto* pattern = PY4GW::Patterns::Get("memory.personal_dir_target");
     if (!pattern) {
         Logger::Instance().LogError("Missing or invalid pattern: memory.personal_dir_target", "memory");
         return false;
     }
 
-    const uintptr_t address = py4gw::Scanner::FindAssertion(
+    const uintptr_t address = PY4GW::Scanner::FindAssertion(
         pattern->assertion_file.c_str(),
         pattern->assertion_message.c_str(),
         static_cast<uint32_t>(pattern->line_number),
@@ -92,7 +92,7 @@ bool ResolvePersonalDirFunction() {
     if (!Logger::AssertAddress("GetPersonalDir_Func", address, "memory")) {
         return false;
     }
-    if (!py4gw::Scanner::IsValidPtr(address, py4gw::ScannerSection::Text)) {
+    if (!PY4GW::Scanner::IsValidPtr(address, PY4GW::ScannerSection::Text)) {
         Logger::Instance().LogError("GetPersonalDir target is outside the expected text section.", "memory");
         return false;
     }
@@ -102,43 +102,43 @@ bool ResolvePersonalDirFunction() {
 }
 
 bool ResolveVersionFunction() {
-    const auto* pattern = py4gw::Patterns::Get("memory.gw_version_anchor");
+    const auto* pattern = PY4GW::Patterns::Get("memory.gw_version_anchor");
     if (!pattern) {
         Logger::Instance().LogError("Missing or invalid pattern: memory.gw_version_anchor", "memory");
         return false;
     }
 
-    uintptr_t address = py4gw::Scanner::FindAssertion(
+    uintptr_t address = PY4GW::Scanner::FindAssertion(
         pattern->assertion_file.c_str(),
         pattern->assertion_message.c_str(),
         static_cast<uint32_t>(pattern->line_number),
         pattern->offset);
-    address = py4gw::Scanner::FunctionFromNearCall(address);
+    address = PY4GW::Scanner::FunctionFromNearCall(address);
     g_get_gw_version_func = reinterpret_cast<GetGWVersionFn>(address);
     return Logger::AssertAddress("GetGWVersion_Func", reinterpret_cast<uintptr_t>(g_get_gw_version_func), "memory");
 }
 
 bool ResolveAllocHelpers() {
-    const auto* alloc_pattern = py4gw::Patterns::Get("memory.mem_alloc_helper");
-    const auto* realloc_pattern = py4gw::Patterns::Get("memory.mem_realloc_helper");
+    const auto* alloc_pattern = PY4GW::Patterns::Get("memory.mem_alloc_helper");
+    const auto* realloc_pattern = PY4GW::Patterns::Get("memory.mem_realloc_helper");
     if (!alloc_pattern || !realloc_pattern) {
         Logger::Instance().LogError("Missing or invalid memory helper pattern.", "memory");
         return false;
     }
 
-    uintptr_t address = py4gw::Scanner::Find(
+    uintptr_t address = PY4GW::Scanner::Find(
         alloc_pattern->pattern.c_str(),
         alloc_pattern->mask.c_str(),
         alloc_pattern->offset,
         alloc_pattern->section);
-    g_mem_alloc_helper_func = reinterpret_cast<MemAllocHelperFn>(py4gw::Scanner::ToFunctionStart(address));
+    g_mem_alloc_helper_func = reinterpret_cast<MemAllocHelperFn>(PY4GW::Scanner::ToFunctionStart(address));
 
-    address = py4gw::Scanner::Find(
+    address = PY4GW::Scanner::Find(
         realloc_pattern->pattern.c_str(),
         realloc_pattern->mask.c_str(),
         realloc_pattern->offset,
         realloc_pattern->section);
-    g_mem_realloc_helper_func = reinterpret_cast<MemReallocHelperFn>(py4gw::Scanner::ToFunctionStart(address));
+    g_mem_realloc_helper_func = reinterpret_cast<MemReallocHelperFn>(PY4GW::Scanner::ToFunctionStart(address));
 
     const bool alloc_ok = Logger::AssertAddress(
         "MemAllocHelper_Func",
@@ -152,18 +152,18 @@ bool ResolveAllocHelpers() {
 }
 
 bool ResolveFreeHelper() {
-    const auto* pattern = py4gw::Patterns::Get("memory.mem_free_anchor");
+    const auto* pattern = PY4GW::Patterns::Get("memory.mem_free_anchor");
     if (!pattern) {
         Logger::Instance().LogError("Missing or invalid pattern: memory.mem_free_anchor", "memory");
         return false;
     }
 
-    uintptr_t address = py4gw::Scanner::FindAssertion(
+    uintptr_t address = PY4GW::Scanner::FindAssertion(
         pattern->assertion_file.c_str(),
         pattern->assertion_message.c_str(),
         static_cast<uint32_t>(pattern->line_number),
         pattern->offset);
-    address = py4gw::Scanner::FunctionFromNearCall(address);
+    address = PY4GW::Scanner::FunctionFromNearCall(address);
     if (!Logger::AssertAddress("MemFree_Binder_Func", address, "memory")) {
         return false;
     }
@@ -172,7 +172,7 @@ bool ResolveFreeHelper() {
     if (!Logger::AssertAddress("MemFree_FuncRef", address, "memory")) {
         return false;
     }
-    if (!py4gw::Scanner::IsValidPtr(*reinterpret_cast<uintptr_t*>(address), py4gw::ScannerSection::Text)) {
+    if (!PY4GW::Scanner::IsValidPtr(*reinterpret_cast<uintptr_t*>(address), PY4GW::ScannerSection::Text)) {
         Logger::Instance().LogError("MemFree target is outside the expected text section.", "memory");
         return false;
     }
@@ -183,7 +183,7 @@ bool ResolveFreeHelper() {
 
 }  // namespace
 
-namespace py4gw {
+namespace PY4GW {
 
 bool MemoryManager::Scan() {
     PY4GW_ASSERT(Scanner::Initialize());
@@ -229,4 +229,4 @@ void MemoryManager::MemFree(void* buffer) {
     }
 }
 
-}  // namespace py4gw
+}  // namespace PY4GW

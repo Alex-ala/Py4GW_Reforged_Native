@@ -40,7 +40,7 @@ void Logger::SetLogFile(const std::string& file_path) {
     std::lock_guard<std::mutex> lock(log_mutex_);
     std::filesystem::path path(file_path);
     if (path.is_relative()) {
-        const auto process_dir = py4gw::process_manager::GetProcessDirectory();
+        const auto process_dir = PY4GW::process_manager::GetProcessDirectory();
         if (!process_dir.empty()) {
             path = process_dir / path;
         }

@@ -24,7 +24,7 @@ struct EventData {
 #pragma warning(pop)
 
 void __cdecl OnFriendEventHandler(void* unk, EventData* event_info) {
-    py4gw::HookBase::EnterHook();
+    PY4GW::HookBase::EnterHook();
     uint8_t* uuid = nullptr;
     const wchar_t* alias = nullptr;
     switch (event_info->event_id) {
@@ -43,10 +43,10 @@ void __cdecl OnFriendEventHandler(void* unk, EventData* event_info) {
     }
 
     if (!uuid && !alias) {
-        if (gw::friend_list::g_friend_event_handler_original) {
-            gw::friend_list::g_friend_event_handler_original(unk, event_info);
+        if (GW::friend_list::g_friend_event_handler_original) {
+            GW::friend_list::g_friend_event_handler_original(unk, event_info);
         }
-        py4gw::HookBase::LeaveHook();
+        PY4GW::HookBase::LeaveHook();
         return;
     }
 
@@ -61,31 +61,31 @@ void __cdecl OnFriendEventHandler(void* unk, EventData* event_info) {
         alias = nullptr;
     }
 
-    gw::context::Friend* current_state = nullptr;
+    GW::Context::Friend* current_state = nullptr;
     if (uuid) {
-        current_state = gw::friend_list::GetFriend(uuid);
+        current_state = GW::friend_list::GetFriend(uuid);
     } else if (alias) {
-        current_state = gw::friend_list::GetFriend(alias, nullptr, gw::context::FriendType::Unknow);
+        current_state = GW::friend_list::GetFriend(alias, nullptr, GW::Context::FriendType::Unknow);
     }
 
-    py4gw::HookStatus hook_status = {};
-    gw::context::Friend* old_state = nullptr;
+    PY4GW::HookStatus hook_status = {};
+    GW::Context::Friend* old_state = nullptr;
     if (current_state) {
-        old_state = static_cast<gw::context::Friend*>(std::malloc(sizeof(*old_state)));
+        old_state = static_cast<GW::Context::Friend*>(std::malloc(sizeof(*old_state)));
         PY4GW_ASSERT(old_state && std::memcpy(old_state, current_state, sizeof(*old_state)));
     }
 
-    if (gw::friend_list::g_friend_event_handler_original) {
-        gw::friend_list::g_friend_event_handler_original(unk, event_info);
+    if (GW::friend_list::g_friend_event_handler_original) {
+        GW::friend_list::g_friend_event_handler_original(unk, event_info);
     }
 
     if (uuid) {
-        current_state = gw::friend_list::GetFriend(uuid);
+        current_state = GW::friend_list::GetFriend(uuid);
     } else if (alias) {
-        current_state = gw::friend_list::GetFriend(alias, nullptr, gw::context::FriendType::Unknow);
+        current_state = GW::friend_list::GetFriend(alias, nullptr, GW::Context::FriendType::Unknow);
     }
 
-    for (auto& [entry, callback] : gw::friend_list::g_friend_status_callbacks) {
+    for (auto& [entry, callback] : GW::friend_list::g_friend_status_callbacks) {
         static_cast<void>(entry);
         callback(&hook_status, old_state, current_state);
         ++hook_status.altitude;
@@ -95,19 +95,19 @@ void __cdecl OnFriendEventHandler(void* unk, EventData* event_info) {
         std::free(old_state);
     }
 
-    py4gw::HookBase::LeaveHook();
+    PY4GW::HookBase::LeaveHook();
 }
 
 bool ResolveFriendListPointer() {
     CrashContextScope context("startup", "friend_list", "resolve_friend_list_pointer");
-    const auto* anchor_pattern = py4gw::Patterns::Get("friend_list.friend_list_anchor");
-    const auto* list_pattern = py4gw::Patterns::Get("friend_list.friend_list_scan");
+    const auto* anchor_pattern = PY4GW::Patterns::Get("friend_list.friend_list_anchor");
+    const auto* list_pattern = PY4GW::Patterns::Get("friend_list.friend_list_scan");
     if (!anchor_pattern || !list_pattern) {
         Logger::Instance().LogError("Missing or invalid friend list pointer pattern.", "friend_list");
         return false;
     }
 
-    uintptr_t address = py4gw::Scanner::FindAssertion(
+    uintptr_t address = PY4GW::Scanner::FindAssertion(
         anchor_pattern->assertion_file.c_str(),
         anchor_pattern->assertion_message.c_str(),
         static_cast<uint32_t>(anchor_pattern->line_number),
@@ -116,7 +116,7 @@ bool ResolveFriendListPointer() {
         return false;
     }
 
-    address = py4gw::Scanner::FindInRange(
+    address = PY4GW::Scanner::FindInRange(
         list_pattern->pattern.c_str(),
         list_pattern->mask.c_str(),
         list_pattern->offset,
@@ -125,24 +125,24 @@ bool ResolveFriendListPointer() {
     if (!Logger::AssertAddress("FriendList_PointerAddress", address, "friend_list")) {
         return false;
     }
-    if (!py4gw::Scanner::IsValidPtr(*reinterpret_cast<uintptr_t*>(address))) {
+    if (!PY4GW::Scanner::IsValidPtr(*reinterpret_cast<uintptr_t*>(address))) {
         Logger::Instance().LogError("Friend list pointer is outside the expected data section.", "friend_list");
         return false;
     }
 
-    gw::friend_list::g_friend_list_addr = *reinterpret_cast<uintptr_t*>(address);
-    return Logger::AssertAddress("FriendList_Addr", gw::friend_list::g_friend_list_addr, "friend_list");
+    GW::friend_list::g_friend_list_addr = *reinterpret_cast<uintptr_t*>(address);
+    return Logger::AssertAddress("FriendList_Addr", GW::friend_list::g_friend_list_addr, "friend_list");
 }
 
 bool ResolveFriendEventHandler() {
     CrashContextScope context("startup", "friend_list", "resolve_friend_event_handler");
-    const auto* pattern = py4gw::Patterns::Get("friend_list.friend_event_handler");
+    const auto* pattern = PY4GW::Patterns::Get("friend_list.friend_event_handler");
     if (!pattern) {
         Logger::Instance().LogError("Missing or invalid pattern: friend_list.friend_event_handler", "friend_list");
         return false;
     }
 
-    const uintptr_t scan = py4gw::Scanner::Find(
+    const uintptr_t scan = PY4GW::Scanner::Find(
         pattern->pattern.c_str(),
         pattern->mask.c_str(),
         pattern->offset,
@@ -151,23 +151,23 @@ bool ResolveFriendEventHandler() {
         return false;
     }
 
-    gw::friend_list::g_friend_event_handler_func = reinterpret_cast<gw::friend_list::FriendEventHandlerFn>(
-        py4gw::Scanner::ToFunctionStart(scan));
+    GW::friend_list::g_friend_event_handler_func = reinterpret_cast<GW::friend_list::FriendEventHandlerFn>(
+        PY4GW::Scanner::ToFunctionStart(scan));
     return Logger::AssertAddress(
         "FriendEventHandler_Func",
-        reinterpret_cast<uintptr_t>(gw::friend_list::g_friend_event_handler_func),
+        reinterpret_cast<uintptr_t>(GW::friend_list::g_friend_event_handler_func),
         "friend_list");
 }
 
 bool ResolveSetOnlineStatus() {
     CrashContextScope context("startup", "friend_list", "resolve_set_online_status");
-    const auto* pattern = py4gw::Patterns::Get("friend_list.set_online_status");
+    const auto* pattern = PY4GW::Patterns::Get("friend_list.set_online_status");
     if (!pattern) {
         Logger::Instance().LogError("Missing or invalid pattern: friend_list.set_online_status", "friend_list");
         return false;
     }
 
-    const uintptr_t scan = py4gw::Scanner::Find(
+    const uintptr_t scan = PY4GW::Scanner::Find(
         pattern->pattern.c_str(),
         pattern->mask.c_str(),
         pattern->offset,
@@ -176,23 +176,23 @@ bool ResolveSetOnlineStatus() {
         return false;
     }
 
-    gw::friend_list::g_set_online_status_func = reinterpret_cast<gw::friend_list::SetOnlineStatusFn>(
-        py4gw::Scanner::ToFunctionStart(scan));
+    GW::friend_list::g_set_online_status_func = reinterpret_cast<GW::friend_list::SetOnlineStatusFn>(
+        PY4GW::Scanner::ToFunctionStart(scan));
     return Logger::AssertAddress(
         "SetOnlineStatus_Func",
-        reinterpret_cast<uintptr_t>(gw::friend_list::g_set_online_status_func),
+        reinterpret_cast<uintptr_t>(GW::friend_list::g_set_online_status_func),
         "friend_list");
 }
 
 bool ResolveAddFriend() {
     CrashContextScope context("startup", "friend_list", "resolve_add_friend");
-    const auto* pattern = py4gw::Patterns::Get("friend_list.add_friend");
+    const auto* pattern = PY4GW::Patterns::Get("friend_list.add_friend");
     if (!pattern) {
         Logger::Instance().LogError("Missing or invalid pattern: friend_list.add_friend", "friend_list");
         return false;
     }
 
-    const uintptr_t scan = py4gw::Scanner::Find(
+    const uintptr_t scan = PY4GW::Scanner::Find(
         pattern->pattern.c_str(),
         pattern->mask.c_str(),
         pattern->offset,
@@ -201,24 +201,24 @@ bool ResolveAddFriend() {
         return false;
     }
 
-    gw::friend_list::g_add_friend_func = reinterpret_cast<gw::friend_list::AddFriendFn>(
-        py4gw::Scanner::ToFunctionStart(scan));
+    GW::friend_list::g_add_friend_func = reinterpret_cast<GW::friend_list::AddFriendFn>(
+        PY4GW::Scanner::ToFunctionStart(scan));
     return Logger::AssertAddress(
         "AddFriend_Func",
-        reinterpret_cast<uintptr_t>(gw::friend_list::g_add_friend_func),
+        reinterpret_cast<uintptr_t>(GW::friend_list::g_add_friend_func),
         "friend_list");
 }
 
 bool ResolveRemoveFriend() {
     CrashContextScope context("startup", "friend_list", "resolve_remove_friend");
-    const auto* anchor_pattern = py4gw::Patterns::Get("friend_list.remove_friend_anchor");
-    const auto* call_pattern = py4gw::Patterns::Get("friend_list.remove_friend_call");
+    const auto* anchor_pattern = PY4GW::Patterns::Get("friend_list.remove_friend_anchor");
+    const auto* call_pattern = PY4GW::Patterns::Get("friend_list.remove_friend_call");
     if (!anchor_pattern || !call_pattern) {
         Logger::Instance().LogError("Missing or invalid remove friend pattern.", "friend_list");
         return false;
     }
 
-    uintptr_t address = py4gw::Scanner::Find(
+    uintptr_t address = PY4GW::Scanner::Find(
         anchor_pattern->pattern.c_str(),
         anchor_pattern->mask.c_str(),
         anchor_pattern->offset,
@@ -227,7 +227,7 @@ bool ResolveRemoveFriend() {
         return false;
     }
 
-    address = py4gw::Scanner::FindInRange(
+    address = PY4GW::Scanner::FindInRange(
         call_pattern->pattern.c_str(),
         call_pattern->mask.c_str(),
         call_pattern->offset,
@@ -237,11 +237,11 @@ bool ResolveRemoveFriend() {
         return false;
     }
 
-    gw::friend_list::g_remove_friend_func = reinterpret_cast<gw::friend_list::RemoveFriendFn>(
-        py4gw::Scanner::FunctionFromNearCall(address));
+    GW::friend_list::g_remove_friend_func = reinterpret_cast<GW::friend_list::RemoveFriendFn>(
+        PY4GW::Scanner::FunctionFromNearCall(address));
     return Logger::AssertAddress(
         "RemoveFriend_Func",
-        reinterpret_cast<uintptr_t>(gw::friend_list::g_remove_friend_func),
+        reinterpret_cast<uintptr_t>(GW::friend_list::g_remove_friend_func),
         "friend_list");
 }
 
@@ -255,45 +255,45 @@ bool Init() {
         return false;
     }
 
-    const int status = py4gw::HookBase::CreateHook(
-        reinterpret_cast<void**>(&gw::friend_list::g_friend_event_handler_func),
+    const int status = PY4GW::HookBase::CreateHook(
+        reinterpret_cast<void**>(&GW::friend_list::g_friend_event_handler_func),
         reinterpret_cast<void*>(&OnFriendEventHandler),
-        reinterpret_cast<void**>(&gw::friend_list::g_friend_event_handler_original));
+        reinterpret_cast<void**>(&GW::friend_list::g_friend_event_handler_original));
     return Logger::AssertHook("FriendEventHandler_Func", status, "friend_list");
 }
 
 void EnableHooks() {
     CrashContextScope context("runtime", "friend_list", "enable_hooks");
-    if (gw::friend_list::g_friend_event_handler_func) {
-        py4gw::HookBase::EnableHooks(reinterpret_cast<void*>(gw::friend_list::g_friend_event_handler_func));
+    if (GW::friend_list::g_friend_event_handler_func) {
+        PY4GW::HookBase::EnableHooks(reinterpret_cast<void*>(GW::friend_list::g_friend_event_handler_func));
     }
 }
 
 void DisableHooks() {
     CrashContextScope context("shutdown", "friend_list", "disable_hooks");
-    if (gw::friend_list::g_friend_event_handler_func) {
-        py4gw::HookBase::DisableHooks(reinterpret_cast<void*>(gw::friend_list::g_friend_event_handler_func));
+    if (GW::friend_list::g_friend_event_handler_func) {
+        PY4GW::HookBase::DisableHooks(reinterpret_cast<void*>(GW::friend_list::g_friend_event_handler_func));
     }
 }
 
 void Exit() {
     CrashContextScope context("shutdown", "friend_list", "exit");
-    if (gw::friend_list::g_friend_event_handler_func) {
-        py4gw::HookBase::RemoveHook(reinterpret_cast<void*>(gw::friend_list::g_friend_event_handler_func));
+    if (GW::friend_list::g_friend_event_handler_func) {
+        PY4GW::HookBase::RemoveHook(reinterpret_cast<void*>(GW::friend_list::g_friend_event_handler_func));
     }
 
-    gw::friend_list::g_friend_event_handler_func = nullptr;
-    gw::friend_list::g_friend_event_handler_original = nullptr;
-    gw::friend_list::g_set_online_status_func = nullptr;
-    gw::friend_list::g_add_friend_func = nullptr;
-    gw::friend_list::g_remove_friend_func = nullptr;
-    gw::friend_list::g_friend_list_addr = 0;
-    gw::friend_list::g_friend_status_callbacks.clear();
+    GW::friend_list::g_friend_event_handler_func = nullptr;
+    GW::friend_list::g_friend_event_handler_original = nullptr;
+    GW::friend_list::g_set_online_status_func = nullptr;
+    GW::friend_list::g_add_friend_func = nullptr;
+    GW::friend_list::g_remove_friend_func = nullptr;
+    GW::friend_list::g_friend_list_addr = 0;
+    GW::friend_list::g_friend_status_callbacks.clear();
 }
 
 }  // namespace
 
-namespace gw::friend_list {
+namespace GW::friend_list {
 
 bool Initialize() {
     CrashContextScope context("startup", "friend_list", "initialize");
@@ -301,13 +301,13 @@ bool Initialize() {
         return true;
     }
 
-    PY4GW_ASSERT(py4gw::Scanner::Initialize());
-    PY4GW_ASSERT(py4gw::Patterns::Initialize());
+    PY4GW_ASSERT(PY4GW::Scanner::Initialize());
+    PY4GW_ASSERT(PY4GW::Patterns::Initialize());
 
-    py4gw::HookBase::Initialize();
+    PY4GW::HookBase::Initialize();
     if (!Init()) {
         Exit();
-        py4gw::HookBase::Deinitialize();
+        PY4GW::HookBase::Deinitialize();
         return false;
     }
 
@@ -324,8 +324,8 @@ void Shutdown() {
 
     DisableHooks();
     Exit();
-    py4gw::HookBase::Deinitialize();
+    PY4GW::HookBase::Deinitialize();
     g_initialized = false;
 }
 
-}  // namespace gw::friend_list
+}  // namespace GW::friend_list

@@ -2,8 +2,8 @@
 
 #include <cstdint>
 
-namespace gw {
-    namespace constants {
+namespace GW {
+    namespace Constants {
         enum class SkillID : uint32_t {
             No_Skill = 0,
             Healing_Signet,
@@ -3030,7 +3030,7 @@ namespace gw {
             Judgement_Strike,
             Seven_Weapon_Stance,
             Together_as_one,
-            Shadow_Theft ,
+            Shadow_Theft,
             Weapons_of_Three_Forges,
             Vow_of_Revolution,
             Heroic_Refrain,
@@ -3071,7 +3071,7 @@ namespace gw {
             Disguise = 29
         };
 
-        const SkillID unused_skill_ids[] {
+        const SkillID unused_skill_ids[]{
             SkillID::UNUSED_Amulet_of_Protection,
             SkillID::UNUSED_Eviscerate,
             SkillID::UNUSED_Rush,

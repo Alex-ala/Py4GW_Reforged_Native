@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace gw {
+namespace GW {
 
 template <typename T>
 struct GwLink {
@@ -63,8 +63,11 @@ struct GwList {
         using difference_type = std::ptrdiff_t;
         using value_type = T;
 
-        iterator() = default;
-
+        iterator()
+            : current(nullptr)
+            , first(nullptr)
+        {
+        }
         explicit iterator(GwLink<T>* node, GwLink<T>* first_node = nullptr)
             : current(node)
             , first(first_node)
@@ -127,4 +130,4 @@ protected:
 
 static_assert(sizeof(GwList<void*>) == 0xC, "GwList has incorrect size");
 
-}  // namespace gw
+}  // namespace GW

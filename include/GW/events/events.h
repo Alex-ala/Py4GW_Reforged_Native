@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace gw::events {
+namespace GW::events {
 
 bool Initialize();
 void Shutdown();
@@ -20,25 +20,25 @@ enum class EventID {
     kRecvFriendState = 0x2c
 };
 
-using EventCallback = py4gw::HookCallback<EventID, void*, uint32_t>;
+using EventCallback = PY4GW::HookCallback<EventID, void*, uint32_t>;
 using SendEventMessageFn = uint32_t(__cdecl*)(void* event_context, uint32_t unk1, EventID event_id, void* data_buffer, uint32_t data_length);
 
 struct CallbackEntry {
     int altitude = 0;
-    py4gw::HookEntry* entry = nullptr;
+    PY4GW::HookEntry* entry = nullptr;
     EventCallback callback;
 };
 
 void RegisterEventCallback(
-    py4gw::HookEntry* entry,
+    PY4GW::HookEntry* entry,
     EventID event_id,
     const EventCallback& callback,
     int altitude = -0x8000);
-void RemoveEventCallback(py4gw::HookEntry* entry);
+void RemoveEventCallback(PY4GW::HookEntry* entry);
 
 extern SendEventMessageFn g_send_event_message_func;
 extern SendEventMessageFn g_send_event_message_original;
 extern std::unordered_map<EventID, std::vector<CallbackEntry>> g_callbacks;
 extern std::atomic<bool> g_initialized;
 
-}  // namespace gw::events
+}  // namespace GW::events

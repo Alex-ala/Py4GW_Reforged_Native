@@ -2,7 +2,7 @@
 
 #include "GW/events/events.h"
 
-namespace gw::events {
+namespace GW::events {
 
 SendEventMessageFn g_send_event_message_func = nullptr;
 SendEventMessageFn g_send_event_message_original = nullptr;
@@ -10,7 +10,7 @@ std::unordered_map<EventID, std::vector<CallbackEntry>> g_callbacks;
 std::atomic<bool> g_initialized = false;
 
 void RegisterEventCallback(
-    py4gw::HookEntry* entry,
+    PY4GW::HookEntry* entry,
     EventID event_id,
     const EventCallback& callback,
     int altitude) {
@@ -30,7 +30,7 @@ void RegisterEventCallback(
     g_callbacks[event_id].insert(it, CallbackEntry{altitude, entry, callback});
 }
 
-void RemoveEventCallback(py4gw::HookEntry* entry) {
+void RemoveEventCallback(PY4GW::HookEntry* entry) {
     for (auto& callbacks : g_callbacks) {
         auto it = callbacks.second.begin();
         while (it != callbacks.second.end()) {
@@ -43,4 +43,4 @@ void RemoveEventCallback(py4gw::HookEntry* entry) {
     }
 }
 
-}  // namespace gw::events
+}  // namespace GW::events

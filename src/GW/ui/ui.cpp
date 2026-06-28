@@ -12,7 +12,7 @@
 
 namespace {
 
-using namespace gw;
+using namespace GW;
 
 bool WaitForUiHooksToDrain() {
     CrashContextScope context("shutdown", "ui", "wait_for_hooks_to_drain");
@@ -28,21 +28,21 @@ bool WaitForUiHooksToDrain() {
 }
 
 uintptr_t FindPatternAddress(const char* name) {
-    const auto* pattern = py4gw::Patterns::Get(name);
+    const auto* pattern = PY4GW::Patterns::Get(name);
     if (!pattern) {
         Logger::Instance().LogError(std::string("Missing or invalid pattern: ") + name, "ui");
         return 0;
     }
 
     if (!pattern->assertion_file.empty() || !pattern->assertion_message.empty()) {
-        return py4gw::Scanner::FindAssertion(
+        return PY4GW::Scanner::FindAssertion(
             pattern->assertion_file.c_str(),
             pattern->assertion_message.c_str(),
             static_cast<uint32_t>(pattern->line_number),
             pattern->offset);
     }
 
-    return py4gw::Scanner::Find(
+    return PY4GW::Scanner::Find(
         pattern->pattern.c_str(),
         pattern->mask.c_str(),
         pattern->offset,
@@ -55,7 +55,7 @@ bool ResolveFrameArray() {
     if (!Logger::AssertAddress("s_FrameArray_Ref", address, "ui")) {
         return false;
     }
-    ui::g_frame_array = *reinterpret_cast<gw::GwArray<ui::Frame*>**>(address);
+    ui::g_frame_array = *reinterpret_cast<GW::GWArray<ui::Frame*>**>(address);
     return Logger::AssertAddress("s_FrameArray", reinterpret_cast<uintptr_t>(ui::g_frame_array), "ui");
 }
 
@@ -81,7 +81,7 @@ bool ResolveSendFrameUiMessage() {
     }
     ui::g_send_frame_ui_message_by_id_func = reinterpret_cast<ui::SendFrameUIMessageByIdFn>(address);
     ui::g_send_frame_ui_message_func = reinterpret_cast<ui::SendFrameUIMessageFn>(
-        py4gw::Scanner::FunctionFromNearCall(address + 0x67));
+        PY4GW::Scanner::FunctionFromNearCall(address + 0x67));
     return Logger::AssertAddress("SendFrameUIMessage_Func", reinterpret_cast<uintptr_t>(ui::g_send_frame_ui_message_func), "ui");
 }
 
@@ -92,7 +92,7 @@ bool ResolveCreateHashFromWchar() {
         return false;
     }
     ui::g_create_hash_from_wchar_func = reinterpret_cast<ui::CreateHashFromWcharFn>(
-        py4gw::Scanner::FunctionFromNearCall(address));
+        PY4GW::Scanner::FunctionFromNearCall(address));
     return Logger::AssertAddress("CreateHashFromWchar_Func", reinterpret_cast<uintptr_t>(ui::g_create_hash_from_wchar_func), "ui");
 }
 
@@ -103,7 +103,7 @@ bool ResolveGetChildFrameId() {
         return false;
     }
     ui::g_get_child_frame_id_func = reinterpret_cast<ui::GetChildFrameIdFn>(
-        py4gw::Scanner::FunctionFromNearCall(address));
+        PY4GW::Scanner::FunctionFromNearCall(address));
     return Logger::AssertAddress("GetChildFrameId_Func", reinterpret_cast<uintptr_t>(ui::g_get_child_frame_id_func), "ui");
 }
 
@@ -130,7 +130,7 @@ bool ResolveSendUiMessage() {
     if (!Logger::AssertAddress("SendUIMessage_Scan", address, "ui")) {
         return false;
     }
-    ui::g_send_ui_message_func = reinterpret_cast<ui::SendUIMessageFn>(py4gw::Scanner::ToFunctionStart(address));
+    ui::g_send_ui_message_func = reinterpret_cast<ui::SendUIMessageFn>(PY4GW::Scanner::ToFunctionStart(address));
     return Logger::AssertAddress("SendUIMessage_Func", reinterpret_cast<uintptr_t>(ui::g_send_ui_message_func), "ui");
 }
 
@@ -140,7 +140,7 @@ bool ResolveLoadSettings() {
     if (!Logger::AssertAddress("LoadSettings_Callsite", address, "ui")) {
         return false;
     }
-    ui::g_load_settings_func = reinterpret_cast<ui::LoadSettingsFn>(py4gw::Scanner::ToFunctionStart(address));
+    ui::g_load_settings_func = reinterpret_cast<ui::LoadSettingsFn>(PY4GW::Scanner::ToFunctionStart(address));
     return Logger::AssertAddress("LoadSettings_Func", reinterpret_cast<uintptr_t>(ui::g_load_settings_func), "ui");
 }
 
@@ -174,7 +174,7 @@ bool ResolveSetTooltip() {
     if (!Logger::AssertAddress("SetTooltip_Func", address, "ui")) {
         return false;
     }
-    const uintptr_t ptr_ref = py4gw::Scanner::ToFunctionStart(address) + 0x9;
+    const uintptr_t ptr_ref = PY4GW::Scanner::ToFunctionStart(address) + 0x9;
     if (!Logger::AssertAddress("CurrentTooltipPtr_Ref", ptr_ref, "ui")) {
         return false;
     }
@@ -198,7 +198,7 @@ bool ResolveWindowHelpers() {
     if (!Logger::AssertAddress("SetWindowVisible_Func", address, "ui")) {
         return false;
     }
-    const uintptr_t func = py4gw::Scanner::ToFunctionStart(address);
+    const uintptr_t func = PY4GW::Scanner::ToFunctionStart(address);
     ui::g_set_window_visible_func = reinterpret_cast<ui::SetWindowVisibleFn>(func);
     ui::g_set_window_position_func = reinterpret_cast<ui::SetWindowPositionFn>(func - 0xE0);
     const uintptr_t array_ref = func + 0x49;
@@ -214,20 +214,20 @@ bool ResolveWindowHelpers() {
 bool ResolveValidateAsyncDecode() {
     CrashContextScope context("startup", "ui", "resolve_async_decode");
     const uintptr_t address = FindPatternAddress("ui.validate_async_decode");
-    ui::g_validate_async_decode_str_func = reinterpret_cast<ui::ValidateAsyncDecodeStrFn>(py4gw::Scanner::ToFunctionStart(address));
+    ui::g_validate_async_decode_str_func = reinterpret_cast<ui::ValidateAsyncDecodeStrFn>(PY4GW::Scanner::ToFunctionStart(address));
     return Logger::AssertAddress("ValidateAsyncDecodeStr", reinterpret_cast<uintptr_t>(ui::g_validate_async_decode_str_func), "ui");
 }
 
 bool ResolveTitleHelpers() {
     CrashContextScope context("startup", "ui", "resolve_title_helpers");
 
-    uintptr_t get_title_addr = py4gw::Scanner::FindAssertion(
+    uintptr_t get_title_addr = PY4GW::Scanner::FindAssertion(
         "FrNonclient.cpp",
         "ptr->title.Count()",
         0,
         -0x26);
     if (get_title_addr) {
-        get_title_addr = py4gw::Scanner::ToFunctionStart(get_title_addr, 0xFF);
+        get_title_addr = PY4GW::Scanner::ToFunctionStart(get_title_addr, 0xFF);
     }
     if (!Logger::AssertAddress("GetTitle_Func", get_title_addr, "ui")) {
         return false;
@@ -241,7 +241,7 @@ bool ResolveTitleHelpers() {
 
         ui::g_title_table_addr = *reinterpret_cast<const uintptr_t*>(scan + 1);
         if (!(ui::g_title_table_addr &&
-            py4gw::Scanner::IsValidPtr(ui::g_title_table_addr, py4gw::ScannerSection::Data))) {
+            PY4GW::Scanner::IsValidPtr(ui::g_title_table_addr, PY4GW::ScannerSection::Data))) {
             ui::g_title_table_addr = 0;
             break;
         }
@@ -251,7 +251,7 @@ bool ResolveTitleHelpers() {
                 continue;
             }
 
-            const uintptr_t candidate = py4gw::Scanner::FunctionFromNearCall(callsite, true);
+            const uintptr_t candidate = PY4GW::Scanner::FunctionFromNearCall(callsite, true);
             if (candidate) {
                 ui::g_title_binary_search_func = reinterpret_cast<ui::TitleBinarySearchFn>(candidate);
                 break;
@@ -268,7 +268,7 @@ bool ResolveTitleHelpers() {
 bool ResolveDrawOnCompass() {
     CrashContextScope context("startup", "ui", "resolve_draw_on_compass");
     const uintptr_t address = FindPatternAddress("ui.draw_on_compass");
-    ui::g_draw_on_compass_func = reinterpret_cast<ui::DrawOnCompassFn>(py4gw::Scanner::ToFunctionStart(address));
+    ui::g_draw_on_compass_func = reinterpret_cast<ui::DrawOnCompassFn>(PY4GW::Scanner::ToFunctionStart(address));
     return Logger::AssertAddress("DrawOnCompass_Func", reinterpret_cast<uintptr_t>(ui::g_draw_on_compass_func), "ui");
 }
 
@@ -278,12 +278,12 @@ bool ResolveCreateUiComponent() {
     if (!Logger::AssertAddress("CreateUIComponent_Scan", create_address, "ui")) {
         return false;
     }
-    ui::g_create_ui_component_func = reinterpret_cast<ui::CreateUIComponentFn>(py4gw::Scanner::ToFunctionStart(create_address));
+    ui::g_create_ui_component_func = reinterpret_cast<ui::CreateUIComponentFn>(PY4GW::Scanner::ToFunctionStart(create_address));
     const uintptr_t destroy_address = FindPatternAddress("ui.destroy_ui_component");
     if (!Logger::AssertAddress("DestroyUIComponent_Scan", destroy_address, "ui")) {
         return false;
     }
-    ui::g_destroy_ui_component_func = reinterpret_cast<ui::DestroyUIComponentFn>(py4gw::Scanner::ToFunctionStart(destroy_address));
+    ui::g_destroy_ui_component_func = reinterpret_cast<ui::DestroyUIComponentFn>(PY4GW::Scanner::ToFunctionStart(destroy_address));
     const bool create_ok = Logger::AssertAddress("CreateUIComponent_Func", reinterpret_cast<uintptr_t>(ui::g_create_ui_component_func), "ui");
     const bool destroy_ok = Logger::AssertAddress("DestroyUIComponent_Func", reinterpret_cast<uintptr_t>(ui::g_destroy_ui_component_func), "ui");
     return create_ok && destroy_ok;
@@ -292,16 +292,16 @@ bool ResolveCreateUiComponent() {
 bool ResolveFrameNewSubclass() {
     CrashContextScope context("startup", "ui", "resolve_frame_new_subclass");
 
-    uintptr_t address = py4gw::Scanner::FindAssertion(
+    uintptr_t address = PY4GW::Scanner::FindAssertion(
         "\\Code\\Engine\\Frame\\FrApi.cpp",
         "frameId",
         0x467,
         0);
     if (address) {
-        ui::g_frame_new_subclass_func = reinterpret_cast<ui::FrameNewSubclassFn>(py4gw::Scanner::ToFunctionStart(address, 0x100));
+        ui::g_frame_new_subclass_func = reinterpret_cast<ui::FrameNewSubclassFn>(PY4GW::Scanner::ToFunctionStart(address, 0x100));
     }
     if (!ui::g_frame_new_subclass_func) {
-        address = py4gw::Scanner::Find(
+        address = PY4GW::Scanner::Find(
             "\x8D\xB8\xA8\x00\x00\x00\x8B\xCF",
             "xxxxxxxx",
             -0x2D);
@@ -319,7 +319,7 @@ bool ResolveTypedComponentPassthrough() {
     if (!Logger::AssertAddress("TypedComponentPassthrough_Scan", address, "ui")) {
         return false;
     }
-    ui::g_typed_component_passthrough_func = reinterpret_cast<ui::TypedComponentPassthroughFn>(py4gw::Scanner::ToFunctionStart(address, 0xFFF));
+    ui::g_typed_component_passthrough_func = reinterpret_cast<ui::TypedComponentPassthroughFn>(PY4GW::Scanner::ToFunctionStart(address, 0xFFF));
     return Logger::AssertAddress("TypedComponentPassthrough_Func", reinterpret_cast<uintptr_t>(ui::g_typed_component_passthrough_func), "ui");
 }
 
@@ -333,13 +333,13 @@ bool ResolvePreferenceReaders() {
     const bool pref_init_ok = Logger::AssertAddress("PreferencesInitialised_Addr", ui::g_preferences_initialized_addr, "ui");
 
     ui::g_get_string_preference_func = reinterpret_cast<ui::GetStringPreferenceFn>(
-        py4gw::Scanner::ToFunctionStart(py4gw::Scanner::FindUseOfString("pref < PREF_STRINGS", 0)));
+        PY4GW::Scanner::ToFunctionStart(PY4GW::Scanner::FindUseOfString("pref < PREF_STRINGS", 0)));
     ui::g_get_flag_preference_func = reinterpret_cast<ui::GetFlagPreferenceFn>(
-        py4gw::Scanner::ToFunctionStart(py4gw::Scanner::FindUseOfString("pref < PREF_FLAGS", 0)));
+        PY4GW::Scanner::ToFunctionStart(PY4GW::Scanner::FindUseOfString("pref < PREF_FLAGS", 0)));
     ui::g_get_enum_preference_func = reinterpret_cast<ui::GetEnumPreferenceFn>(
-        py4gw::Scanner::ToFunctionStart(py4gw::Scanner::FindUseOfString("pref < PREF_ENUMS", 0)));
+        PY4GW::Scanner::ToFunctionStart(PY4GW::Scanner::FindUseOfString("pref < PREF_ENUMS", 0)));
     ui::g_get_number_preference_func = reinterpret_cast<ui::GetNumberPreferenceFn>(
-        py4gw::Scanner::ToFunctionStart(py4gw::Scanner::FindUseOfString("pref < PREF_VALUES", 0)));
+        PY4GW::Scanner::ToFunctionStart(PY4GW::Scanner::FindUseOfString("pref < PREF_VALUES", 0)));
 
     const bool get_string_ok = Logger::AssertAddress("GetStringPreference_Func", reinterpret_cast<uintptr_t>(ui::g_get_string_preference_func), "ui");
     const bool get_flag_ok = Logger::AssertAddress("GetFlagPreference_Func", reinterpret_cast<uintptr_t>(ui::g_get_flag_preference_func), "ui");
@@ -367,66 +367,66 @@ bool ResolvePreferenceWriters() {
     if (!Logger::AssertAddress("SetStringPreference_Anchor", set_string_anchor, "ui")) {
         return false;
     }
-    ui::g_set_string_preference_func = reinterpret_cast<ui::SetStringPreferenceFn>(py4gw::Scanner::FunctionFromNearCall(set_string_anchor));
+    ui::g_set_string_preference_func = reinterpret_cast<ui::SetStringPreferenceFn>(PY4GW::Scanner::FunctionFromNearCall(set_string_anchor));
 
     const uintptr_t quality_anchor = FindPatternAddress("ui.preference_quality_anchor");
     if (!Logger::AssertAddress("PreferenceQuality_Anchor", quality_anchor, "ui")) {
         return false;
     }
-    ui::g_set_enum_preference_func = reinterpret_cast<ui::SetEnumPreferenceFn>(py4gw::Scanner::FunctionFromNearCall(quality_anchor - 0x8D));
-    ui::g_set_flag_preference_func = reinterpret_cast<ui::SetFlagPreferenceFn>(py4gw::Scanner::FunctionFromNearCall(quality_anchor - 0x3B));
-    ui::g_set_number_preference_func = reinterpret_cast<ui::SetNumberPreferenceFn>(py4gw::Scanner::FunctionFromNearCall(quality_anchor - 0x6A));
-    ui::g_set_in_game_static_preference_func = reinterpret_cast<ui::SetInGameStaticPreferenceFn>(py4gw::Scanner::FunctionFromNearCall(quality_anchor - 0xFF));
-    ui::g_trigger_terrain_rerender_func = reinterpret_cast<ui::TriggerTerrainRerenderFn>(py4gw::Scanner::FunctionFromNearCall(quality_anchor - 0x36));
+    ui::g_set_enum_preference_func = reinterpret_cast<ui::SetEnumPreferenceFn>(PY4GW::Scanner::FunctionFromNearCall(quality_anchor - 0x8D));
+    ui::g_set_flag_preference_func = reinterpret_cast<ui::SetFlagPreferenceFn>(PY4GW::Scanner::FunctionFromNearCall(quality_anchor - 0x3B));
+    ui::g_set_number_preference_func = reinterpret_cast<ui::SetNumberPreferenceFn>(PY4GW::Scanner::FunctionFromNearCall(quality_anchor - 0x6A));
+    ui::g_set_in_game_static_preference_func = reinterpret_cast<ui::SetInGameStaticPreferenceFn>(PY4GW::Scanner::FunctionFromNearCall(quality_anchor - 0xFF));
+    ui::g_trigger_terrain_rerender_func = reinterpret_cast<ui::TriggerTerrainRerenderFn>(PY4GW::Scanner::FunctionFromNearCall(quality_anchor - 0x36));
 
     const uintptr_t shadow_anchor = FindPatternAddress("ui.set_in_game_shadow_quality");
     if (!Logger::AssertAddress("SetInGameShadowQuality_Anchor", shadow_anchor, "ui")) {
         return false;
     }
-    ui::g_set_in_game_shadow_quality_func = reinterpret_cast<ui::SetInGameShadowQualityFn>(py4gw::Scanner::ToFunctionStart(shadow_anchor));
+    ui::g_set_in_game_shadow_quality_func = reinterpret_cast<ui::SetInGameShadowQualityFn>(PY4GW::Scanner::ToFunctionStart(shadow_anchor));
 
     const uintptr_t ui_scale_anchor = FindPatternAddress("ui.set_in_game_ui_scale");
     if (!Logger::AssertAddress("SetInGameUIScale_Anchor", ui_scale_anchor, "ui")) {
         return false;
     }
-    ui::g_set_in_game_ui_scale_func = reinterpret_cast<ui::SetInGameUIScaleFn>(py4gw::Scanner::FunctionFromNearCall(ui_scale_anchor));
+    ui::g_set_in_game_ui_scale_func = reinterpret_cast<ui::SetInGameUIScaleFn>(PY4GW::Scanner::FunctionFromNearCall(ui_scale_anchor));
 
     const uintptr_t volume_anchor = FindPatternAddress("ui.set_volume");
     if (!Logger::AssertAddress("SetVolume_Anchor", volume_anchor, "ui")) {
         return false;
     }
-    ui::g_set_volume_func = reinterpret_cast<ui::SetVolumeFn>(py4gw::Scanner::ToFunctionStart(volume_anchor));
+    ui::g_set_volume_func = reinterpret_cast<ui::SetVolumeFn>(PY4GW::Scanner::ToFunctionStart(volume_anchor));
 
     const uintptr_t master_volume_anchor = FindPatternAddress("ui.set_master_volume");
     if (!Logger::AssertAddress("SetMasterVolume_Anchor", master_volume_anchor, "ui")) {
         return false;
     }
-    ui::g_set_master_volume_func = reinterpret_cast<ui::SetMasterVolumeFn>(py4gw::Scanner::ToFunctionStart(master_volume_anchor));
+    ui::g_set_master_volume_func = reinterpret_cast<ui::SetMasterVolumeFn>(PY4GW::Scanner::ToFunctionStart(master_volume_anchor));
 
     const uintptr_t get_renderer_anchor = FindPatternAddress("ui.get_graphics_renderer_value");
     if (!Logger::AssertAddress("GetGraphicsRendererValue_Anchor", get_renderer_anchor, "ui")) {
         return false;
     }
-    ui::g_get_graphics_renderer_value_func = reinterpret_cast<ui::GetGraphicsRendererValueFn>(py4gw::Scanner::FunctionFromNearCall(get_renderer_anchor));
+    ui::g_get_graphics_renderer_value_func = reinterpret_cast<ui::GetGraphicsRendererValueFn>(PY4GW::Scanner::FunctionFromNearCall(get_renderer_anchor));
 
     const uintptr_t set_renderer_anchor = FindPatternAddress("ui.set_graphics_renderer_value");
     if (!Logger::AssertAddress("SetGraphicsRendererValue_Anchor", set_renderer_anchor, "ui")) {
         return false;
     }
-    ui::g_set_graphics_renderer_value_func = reinterpret_cast<ui::SetGraphicsRendererValueFn>(py4gw::Scanner::ToFunctionStart(set_renderer_anchor));
+    ui::g_set_graphics_renderer_value_func = reinterpret_cast<ui::SetGraphicsRendererValueFn>(PY4GW::Scanner::ToFunctionStart(set_renderer_anchor));
 
     const uintptr_t set_game_renderer_mode_anchor = FindPatternAddress("ui.set_game_renderer_mode");
     if (!Logger::AssertAddress("SetGameRendererMode_Anchor", set_game_renderer_mode_anchor, "ui")) {
         return false;
     }
-    ui::g_set_game_renderer_mode_func = reinterpret_cast<ui::SetGameRendererModeFn>(py4gw::Scanner::FunctionFromNearCall(set_game_renderer_mode_anchor));
+    ui::g_set_game_renderer_mode_func = reinterpret_cast<ui::SetGameRendererModeFn>(PY4GW::Scanner::FunctionFromNearCall(set_game_renderer_mode_anchor));
 
     const uintptr_t game_renderer_metrics_anchor = FindPatternAddress("ui.game_renderer_metrics");
     if (!Logger::AssertAddress("GameRendererMetrics_Anchor", game_renderer_metrics_anchor, "ui")) {
         return false;
     }
-    ui::g_get_game_renderer_mode_func = reinterpret_cast<ui::GetGameRendererModeFn>(py4gw::Scanner::FunctionFromNearCall(game_renderer_metrics_anchor - 0x1D));
-    ui::g_get_game_renderer_metric_func = reinterpret_cast<ui::GetGameRendererMetricFn>(py4gw::Scanner::FunctionFromNearCall(game_renderer_metrics_anchor - 0x5));
+    ui::g_get_game_renderer_mode_func = reinterpret_cast<ui::GetGameRendererModeFn>(PY4GW::Scanner::FunctionFromNearCall(game_renderer_metrics_anchor - 0x1D));
+    ui::g_get_game_renderer_metric_func = reinterpret_cast<ui::GetGameRendererMetricFn>(PY4GW::Scanner::FunctionFromNearCall(game_renderer_metrics_anchor - 0x5));
 
     const uintptr_t command_line_number_anchor = FindPatternAddress("ui.command_line_number");
     if (!Logger::AssertAddress("CommandLineNumber_Anchor", command_line_number_anchor, "ui")) {
@@ -468,7 +468,7 @@ bool TryResolveTypedComponentCallbacks() {
 
     const uintptr_t button_addr = FindPatternAddress("ui.button_frame_callback");
     if (button_addr) {
-        ui::g_button_frame_callback = reinterpret_cast<ui::UIInteractionCallback>(py4gw::Scanner::ToFunctionStart(button_addr, 0xFF));
+        ui::g_button_frame_callback = reinterpret_cast<ui::UIInteractionCallback>(PY4GW::Scanner::ToFunctionStart(button_addr, 0xFF));
     }
 
     const uintptr_t ctl_btn_addr = FindPatternAddress("ui.ctl_button_proc_callback");
@@ -478,12 +478,12 @@ bool TryResolveTypedComponentCallbacks() {
 
     const uintptr_t text_btn_addr = FindPatternAddress("ui.text_button_frame_callback");
     if (text_btn_addr) {
-        ui::g_text_button_frame_callback = reinterpret_cast<ui::UIInteractionCallback>(py4gw::Scanner::ToFunctionStart(text_btn_addr, 0x20));
+        ui::g_text_button_frame_callback = reinterpret_cast<ui::UIInteractionCallback>(PY4GW::Scanner::ToFunctionStart(text_btn_addr, 0x20));
     }
 
     const uintptr_t text_label_addr = FindPatternAddress("ui.text_label_frame_callback");
     if (text_label_addr) {
-        ui::g_text_label_frame_callback = reinterpret_cast<ui::UIInteractionCallback>(py4gw::Scanner::ToFunctionStart(text_label_addr, 0xFFF));
+        ui::g_text_label_frame_callback = reinterpret_cast<ui::UIInteractionCallback>(PY4GW::Scanner::ToFunctionStart(text_label_addr, 0xFFF));
     }
 
     const uintptr_t scrollable_addr = FindPatternAddress("ui.scrollable_frame_callback");
@@ -493,17 +493,17 @@ bool TryResolveTypedComponentCallbacks() {
 
     const uintptr_t frame_list_addr = FindPatternAddress("ui.frame_list_callback");
     if (frame_list_addr) {
-        ui::g_frame_list_callback = reinterpret_cast<ui::UIInteractionCallback>(py4gw::Scanner::ToFunctionStart(frame_list_addr, 0xFFF));
+        ui::g_frame_list_callback = reinterpret_cast<ui::UIInteractionCallback>(PY4GW::Scanner::ToFunctionStart(frame_list_addr, 0xFFF));
     }
 
     const uintptr_t dropdown_addr = FindPatternAddress("ui.dropdown_frame_callback");
     if (dropdown_addr) {
-        ui::g_dropdown_frame_callback = reinterpret_cast<ui::UIInteractionCallback>(py4gw::Scanner::ToFunctionStart(dropdown_addr, 0xFFF));
+        ui::g_dropdown_frame_callback = reinterpret_cast<ui::UIInteractionCallback>(PY4GW::Scanner::ToFunctionStart(dropdown_addr, 0xFFF));
     }
 
     const uintptr_t slider_addr = FindPatternAddress("ui.slider_frame_callback");
     if (slider_addr) {
-        ui::g_slider_frame_callback = reinterpret_cast<ui::UIInteractionCallback>(py4gw::Scanner::ToFunctionStart(slider_addr, 0xFFF));
+        ui::g_slider_frame_callback = reinterpret_cast<ui::UIInteractionCallback>(PY4GW::Scanner::ToFunctionStart(slider_addr, 0xFFF));
     }
 
     const uintptr_t slider_wrapper_addr = FindPatternAddress("ui.slider_frame_wrapper_callback");
@@ -513,17 +513,17 @@ bool TryResolveTypedComponentCallbacks() {
 
     const uintptr_t editable_addr = FindPatternAddress("ui.editable_text_frame_callback");
     if (editable_addr) {
-        ui::g_editable_text_frame_callback = reinterpret_cast<ui::UIInteractionCallback>(py4gw::Scanner::ToFunctionStart(editable_addr, 0xFFF));
+        ui::g_editable_text_frame_callback = reinterpret_cast<ui::UIInteractionCallback>(PY4GW::Scanner::ToFunctionStart(editable_addr, 0xFFF));
     }
 
     const uintptr_t progress_addr = FindPatternAddress("ui.progress_bar_callback");
     if (progress_addr) {
-        ui::g_progress_bar_callback = reinterpret_cast<ui::UIInteractionCallback>(py4gw::Scanner::ToFunctionStart(progress_addr, 0xFFF));
+        ui::g_progress_bar_callback = reinterpret_cast<ui::UIInteractionCallback>(PY4GW::Scanner::ToFunctionStart(progress_addr, 0xFFF));
     }
 
     const uintptr_t tabs_addr = FindPatternAddress("ui.tabs_frame_callback");
     if (tabs_addr) {
-        ui::g_tabs_frame_callback = reinterpret_cast<ui::UIInteractionCallback>(py4gw::Scanner::ToFunctionStart(tabs_addr, 0xFFF));
+        ui::g_tabs_frame_callback = reinterpret_cast<ui::UIInteractionCallback>(PY4GW::Scanner::ToFunctionStart(tabs_addr, 0xFFF));
     }
 
     ui::g_typed_component_callbacks_initialized = true;
@@ -531,7 +531,7 @@ bool TryResolveTypedComponentCallbacks() {
 }
 
 void __cdecl OnSendUIMessage(ui::UIMessage message_id, void* wparam, void* lparam) {
-    py4gw::HookBase::EnterHook();
+    PY4GW::HookBase::EnterHook();
     ++ui::g_active_hooks;
     if (!ui::g_shutting_down) {
         ui::SendUIMessage(message_id, wparam, lparam);
@@ -539,10 +539,10 @@ void __cdecl OnSendUIMessage(ui::UIMessage message_id, void* wparam, void* lpara
         ui::g_send_ui_message_original(message_id, wparam, lparam);
     }
     --ui::g_active_hooks;
-    py4gw::HookBase::LeaveHook();
+    PY4GW::HookBase::LeaveHook();
 }
 
-void OnOpenTemplateUiMessage(py4gw::HookStatus* hook_status, ui::UIMessage msgid, void* wparam, void*) {
+void OnOpenTemplateUiMessage(PY4GW::HookStatus* hook_status, ui::UIMessage msgid, void* wparam, void*) {
     PY4GW_ASSERT(msgid == ui::UIMessage::kOpenTemplate && wparam);
     auto* info = static_cast<ui::ChatTemplate*>(wparam);
     if (!(ui::g_open_links && info && info->code.valid() && info->name)) {
@@ -555,7 +555,7 @@ void OnOpenTemplateUiMessage(py4gw::HookStatus* hook_status, ui::UIMessage msgid
 }
 
 void __cdecl OnSendFrameUIMessageById(uint32_t frame_id, ui::UIMessage message_id, void* wparam, void* lparam) {
-    py4gw::HookBase::EnterHook();
+    PY4GW::HookBase::EnterHook();
     ++ui::g_active_hooks;
     if (!ui::g_shutting_down) {
         ui::Frame* frame = ui::GetFrameById(frame_id);
@@ -566,11 +566,11 @@ void __cdecl OnSendFrameUIMessageById(uint32_t frame_id, ui::UIMessage message_i
         ui::g_send_frame_ui_message_by_id_original(frame_id, message_id, wparam, lparam);
     }
     --ui::g_active_hooks;
-    py4gw::HookBase::LeaveHook();
+    PY4GW::HookBase::LeaveHook();
 }
 
-void __fastcall OnSendFrameUIMessage(gw::GwArray<ui::UIInteractionCallback>* frame_callbacks, void*, ui::UIMessage message_id, void* wparam, void* lparam) {
-    py4gw::HookBase::EnterHook();
+void __fastcall OnSendFrameUIMessage(GW::GWArray<ui::UIInteractionCallback>* frame_callbacks, void*, ui::UIMessage message_id, void* wparam, void* lparam) {
+    PY4GW::HookBase::EnterHook();
     ++ui::g_active_hooks;
     if (!ui::g_shutting_down && frame_callbacks) {
         auto* frame = reinterpret_cast<ui::Frame*>(reinterpret_cast<uintptr_t>(frame_callbacks) - 0xA8);
@@ -579,11 +579,11 @@ void __fastcall OnSendFrameUIMessage(gw::GwArray<ui::UIInteractionCallback>* fra
         ui::g_send_frame_ui_message_original(frame_callbacks, nullptr, message_id, wparam, lparam);
     }
     --ui::g_active_hooks;
-    py4gw::HookBase::LeaveHook();
+    PY4GW::HookBase::LeaveHook();
 }
 
 uint32_t __cdecl OnCreateUIComponent(uint32_t frame_id, uint32_t component_flags, uint32_t tab_index, void* event_callback, wchar_t* name_enc, wchar_t* component_label) {
-    py4gw::HookBase::EnterHook();
+    PY4GW::HookBase::EnterHook();
     ++ui::g_active_hooks;
 
     uint32_t result = 0;
@@ -607,7 +607,7 @@ uint32_t __cdecl OnCreateUIComponent(uint32_t frame_id, uint32_t component_flags
             ::LeaveCriticalSection(&ui::g_callback_mutex);
         }
 
-        py4gw::HookStatus status;
+        PY4GW::HookStatus status;
         size_t i = 0;
         for (; i < callbacks.size(); ++i) {
             if (callbacks[i].altitude > 0) {
@@ -632,7 +632,7 @@ uint32_t __cdecl OnCreateUIComponent(uint32_t frame_id, uint32_t component_flags
     }
 
     --ui::g_active_hooks;
-    py4gw::HookBase::LeaveHook();
+    PY4GW::HookBase::LeaveHook();
     return result;
 }
 
@@ -668,28 +668,28 @@ bool Init() {
 
     const bool send_ui_ok = Logger::AssertHook(
         "SendUIMessage_Func",
-        py4gw::HookBase::CreateHook(
+        PY4GW::HookBase::CreateHook(
             reinterpret_cast<void**>(&ui::g_send_ui_message_func),
             reinterpret_cast<void*>(&OnSendUIMessage),
             reinterpret_cast<void**>(&ui::g_send_ui_message_original)),
         "ui");
     const bool send_frame_by_id_ok = Logger::AssertHook(
         "SendFrameUIMessageById_Func",
-        py4gw::HookBase::CreateHook(
+        PY4GW::HookBase::CreateHook(
             reinterpret_cast<void**>(&ui::g_send_frame_ui_message_by_id_func),
             reinterpret_cast<void*>(&OnSendFrameUIMessageById),
             reinterpret_cast<void**>(&ui::g_send_frame_ui_message_by_id_original)),
         "ui");
     const bool send_frame_ok = Logger::AssertHook(
         "SendFrameUIMessage_Func",
-        py4gw::HookBase::CreateHook(
+        PY4GW::HookBase::CreateHook(
             reinterpret_cast<void**>(&ui::g_send_frame_ui_message_func),
             reinterpret_cast<void*>(&OnSendFrameUIMessage),
             reinterpret_cast<void**>(&ui::g_send_frame_ui_message_original)),
         "ui");
     const bool create_component_ok = Logger::AssertHook(
         "CreateUIComponent_Func",
-        py4gw::HookBase::CreateHook(
+        PY4GW::HookBase::CreateHook(
             reinterpret_cast<void**>(&ui::g_create_ui_component_func),
             reinterpret_cast<void*>(&OnCreateUIComponent),
             reinterpret_cast<void**>(&ui::g_create_ui_component_original)),
@@ -700,16 +700,16 @@ bool Init() {
 void EnableHooks() {
     CrashContextScope context("runtime", "ui", "enable_hooks");
     if (ui::g_send_ui_message_func) {
-        py4gw::HookBase::EnableHooks(reinterpret_cast<void*>(ui::g_send_ui_message_func));
+        PY4GW::HookBase::EnableHooks(reinterpret_cast<void*>(ui::g_send_ui_message_func));
     }
     if (ui::g_send_frame_ui_message_by_id_func) {
-        py4gw::HookBase::EnableHooks(reinterpret_cast<void*>(ui::g_send_frame_ui_message_by_id_func));
+        PY4GW::HookBase::EnableHooks(reinterpret_cast<void*>(ui::g_send_frame_ui_message_by_id_func));
     }
     if (ui::g_send_frame_ui_message_func) {
-        py4gw::HookBase::EnableHooks(reinterpret_cast<void*>(ui::g_send_frame_ui_message_func));
+        PY4GW::HookBase::EnableHooks(reinterpret_cast<void*>(ui::g_send_frame_ui_message_func));
     }
     if (ui::g_create_ui_component_func) {
-        py4gw::HookBase::EnableHooks(reinterpret_cast<void*>(ui::g_create_ui_component_func));
+        PY4GW::HookBase::EnableHooks(reinterpret_cast<void*>(ui::g_create_ui_component_func));
     }
     ui::RegisterUIMessageCallback(&ui::g_open_template_hook, ui::UIMessage::kOpenTemplate, &OnOpenTemplateUiMessage);
 }
@@ -718,16 +718,16 @@ void DisableHooks() {
     CrashContextScope context("shutdown", "ui", "disable_hooks");
     ui::RemoveUIMessageCallback(&ui::g_open_template_hook);
     if (ui::g_send_ui_message_func) {
-        py4gw::HookBase::DisableHooks(reinterpret_cast<void*>(ui::g_send_ui_message_func));
+        PY4GW::HookBase::DisableHooks(reinterpret_cast<void*>(ui::g_send_ui_message_func));
     }
     if (ui::g_send_frame_ui_message_by_id_func) {
-        py4gw::HookBase::DisableHooks(reinterpret_cast<void*>(ui::g_send_frame_ui_message_by_id_func));
+        PY4GW::HookBase::DisableHooks(reinterpret_cast<void*>(ui::g_send_frame_ui_message_by_id_func));
     }
     if (ui::g_send_frame_ui_message_func) {
-        py4gw::HookBase::DisableHooks(reinterpret_cast<void*>(ui::g_send_frame_ui_message_func));
+        PY4GW::HookBase::DisableHooks(reinterpret_cast<void*>(ui::g_send_frame_ui_message_func));
     }
     if (ui::g_create_ui_component_func) {
-        py4gw::HookBase::DisableHooks(reinterpret_cast<void*>(ui::g_create_ui_component_func));
+        PY4GW::HookBase::DisableHooks(reinterpret_cast<void*>(ui::g_create_ui_component_func));
     }
 }
 
@@ -742,16 +742,16 @@ void Exit() {
     }
 
     if (ui::g_send_ui_message_func) {
-        py4gw::HookBase::RemoveHook(reinterpret_cast<void*>(ui::g_send_ui_message_func));
+        PY4GW::HookBase::RemoveHook(reinterpret_cast<void*>(ui::g_send_ui_message_func));
     }
     if (ui::g_send_frame_ui_message_by_id_func) {
-        py4gw::HookBase::RemoveHook(reinterpret_cast<void*>(ui::g_send_frame_ui_message_by_id_func));
+        PY4GW::HookBase::RemoveHook(reinterpret_cast<void*>(ui::g_send_frame_ui_message_by_id_func));
     }
     if (ui::g_send_frame_ui_message_func) {
-        py4gw::HookBase::RemoveHook(reinterpret_cast<void*>(ui::g_send_frame_ui_message_func));
+        PY4GW::HookBase::RemoveHook(reinterpret_cast<void*>(ui::g_send_frame_ui_message_func));
     }
     if (ui::g_create_ui_component_func) {
-        py4gw::HookBase::RemoveHook(reinterpret_cast<void*>(ui::g_create_ui_component_func));
+        PY4GW::HookBase::RemoveHook(reinterpret_cast<void*>(ui::g_create_ui_component_func));
     }
 
     if (ui::g_callback_mutex_initialized) {
@@ -831,7 +831,7 @@ void Exit() {
 
 }  // namespace
 
-namespace gw::ui {
+namespace GW::ui {
 
 SendUIMessageFn g_send_ui_message_func = nullptr;
 SendUIMessageFn g_send_ui_message_original = nullptr;
@@ -877,7 +877,7 @@ SetMasterVolumeFn g_set_master_volume_func = nullptr;
 EnumPreferenceInfo* g_enum_preference_options_addr = nullptr;
 NumberPreferenceInfo* g_number_preference_options_addr = nullptr;
 uint32_t* g_command_line_number_buffer = nullptr;
-gw::GwArray<Frame*>* g_frame_array = nullptr;
+GW::GWArray<Frame*>* g_frame_array = nullptr;
 uintptr_t g_world_map_state_addr = 0;
 uintptr_t g_preferences_initialized_addr = 0;
 uintptr_t g_title_table_addr = 0;
@@ -892,7 +892,7 @@ std::unordered_map<UIMessage, std::vector<UIMessageCallbackEntry>> g_ui_message_
 std::unordered_map<UIMessage, std::vector<FrameUIMessageCallbackEntry>> g_frame_ui_message_callbacks;
 std::vector<CreateUIComponentCallbackEntry> g_create_ui_component_callbacks;
 bool g_open_links = false;
-py4gw::HookEntry g_open_template_hook;
+PY4GW::HookEntry g_open_template_hook;
 std::atomic<bool> g_initialized = false;
 std::atomic<bool> g_shutting_down = false;
 std::atomic<uint32_t> g_active_hooks = 0;
@@ -921,13 +921,13 @@ bool Initialize() {
         return true;
     }
 
-    PY4GW_ASSERT(py4gw::Scanner::Initialize());
-    PY4GW_ASSERT(py4gw::Patterns::Initialize());
+    PY4GW_ASSERT(PY4GW::Scanner::Initialize());
+    PY4GW_ASSERT(PY4GW::Patterns::Initialize());
 
-    py4gw::HookBase::Initialize();
+    PY4GW::HookBase::Initialize();
     if (!Init()) {
         Exit();
-        py4gw::HookBase::Deinitialize();
+        PY4GW::HookBase::Deinitialize();
         return false;
     }
 
@@ -946,9 +946,9 @@ void Shutdown() {
     DisableHooks();
     WaitForUiHooksToDrain();
     Exit();
-    py4gw::HookBase::Deinitialize();
+    PY4GW::HookBase::Deinitialize();
     g_shutting_down = false;
     g_initialized = false;
 }
 
-}  // namespace gw::ui
+}  // namespace GW::ui

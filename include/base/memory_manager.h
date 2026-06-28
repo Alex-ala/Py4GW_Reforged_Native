@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <windows.h>
 
-namespace py4gw {
+namespace PY4GW {
 
 class MemoryManager {
 public:
@@ -19,4 +19,4 @@ public:
     static void MemFree(void* buffer);
 };
 
-}  // namespace py4gw
+}  // namespace PY4GW

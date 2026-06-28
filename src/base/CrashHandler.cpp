@@ -254,7 +254,7 @@ bool CrashHandler::EnsureCrashDir() {
     wchar_t base[MAX_PATH] = {};
     const DWORD length = ::GetCurrentDirectoryW(MAX_PATH, base);
     if (length == 0 || length >= MAX_PATH) {
-        const std::filesystem::path module_dir = py4gw::process_manager::GetModuleDirectory();
+        const std::filesystem::path module_dir = PY4GW::process_manager::GetModuleDirectory();
         if (module_dir.empty()) {
             return false;
         }
@@ -283,7 +283,7 @@ void CrashHandler::Initialize() {
     ::SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
     ::SymSetOptions(SYMOPT_UNDNAME | SYMOPT_LOAD_LINES | SYMOPT_DEFERRED_LOADS);
     s_symbols_ready = !!::SymInitialize(::GetCurrentProcess(), nullptr, TRUE);
-    py4gw::RegisterPanicHandler(&CrashHandler::OnPanic, this);
+    PY4GW::RegisterPanicHandler(&CrashHandler::OnPanic, this);
     s_vectored_handler = ::AddVectoredExceptionHandler(1, &CrashHandler::VectoredHandler);
     InstallPathA();
     InstallPathC();
@@ -297,8 +297,8 @@ void CrashHandler::Terminate() {
 
     s_installed = false;
     if (s_append_stack_fn) {
-        py4gw::HookBase::DisableHooks(reinterpret_cast<void*>(s_append_stack_fn));
-        py4gw::HookBase::RemoveHook(reinterpret_cast<void*>(s_append_stack_fn));
+        PY4GW::HookBase::DisableHooks(reinterpret_cast<void*>(s_append_stack_fn));
+        PY4GW::HookBase::RemoveHook(reinterpret_cast<void*>(s_append_stack_fn));
         s_append_stack_fn = 0;
         s_append_stack_orig = nullptr;
     }
@@ -311,7 +311,7 @@ void CrashHandler::Terminate() {
         s_symbols_ready = false;
     }
     ::SetUnhandledExceptionFilter(s_prev_filter);
-    py4gw::RegisterPanicHandler(nullptr, nullptr);
+    PY4GW::RegisterPanicHandler(nullptr, nullptr);
     RestoreCallbackFilterPolicy();
     ::InterlockedExchange(&s_handling, 0);
     Logger::Instance().LogInfo("[CrashHandler] torn down.");
@@ -360,20 +360,20 @@ void CrashHandler::InstallPathA() {
 }
 
 void CrashHandler::InstallPathC() {
-    const uintptr_t use = py4gw::Scanner::FindUseOfString("%p  %08x %08x %08x %08x ");
+    const uintptr_t use = PY4GW::Scanner::FindUseOfString("%p  %08x %08x %08x %08x ");
     if (!Logger::AssertAddress("append_stack_anchor_use", use, "crash")) {
         Logger::Instance().LogWarning("[CrashHandler] Path C anchor miss; SEH/VEH only.");
         return;
     }
 
-    s_append_stack_fn = py4gw::Scanner::ToFunctionStart(use, 0xFFF);
+    s_append_stack_fn = PY4GW::Scanner::ToFunctionStart(use, 0xFFF);
     if (!Logger::AssertAddress("append_stack_target", s_append_stack_fn, "crash")) {
         Logger::Instance().LogWarning("[CrashHandler] Path C prologue miss; SEH/VEH only.");
         return;
     }
 
     void* target = reinterpret_cast<void*>(s_append_stack_fn);
-    const int status = py4gw::HookBase::CreateHookRaw(target, reinterpret_cast<void*>(&CrashHandler::AppendStackDetour), &s_append_stack_orig);
+    const int status = PY4GW::HookBase::CreateHookRaw(target, reinterpret_cast<void*>(&CrashHandler::AppendStackDetour), &s_append_stack_orig);
     if (status != 0 || !s_append_stack_orig) {
         Logger::Instance().LogWarning("[CrashHandler] Path C CreateHook failed.");
         s_append_stack_fn = 0;
@@ -381,7 +381,7 @@ void CrashHandler::InstallPathC() {
         return;
     }
 
-    py4gw::HookBase::EnableHooks(target);
+    PY4GW::HookBase::EnableHooks(target);
     Logger::Instance().LogInfo("[CrashHandler] Path C attached.");
 }
 

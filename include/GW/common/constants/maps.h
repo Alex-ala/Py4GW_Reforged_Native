@@ -2,9 +2,8 @@
 
 #include <array>
 #include <cstdint>
-
-namespace gw {
-    namespace constants {
+namespace GW {
+    namespace Constants {
         enum class MapID : uint32_t {
             None = 0,
             Gladiators_Arena,

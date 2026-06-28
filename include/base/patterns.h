@@ -7,7 +7,7 @@
 #include <filesystem>
 #include <string>
 
-namespace py4gw {
+namespace PY4GW {
 
 struct PatternObject {
     std::string name;
@@ -27,4 +27,4 @@ public:
     static const PatternObject* Get(const std::string& name);
 };
 
-}  // namespace py4gw
+}  // namespace PY4GW

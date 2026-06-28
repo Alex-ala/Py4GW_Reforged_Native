@@ -11,7 +11,7 @@
 
 struct IDirect3DDevice9;
 
-namespace gw::render {
+namespace GW::render {
 
 bool Initialize();
 void Shutdown();
@@ -79,4 +79,4 @@ extern std::atomic<bool> g_shutting_down;
 extern RenderCallback g_render_callback;
 extern RenderCallback g_reset_callback;
 
-}  // namespace gw::render
+}  // namespace GW::render

@@ -21,7 +21,7 @@
 #include <vector>
 #include <Windows.h>
 
-namespace gw::ui {
+namespace GW::ui {
 
     enum class UIMessage : uint32_t {
         kNone = 0x0,
@@ -593,7 +593,7 @@ typedef void(__cdecl* DecodeStr_Callback)(void* param, const wchar_t* s);
 struct ChatTemplate {
     uint32_t        agent_id;
     uint32_t        type; // 0 = build, 1 = equipment
-    gw::GwArray<wchar_t>  code;
+    GW::GWArray<wchar_t>  code;
     wchar_t*        name;
 };
 
@@ -625,7 +625,7 @@ struct FrameRelation {
     uint32_t field67_0x124;
     uint32_t field68_0x128;
     uint32_t frame_hash_id;
-    gw::GwList<FrameRelation> siblings;
+    GW::GwList<FrameRelation> siblings;
 
     Frame* GetFrame();
     Frame* GetParent() const;
@@ -654,20 +654,14 @@ struct FramePosition {
     float screen_right;
     float screen_top;
 
-    [[nodiscard]] gw::Vec2f GetTopLeftOnScreen(const Frame* frame = nullptr) const;
-    [[nodiscard]] gw::Vec2f GetBottomRightOnScreen(const Frame* frame = nullptr) const;
-    [[nodiscard]] gw::Vec2f GetContentTopLeft(const Frame* frame = nullptr) const;
-    [[nodiscard]] gw::Vec2f GetContentBottomRight(const Frame* frame = nullptr) const;
-    [[nodiscard]] gw::Vec2f GetSizeOnScreen(const Frame* frame = nullptr) const;
-    [[nodiscard]] gw::Vec2f GetViewportScale(const Frame* frame = nullptr) const;
+    [[nodiscard]] GW::Vec2f GetTopLeftOnScreen(const Frame* frame = nullptr) const;
+    [[nodiscard]] GW::Vec2f GetBottomRightOnScreen(const Frame* frame = nullptr) const;
+    [[nodiscard]] GW::Vec2f GetContentTopLeft(const Frame* frame = nullptr) const;
+    [[nodiscard]] GW::Vec2f GetContentBottomRight(const Frame* frame = nullptr) const;
+    [[nodiscard]] GW::Vec2f GetSizeOnScreen(const Frame* frame = nullptr) const;
+    [[nodiscard]] GW::Vec2f GetViewportScale(const Frame* frame = nullptr) const;
 };
 static_assert(sizeof(FramePosition) == 0x44, "FramePosition size mismatch");
-
-struct FrameInteractionCallback {
-    UIInteractionCallback callback;
-    void* uictl_context;
-    uint32_t h0008;
-};
 
 struct TooltipInfo {
     uint32_t bit_field;
@@ -796,13 +790,13 @@ struct Frame {
     uint32_t field28_0x78;
     uint32_t field29_0x7c;
     uint32_t field30_0x80;
-    gw::GwArray<void*> field31_0x84;
+    GW::GWArray<void*> field31_0x84;
     uint32_t field32_0x94;
     uint32_t field33_0x98;
     uint32_t field34_0x9c;
     uint32_t field35_0xa0;
     uint32_t field36_0xa4;
-    gw::GwArray<UIInteractionCallback> frame_callbacks; // gw::GwArray<FrameInteractionCallback> frame_callbacks;
+    GW::GWArray<UIInteractionCallback> frame_callbacks; // GW::GWArray<FrameInteractionCallback> frame_callbacks;
     uint32_t child_offset_id; // Offset of this child in relation to its parent
     uint32_t frame_id; // Offset in the global frame array
     uint32_t field40_0xc0;
@@ -858,7 +852,7 @@ struct Frame {
 static_assert(sizeof(Frame) == 0x1C8, "Frame size mismatch");
 static_assert(offsetof(Frame, relation) == 0x128, "Frame::relation offset mismatch");
 
-inline gw::Vec2f FramePosition::GetTopLeftOnScreen(const Frame* frame) const
+inline GW::Vec2f FramePosition::GetTopLeftOnScreen(const Frame* frame) const
 {
     const auto viewport_scale = GetViewportScale(frame);
     const auto height = frame ? frame->position.viewport_height : viewport_height;
@@ -868,7 +862,7 @@ inline gw::Vec2f FramePosition::GetTopLeftOnScreen(const Frame* frame) const
     };
 }
 
-inline gw::Vec2f FramePosition::GetBottomRightOnScreen(const Frame* frame) const
+inline GW::Vec2f FramePosition::GetBottomRightOnScreen(const Frame* frame) const
 {
     const auto viewport_scale = GetViewportScale(frame);
     const auto height = frame ? frame->position.viewport_height : viewport_height;
@@ -878,7 +872,7 @@ inline gw::Vec2f FramePosition::GetBottomRightOnScreen(const Frame* frame) const
     };
 }
 
-inline gw::Vec2f FramePosition::GetContentTopLeft(const Frame* frame) const
+inline GW::Vec2f FramePosition::GetContentTopLeft(const Frame* frame) const
 {
     const auto viewport_scale = GetViewportScale(frame);
     const auto height = frame ? frame->position.viewport_height : viewport_height;
@@ -888,7 +882,7 @@ inline gw::Vec2f FramePosition::GetContentTopLeft(const Frame* frame) const
     };
 }
 
-inline gw::Vec2f FramePosition::GetContentBottomRight(const Frame* frame) const
+inline GW::Vec2f FramePosition::GetContentBottomRight(const Frame* frame) const
 {
     const auto viewport_scale = GetViewportScale(frame);
     const auto height = frame ? frame->position.viewport_height : viewport_height;
@@ -898,7 +892,7 @@ inline gw::Vec2f FramePosition::GetContentBottomRight(const Frame* frame) const
     };
 }
 
-inline gw::Vec2f FramePosition::GetSizeOnScreen(const Frame* frame) const
+inline GW::Vec2f FramePosition::GetSizeOnScreen(const Frame* frame) const
 {
     const auto viewport_scale = GetViewportScale(frame);
     return {
@@ -907,10 +901,10 @@ inline gw::Vec2f FramePosition::GetSizeOnScreen(const Frame* frame) const
     };
 }
 
-inline gw::Vec2f FramePosition::GetViewportScale(const Frame* frame) const
+inline GW::Vec2f FramePosition::GetViewportScale(const Frame* frame) const
 {
-    const auto screen_width = static_cast<float>(gw::render::GetViewportWidth());
-    const auto screen_height = static_cast<float>(gw::render::GetViewportHeight());
+    const auto screen_width = static_cast<float>(GW::render::GetViewportWidth());
+    const auto screen_height = static_cast<float>(GW::render::GetViewportHeight());
     return {
         screen_width / (frame ? frame->position.viewport_width : viewport_width),
         screen_height / (frame ? frame->position.viewport_height : viewport_height)
@@ -919,8 +913,8 @@ inline gw::Vec2f FramePosition::GetViewportScale(const Frame* frame) const
 
 struct WindowPosition {
     uint32_t state;
-    gw::Vec2f p1;
-    gw::Vec2f p2;
+    GW::Vec2f p1;
+    GW::Vec2f p2;
 
     bool visible() const { return (state & 0x1) != 0; }
 };
@@ -957,9 +951,9 @@ struct MouseAction {
 };
 }
 
-using ArrayByte = gw::GwArray<unsigned char>;
+using ArrayByte = GW::GWArray<unsigned char>;
 using SendUIMessageFn = void(__cdecl*)(UIMessage message_id, void* wparam, void* lparam);
-using SendFrameUIMessageFn = void(__fastcall*)(gw::GwArray<UIInteractionCallback>* callbacks, void* edx, UIMessage message_id, void* wparam, void* lparam);
+using SendFrameUIMessageFn = void(__fastcall*)(GW::GWArray<UIInteractionCallback>* callbacks, void* edx, UIMessage message_id, void* wparam, void* lparam);
 using SendFrameUIMessageByIdFn = void(__cdecl*)(uint32_t frame_id, UIMessage message_id, void* wparam, void* lparam);
 using CreateHashFromWcharFn = uint32_t(__cdecl*)(const wchar_t* value, int seed);
 using GetChildFrameIdFn = uint32_t(__cdecl*)(uint32_t parent_frame_id, uint32_t child_offset);
@@ -996,26 +990,26 @@ using SetInGameUIScaleFn = void(__cdecl*)(uint32_t value);
 using SetVolumeFn = void(__cdecl*)(uint32_t volume_id, float amount);
 using SetMasterVolumeFn = void(__cdecl*)(float amount);
 
-using UIMessageCallback = py4gw::HookCallback<UIMessage, void*, void*>;
-using FrameUIMessageCallback = py4gw::HookCallback<const Frame*, UIMessage, void*, void*>;
-using KeyCallback = py4gw::HookCallback<uint32_t>;
+using UIMessageCallback = PY4GW::HookCallback<UIMessage, void*, void*>;
+using FrameUIMessageCallback = PY4GW::HookCallback<const Frame*, UIMessage, void*, void*>;
+using KeyCallback = PY4GW::HookCallback<uint32_t>;
 using CreateUIComponentCallback = std::function<void(CreateUIComponentPacket*)>;
 
 struct UIMessageCallbackEntry {
     int altitude;
-    py4gw::HookEntry* entry;
+    PY4GW::HookEntry* entry;
     UIMessageCallback callback;
 };
 
 struct FrameUIMessageCallbackEntry {
     int altitude;
-    py4gw::HookEntry* entry;
+    PY4GW::HookEntry* entry;
     FrameUIMessageCallback callback;
 };
 
 struct CreateUIComponentCallbackEntry {
     int altitude;
-    py4gw::HookEntry* entry;
+    PY4GW::HookEntry* entry;
     CreateUIComponentCallback callback;
 };
 
@@ -1087,7 +1081,7 @@ bool SendUIMessage(UIMessage message_id, void* wparam = nullptr, void* lparam = 
 bool Keydown(ControlAction key, Frame* target = nullptr);
 bool Keyup(ControlAction key, Frame* target = nullptr);
 bool Keypress(ControlAction key, Frame* target = nullptr);
-gw::constants::Language GetTextLanguage();
+GW::Constants::Language GetTextLanguage();
 uint32_t GetPreference(EnumPreference pref);
 uint32_t GetPreferenceOptions(EnumPreference pref, uint32_t** options_out = nullptr);
 uint32_t GetPreference(NumberPreference pref);
@@ -1123,23 +1117,23 @@ std::vector<std::pair<uint32_t, uint32_t>> GetFrameCoordsByHash(uint32_t frame_h
 std::vector<uint32_t> GetFrameArray();
 void AsyncDecodeStr(const wchar_t* enc_str, char* buffer, size_t size);
 void AsyncDecodeStr(const wchar_t* enc_str, wchar_t* buffer, size_t size);
-void AsyncDecodeStr(const wchar_t* enc_str, DecodeStr_Callback callback, void* callback_param = nullptr, gw::constants::Language language_id = gw::constants::Language::Unknown);
-void AsyncDecodeStr(const wchar_t* enc_str, std::wstring* out, gw::constants::Language language_id = gw::constants::Language::Unknown);
+void AsyncDecodeStr(const wchar_t* enc_str, DecodeStr_Callback callback, void* callback_param = nullptr, GW::Constants::Language language_id = GW::Constants::Language::Unknown);
+void AsyncDecodeStr(const wchar_t* enc_str, std::wstring* out, GW::Constants::Language language_id = GW::Constants::Language::Unknown);
 bool IsValidEncStr(const wchar_t* enc_str);
 bool UInt32ToEncStr(uint32_t value, wchar_t* buffer, size_t count);
 uint32_t EncStrToUInt32(const wchar_t* enc_str);
 TooltipInfo* GetCurrentTooltip();
 
-void RegisterUIMessageCallback(py4gw::HookEntry* entry, UIMessage message_id, const UIMessageCallback& callback, int altitude = -0x8000);
-void RemoveUIMessageCallback(py4gw::HookEntry* entry, UIMessage message_id = UIMessage::kNone);
-void RegisterFrameUIMessageCallback(py4gw::HookEntry* entry, UIMessage message_id, const FrameUIMessageCallback& callback, int altitude = -0x8000);
-void RemoveFrameUIMessageCallback(py4gw::HookEntry* entry);
-void RegisterKeydownCallback(py4gw::HookEntry* entry, const KeyCallback& callback);
-void RemoveKeydownCallback(py4gw::HookEntry* entry);
-void RegisterKeyupCallback(py4gw::HookEntry* entry, const KeyCallback& callback);
-void RemoveKeyupCallback(py4gw::HookEntry* entry);
-void RegisterCreateUIComponentCallback(py4gw::HookEntry* entry, const CreateUIComponentCallback& callback, int altitude = -0x8000);
-void RemoveCreateUIComponentCallback(py4gw::HookEntry* entry);
+void RegisterUIMessageCallback(PY4GW::HookEntry* entry, UIMessage message_id, const UIMessageCallback& callback, int altitude = -0x8000);
+void RemoveUIMessageCallback(PY4GW::HookEntry* entry, UIMessage message_id = UIMessage::kNone);
+void RegisterFrameUIMessageCallback(PY4GW::HookEntry* entry, UIMessage message_id, const FrameUIMessageCallback& callback, int altitude = -0x8000);
+void RemoveFrameUIMessageCallback(PY4GW::HookEntry* entry);
+void RegisterKeydownCallback(PY4GW::HookEntry* entry, const KeyCallback& callback);
+void RemoveKeydownCallback(PY4GW::HookEntry* entry);
+void RegisterKeyupCallback(PY4GW::HookEntry* entry, const KeyCallback& callback);
+void RemoveKeyupCallback(PY4GW::HookEntry* entry);
+void RegisterCreateUIComponentCallback(PY4GW::HookEntry* entry, const CreateUIComponentCallback& callback, int altitude = -0x8000);
+void RemoveCreateUIComponentCallback(PY4GW::HookEntry* entry);
 bool InitializeTypedComponentCallbacks();
 
 struct ButtonFrame : Frame {
@@ -1355,7 +1349,7 @@ extern UIInteractionCallback g_editable_text_frame_callback;
 extern UIInteractionCallback g_progress_bar_callback;
 extern UIInteractionCallback g_tabs_frame_callback;
 extern bool g_typed_component_callbacks_initialized;
-extern gw::GwArray<Frame*>* g_frame_array;
+extern GW::GWArray<Frame*>* g_frame_array;
 extern uintptr_t g_world_map_state_addr;
 extern uintptr_t g_preferences_initialized_addr;
 extern uintptr_t g_title_table_addr;
@@ -1370,9 +1364,9 @@ extern std::unordered_map<UIMessage, std::vector<UIMessageCallbackEntry>> g_ui_m
 extern std::unordered_map<UIMessage, std::vector<FrameUIMessageCallbackEntry>> g_frame_ui_message_callbacks;
 extern std::vector<CreateUIComponentCallbackEntry> g_create_ui_component_callbacks;
 extern bool g_open_links;
-extern py4gw::HookEntry g_open_template_hook;
+extern PY4GW::HookEntry g_open_template_hook;
 extern std::atomic<bool> g_initialized;
 extern std::atomic<bool> g_shutting_down;
 extern std::atomic<uint32_t> g_active_hooks;
 
-}  // namespace gw::ui
+}  // namespace GW::ui

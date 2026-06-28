@@ -2,7 +2,7 @@
 
 #include "base/error_handling.h"
 
-namespace py4gw {
+namespace PY4GW {
 
 class HookBase {
 protected:
@@ -39,10 +39,10 @@ public:
 
 typedef THook<unsigned char*> Hook;
 
-}  // namespace py4gw
+}  // namespace PY4GW
 
 template <typename T>
-T py4gw::THook<T>::Detour(T source, T detour, const unsigned) {
+T PY4GW::THook<T>::Detour(T source, T detour, const unsigned) {
     if (Empty()) {
         _sourceFunc = reinterpret_cast<void*>(source);
         _detourFunc = reinterpret_cast<void*>(detour);
@@ -52,7 +52,7 @@ T py4gw::THook<T>::Detour(T source, T detour, const unsigned) {
 }
 
 template <typename T>
-T py4gw::THook<T>::Retour(bool do_cleanup) {
+T PY4GW::THook<T>::Retour(bool do_cleanup) {
     if (Valid() && do_cleanup) {
         HookBase::RemoveHook(_sourceFunc);
     }

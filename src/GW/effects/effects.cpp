@@ -12,33 +12,33 @@ namespace {
 
 bool ResolvePostProcessEffect() {
     CrashContextScope context("startup", "effects", "resolve_post_process_effect");
-    const auto* pattern = py4gw::Patterns::Get("effects.post_process_target");
+    const auto* pattern = PY4GW::Patterns::Get("effects.post_process_target");
     if (!pattern) {
         Logger::Instance().LogError("Missing or invalid pattern: effects.post_process_target", "effects");
         return false;
     }
 
-    const uintptr_t address = py4gw::Scanner::Find(
+    const uintptr_t address = PY4GW::Scanner::Find(
         pattern->pattern.c_str(),
         pattern->mask.c_str(),
         pattern->offset,
         pattern->section);
-    gw::effects::g_post_process_effect_func = reinterpret_cast<gw::effects::PostProcessEffectFn>(address);
+    GW::effects::g_post_process_effect_func = reinterpret_cast<GW::effects::PostProcessEffectFn>(address);
     return Logger::AssertAddress(
         "PostProcessEffect_Func",
-        reinterpret_cast<uintptr_t>(gw::effects::g_post_process_effect_func),
+        reinterpret_cast<uintptr_t>(GW::effects::g_post_process_effect_func),
         "effects");
 }
 
 bool ResolveDropBuff() {
     CrashContextScope context("startup", "effects", "resolve_drop_buff");
-    const auto* pattern = py4gw::Patterns::Get("effects.drop_buff_callsite");
+    const auto* pattern = PY4GW::Patterns::Get("effects.drop_buff_callsite");
     if (!pattern) {
         Logger::Instance().LogError("Missing or invalid pattern: effects.drop_buff_callsite", "effects");
         return false;
     }
 
-    const uintptr_t callsite = py4gw::Scanner::Find(
+    const uintptr_t callsite = PY4GW::Scanner::Find(
         pattern->pattern.c_str(),
         pattern->mask.c_str(),
         pattern->offset,
@@ -47,20 +47,20 @@ bool ResolveDropBuff() {
         return false;
     }
 
-    gw::effects::g_drop_buff_func = reinterpret_cast<gw::effects::DropBuffFn>(
-        py4gw::Scanner::FunctionFromNearCall(callsite));
-    return Logger::AssertAddress("DropBuff_Func", reinterpret_cast<uintptr_t>(gw::effects::g_drop_buff_func), "effects");
+    GW::effects::g_drop_buff_func = reinterpret_cast<GW::effects::DropBuffFn>(
+        PY4GW::Scanner::FunctionFromNearCall(callsite));
+    return Logger::AssertAddress("DropBuff_Func", reinterpret_cast<uintptr_t>(GW::effects::g_drop_buff_func), "effects");
 }
 
 void __cdecl OnPostProcessEffect(uint32_t intensity, uint32_t tint) {
-    py4gw::HookBase::EnterHook();
-    gw::effects::g_alcohol_level = intensity;
+    PY4GW::HookBase::EnterHook();
+    GW::effects::g_alcohol_level = intensity;
 
-    if (gw::effects::g_post_process_effect_original) {
-        gw::effects::g_post_process_effect_original(intensity, tint);
+    if (GW::effects::g_post_process_effect_original) {
+        GW::effects::g_post_process_effect_original(intensity, tint);
     }
 
-    py4gw::HookBase::LeaveHook();
+    PY4GW::HookBase::LeaveHook();
 }
 
 bool Init() {
@@ -70,42 +70,42 @@ bool Init() {
         return false;
     }
 
-    const int status = py4gw::HookBase::CreateHook(
-        reinterpret_cast<void**>(&gw::effects::g_post_process_effect_func),
+    const int status = PY4GW::HookBase::CreateHook(
+        reinterpret_cast<void**>(&GW::effects::g_post_process_effect_func),
         reinterpret_cast<void*>(&OnPostProcessEffect),
-        reinterpret_cast<void**>(&gw::effects::g_post_process_effect_original));
+        reinterpret_cast<void**>(&GW::effects::g_post_process_effect_original));
     return Logger::AssertHook("PostProcessEffect_Func", status, "effects");
 }
 
 void EnableHooks() {
     CrashContextScope context("runtime", "effects", "enable_hooks");
-    if (gw::effects::g_post_process_effect_func) {
-        py4gw::HookBase::EnableHooks(reinterpret_cast<void*>(gw::effects::g_post_process_effect_func));
+    if (GW::effects::g_post_process_effect_func) {
+        PY4GW::HookBase::EnableHooks(reinterpret_cast<void*>(GW::effects::g_post_process_effect_func));
     }
 }
 
 void DisableHooks() {
     CrashContextScope context("shutdown", "effects", "disable_hooks");
-    if (gw::effects::g_post_process_effect_func) {
-        py4gw::HookBase::DisableHooks(reinterpret_cast<void*>(gw::effects::g_post_process_effect_func));
+    if (GW::effects::g_post_process_effect_func) {
+        PY4GW::HookBase::DisableHooks(reinterpret_cast<void*>(GW::effects::g_post_process_effect_func));
     }
 }
 
 void Exit() {
     CrashContextScope context("shutdown", "effects", "exit");
-    if (gw::effects::g_post_process_effect_func) {
-        py4gw::HookBase::RemoveHook(reinterpret_cast<void*>(gw::effects::g_post_process_effect_func));
+    if (GW::effects::g_post_process_effect_func) {
+        PY4GW::HookBase::RemoveHook(reinterpret_cast<void*>(GW::effects::g_post_process_effect_func));
     }
 
-    gw::effects::g_post_process_effect_func = nullptr;
-    gw::effects::g_post_process_effect_original = nullptr;
-    gw::effects::g_drop_buff_func = nullptr;
-    gw::effects::g_alcohol_level = 0;
+    GW::effects::g_post_process_effect_func = nullptr;
+    GW::effects::g_post_process_effect_original = nullptr;
+    GW::effects::g_drop_buff_func = nullptr;
+    GW::effects::g_alcohol_level = 0;
 }
 
 }  // namespace
 
-namespace gw::effects {
+namespace GW::effects {
 
 bool Initialize() {
     CrashContextScope context("startup", "effects", "initialize");
@@ -113,13 +113,13 @@ bool Initialize() {
         return true;
     }
 
-    PY4GW_ASSERT(py4gw::Scanner::Initialize());
-    PY4GW_ASSERT(py4gw::Patterns::Initialize());
+    PY4GW_ASSERT(PY4GW::Scanner::Initialize());
+    PY4GW_ASSERT(PY4GW::Patterns::Initialize());
 
-    py4gw::HookBase::Initialize();
+    PY4GW::HookBase::Initialize();
     if (!Init()) {
         Exit();
-        py4gw::HookBase::Deinitialize();
+        PY4GW::HookBase::Deinitialize();
         return false;
     }
 
@@ -136,8 +136,8 @@ void Shutdown() {
 
     DisableHooks();
     Exit();
-    py4gw::HookBase::Deinitialize();
+    PY4GW::HookBase::Deinitialize();
     g_initialized = false;
 }
 
-}  // namespace gw::effects
+}  // namespace GW::effects

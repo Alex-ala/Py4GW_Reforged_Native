@@ -10,7 +10,7 @@
 
 #include <filesystem>
 
-namespace py4gw::imgui {
+namespace PY4GW::imgui {
 
 namespace {
 
@@ -167,13 +167,13 @@ bool FontManager::ResolveFontDirectory() {
         return true;
     }
 
-    std::filesystem::path directory = py4gw::process_manager::GetModuleDirectory() / "fonts";
+    std::filesystem::path directory = PY4GW::process_manager::GetModuleDirectory() / "fonts";
     if (std::filesystem::exists(directory)) {
         font_dir_ = directory.string();
         return true;
     }
 
-    directory = py4gw::process_manager::GetProcessDirectory() / "fonts";
+    directory = PY4GW::process_manager::GetProcessDirectory() / "fonts";
     if (std::filesystem::exists(directory)) {
         font_dir_ = directory.string();
         return true;
@@ -195,4 +195,4 @@ std::string FontManager::BuildFontPath(const char* file_name) const {
     return path.string();
 }
 
-}  // namespace py4gw::imgui
+}  // namespace PY4GW::imgui

@@ -2,8 +2,8 @@
 
 #include <cstdint>
 
-namespace gw {
-    namespace constants {
+namespace GW {
+    namespace Constants {
 
         namespace ModelID { // this is actually agent->PlayerNumber for agents
             constexpr int Rotscale = 2837;
@@ -443,11 +443,11 @@ namespace gw {
                 constexpr int IgneousFireImp = 513;
                 constexpr int JadeiteSiegeTurtle = 514;
                 constexpr int DemonicOni = 515;
-                constexpr int AmberJuggernaut  = 516;
+                constexpr int AmberJuggernaut = 516;
                 constexpr int MysticalGaki = 517;
                 constexpr int GelatinousOoze = 518;
                 constexpr int ChitinousDevourer = 519;
-                constexpr int ArcticKveldulf  = 520;
+                constexpr int ArcticKveldulf = 520;
                 constexpr int FossilizedRaptor = 521;
                 constexpr int MischievousGrentch = 522;
                 constexpr int FrostySnowman = 523;
@@ -478,3 +478,4 @@ namespace gw {
         }
     }
 }
+

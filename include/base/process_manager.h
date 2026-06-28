@@ -5,11 +5,11 @@
 #include <filesystem>
 #include <windows.h>
 
-namespace py4gw::process_manager {
+namespace PY4GW::process_manager {
 
 void SetModuleHandle(HMODULE module);
 HMODULE GetModuleHandle();
 std::filesystem::path GetModuleDirectory();
 std::filesystem::path GetProcessDirectory();
 
-}  // namespace py4gw::process_manager
+}  // namespace PY4GW::process_manager

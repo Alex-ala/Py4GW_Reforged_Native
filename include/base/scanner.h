@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <windows.h>
 
-namespace py4gw {
+namespace PY4GW {
 
 enum class ScannerSection : uint8_t {
     Text = 0,
@@ -38,4 +38,4 @@ public:
     static ScannerSectionRange GetSectionRange(ScannerSection section);
 };
 
-}  // namespace py4gw
+}  // namespace PY4GW

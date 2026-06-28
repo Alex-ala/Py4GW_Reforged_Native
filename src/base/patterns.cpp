@@ -20,7 +20,7 @@ namespace {
 
 using json = nlohmann::json;
 
-std::unordered_map<std::string, py4gw::PatternObject> g_patterns;
+std::unordered_map<std::string, PY4GW::PatternObject> g_patterns;
 bool g_initialized = false;
 
 std::string QualifyName(const std::string& name_space, const std::string& name) {
@@ -30,19 +30,19 @@ std::string QualifyName(const std::string& name_space, const std::string& name) 
     return name_space + "." + name;
 }
 
-py4gw::ScannerSection ParseSection(const std::string& text) {
+PY4GW::ScannerSection ParseSection(const std::string& text) {
     std::string lowered = text;
     std::transform(lowered.begin(), lowered.end(), lowered.begin(), [](unsigned char c) {
         return static_cast<char>(std::tolower(c));
     });
 
     if (lowered == "rdata") {
-        return py4gw::ScannerSection::RData;
+        return PY4GW::ScannerSection::RData;
     }
     if (lowered == "data") {
-        return py4gw::ScannerSection::Data;
+        return PY4GW::ScannerSection::Data;
     }
-    return py4gw::ScannerSection::Text;
+    return PY4GW::ScannerSection::Text;
 }
 
 bool ParseInt(const std::string& text, int* value) {
@@ -148,7 +148,7 @@ bool LoadFile(const std::filesystem::path& path) {
             return false;
         }
 
-        py4gw::PatternObject pattern_object;
+        PY4GW::PatternObject pattern_object;
         pattern_object.name = name;
         pattern_object.mask = value.value("mask", "");
         pattern_object.assertion_file = value.value("assertion_file", "");
@@ -192,7 +192,7 @@ bool LoadFile(const std::filesystem::path& path) {
 
 }  // namespace
 
-namespace py4gw {
+namespace PY4GW {
 
 bool Patterns::Initialize(const std::filesystem::path& directory) {
     if (g_initialized) {
@@ -249,4 +249,4 @@ const PatternObject* Patterns::Get(const std::string& name) {
     return &it->second;
 }
 
-}  // namespace py4gw
+}  // namespace PY4GW

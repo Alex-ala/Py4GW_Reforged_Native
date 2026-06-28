@@ -2,8 +2,8 @@
 
 #include <cstdint>
 
-namespace gw {
-    namespace constants {
+namespace GW {
+    namespace Constants {
         enum class QuestID : uint32_t {
             None = 0,
             // Underworld
@@ -154,7 +154,7 @@ namespace gw {
             ZaishenBounty_Fronis_Irontoe = 1068,
             ZaishenBounty_Magmus = 1070,
             ZaishenBounty_Lord_Khobay = 1086,
-                
+
             ZaishenVanquish_Dejarin_Estate = 1201,
             ZaishenVanquish_Watchtower_Coast = 1202,
             ZaishenVanquish_Arbor_Bay = 1203,

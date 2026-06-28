@@ -6,7 +6,7 @@
 
 #include <cmath>
 
-namespace gw::render {
+namespace GW::render {
 
 GwDxContext* g_dx_context = nullptr;
 uintptr_t g_window_handle_ptr = 0;
@@ -68,7 +68,7 @@ Mat4x3f* GetTransform(Transform transform) {
 }
 
 float GetFieldOfView() {
-    const context::Camera* camera = camera::GetCamera();
+    const Context::Camera* camera = camera::GetCamera();
     if (!camera) {
         return 0.0f;
     }
@@ -97,4 +97,4 @@ void SetResetCallback(RenderCallback callback) {
     g_reset_callback = callback;
 }
 
-}  // namespace gw::render
+}  // namespace GW::render

@@ -2,7 +2,7 @@
 
 #include "GW/guild/guild.h"
 
-namespace gw::guild {
+namespace GW::guild {
 
 std::atomic<bool> g_initialized = false;
 
@@ -18,4 +18,4 @@ void Shutdown() {
     g_initialized = false;
 }
 
-}  // namespace gw::guild
+}  // namespace GW::guild

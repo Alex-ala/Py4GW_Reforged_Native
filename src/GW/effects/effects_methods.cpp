@@ -5,7 +5,7 @@
 #include "GW/context/context.h"
 #include "GW/context/world_context.h"
 
-namespace gw::effects {
+namespace GW::effects {
 
 PostProcessEffectFn g_post_process_effect_func = nullptr;
 PostProcessEffectFn g_post_process_effect_original = nullptr;
@@ -23,13 +23,13 @@ void GetDrunkAf(uint32_t intensity, uint32_t tint) {
     }
 }
 
-context::AgentEffectsArray* GetPartyEffectsArray() {
-    context::WorldContext* world = context::GetWorldContext();
+Context::AgentEffectsArray* GetPartyEffectsArray() {
+    Context::WorldContext* world = Context::GetWorldContext();
     return world && world->party_effects.valid() ? &world->party_effects : nullptr;
 }
 
-context::AgentEffects* GetAgentEffectsArray(uint32_t agent_id) {
-    context::AgentEffectsArray* agent_effects = GetPartyEffectsArray();
+Context::AgentEffects* GetAgentEffectsArray(uint32_t agent_id) {
+    Context::AgentEffectsArray* agent_effects = GetPartyEffectsArray();
     if (!agent_effects) {
         return nullptr;
     }
@@ -42,26 +42,26 @@ context::AgentEffects* GetAgentEffectsArray(uint32_t agent_id) {
     return nullptr;
 }
 
-context::AgentEffects* GetPlayerEffectsArray() {
-    return GetAgentEffectsArray(context::GetControlledCharacterId());
+Context::AgentEffects* GetPlayerEffectsArray() {
+    return GetAgentEffectsArray(Context::GetControlledCharacterId());
 }
 
-context::EffectArray* GetAgentEffects(uint32_t agent_id) {
-    context::AgentEffects* effects = GetAgentEffectsArray(agent_id);
+Context::EffectArray* GetAgentEffects(uint32_t agent_id) {
+    Context::AgentEffects* effects = GetAgentEffectsArray(agent_id);
     return effects && effects->effects.valid() ? &effects->effects : nullptr;
 }
 
-context::BuffArray* GetAgentBuffs(uint32_t agent_id) {
-    context::AgentEffects* effects = GetAgentEffectsArray(agent_id);
+Context::BuffArray* GetAgentBuffs(uint32_t agent_id) {
+    Context::AgentEffects* effects = GetAgentEffectsArray(agent_id);
     return effects && effects->buffs.valid() ? &effects->buffs : nullptr;
 }
 
-context::EffectArray* GetPlayerEffects() {
-    return GetAgentEffects(context::GetControlledCharacterId());
+Context::EffectArray* GetPlayerEffects() {
+    return GetAgentEffects(Context::GetControlledCharacterId());
 }
 
-context::BuffArray* GetPlayerBuffs() {
-    return GetAgentBuffs(context::GetControlledCharacterId());
+Context::BuffArray* GetPlayerBuffs() {
+    return GetAgentBuffs(Context::GetControlledCharacterId());
 }
 
 bool DropBuff(uint32_t buff_id) {
@@ -73,8 +73,8 @@ bool DropBuff(uint32_t buff_id) {
     return true;
 }
 
-context::Effect* GetPlayerEffectBySkillId(gw::constants::SkillID skill_id) {
-    context::EffectArray* effects = GetPlayerEffects();
+Context::Effect* GetPlayerEffectBySkillId(GW::Constants::SkillID skill_id) {
+    Context::EffectArray* effects = GetPlayerEffects();
     if (!effects) {
         return nullptr;
     }
@@ -87,8 +87,8 @@ context::Effect* GetPlayerEffectBySkillId(gw::constants::SkillID skill_id) {
     return nullptr;
 }
 
-context::Buff* GetPlayerBuffBySkillId(gw::constants::SkillID skill_id) {
-    context::BuffArray* buffs = GetPlayerBuffs();
+Context::Buff* GetPlayerBuffBySkillId(GW::Constants::SkillID skill_id) {
+    Context::BuffArray* buffs = GetPlayerBuffs();
     if (!buffs) {
         return nullptr;
     }
@@ -101,4 +101,4 @@ context::Buff* GetPlayerBuffBySkillId(gw::constants::SkillID skill_id) {
     return nullptr;
 }
 
-}  // namespace gw::effects
+}  // namespace GW::effects

@@ -9,76 +9,77 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace gw::context {
+namespace GW::Context {
+    struct PlayerPartyMember { // total: 0xC/12
+        /* +h0000 */ uint32_t login_number;
+        /* +h0004 */ uint32_t calledTargetId;
+        /* +h0008 */ uint32_t state;
 
-struct PlayerPartyMember {
-    uint32_t login_number;
-    uint32_t called_target_id;
-    uint32_t state;
+        bool connected() const { return (state & 1) > 0; }
+        bool ticked()    const { return (state & 2) > 0; }
+    };
+    static_assert(sizeof(PlayerPartyMember) == 0xC, "PlayerPartyMember size mismatch");
 
-    bool connected() const { return (state & 1U) != 0; }
-    bool ticked() const { return (state & 2U) != 0; }
-};
-static_assert(sizeof(PlayerPartyMember) == 0xC, "PlayerPartyMember size mismatch");
+    struct HeroPartyMember { // total: 0x18/24
+        /* +h0000 */ uint32_t agent_id;
+        /* +h0004 */ uint32_t owner_player_id;
+        /* +h0008 */ uint32_t hero_id;
+        /* +h000C */ uint32_t h000C;
+        /* +h0010 */ uint32_t h0010;
+        /* +h0014 */ uint32_t level;
+    };
 
-struct HeroPartyMember {
-    uint32_t agent_id;
-    uint32_t owner_player_id;
-    uint32_t hero_id;
-    uint32_t h000c;
-    uint32_t h0010;
-    uint32_t level;
-};
-static_assert(sizeof(HeroPartyMember) == 0x18, "HeroPartyMember size mismatch");
+    struct HenchmanPartyMember { // total: 0x34/52
+        /* +h0000 */ uint32_t agent_id;
+        /* +h0004 */ uint32_t h0004[10];
+        /* +h002C */ uint32_t profession;
+        /* +h0030 */ uint32_t level;
+    };
+    static_assert(sizeof(HenchmanPartyMember) == 0x34, "HenchmanPartyMember size mismatch");
 
-struct HenchmanPartyMember {
-    uint32_t agent_id;
-    uint32_t h0004[10];
-    gw::constants::Profession profession;
-    uint32_t level;
-};
-static_assert(sizeof(HenchmanPartyMember) == 0x34, "HenchmanPartyMember size mismatch");
+    using HeroPartyMemberArray = GW::GWArray<HeroPartyMember>;
+    using PlayerPartyMemberArray = GW::GWArray<PlayerPartyMember>;
+    using HenchmanPartyMemberArray = GW::GWArray<HenchmanPartyMember>;
 
-using HeroPartyMemberArray = gw::GwArray<HeroPartyMember>;
-using PlayerPartyMemberArray = gw::GwArray<PlayerPartyMember>;
-using HenchmanPartyMemberArray = gw::GwArray<HenchmanPartyMember>;
+    struct PartyInfo { // total: 0x84/132
 
-struct PartyInfo {
-    uint32_t party_id;
-    PlayerPartyMemberArray players;
-    HenchmanPartyMemberArray henchmen;
-    HeroPartyMemberArray heroes;
-    gw::GwArray<uint32_t> others;
-    uint32_t h0044[14];
-    gw::GwLink<PartyInfo> invite_link;
+        size_t GetPartySize() {
+            return players.size() + henchmen.size() + heroes.size();
+        }
 
-    size_t GetPartySize() const;
-};
-static_assert(sizeof(PartyInfo) == 0x84, "PartyInfo size mismatch");
+        /* +h0000 */ uint32_t party_id;
+        /* +h0004 */ GW::GWArray<PlayerPartyMember> players;
+        /* +h0014 */ GW::GWArray<HenchmanPartyMember> henchmen;
+        /* +h0024 */ GW::GWArray<HeroPartyMember> heroes;
+        /* +h0034 */ GW::GWArray<uint32_t> others; // agent id of allies, minions, pets.
+        /* +h0044 */ uint32_t h0044[14];
+        /* +h007C */ GW::GwLink<PartyInfo> invite_link;
+    };
+    static_assert(sizeof(PartyInfo) == 0x84, "PartyInfo size mismatch");
 
-enum PartySearchType {
-    PartySearchType_Hunting = 0,
-    PartySearchType_Mission = 1,
-    PartySearchType_Quest = 2,
-    PartySearchType_Trade = 3,
-    PartySearchType_Guild = 4,
-};
+    enum PartySearchType {
+        PartySearchType_Hunting = 0,
+        PartySearchType_Mission = 1,
+        PartySearchType_Quest = 2,
+        PartySearchType_Trade = 3,
+        PartySearchType_Guild = 4,
+    };
 
-struct PartySearch {
-    uint32_t party_search_id;
-    uint32_t party_search_type;
-    uint32_t hardmode;
-    uint32_t district;
-    uint32_t language;
-    uint32_t party_size;
-    uint32_t hero_count;
-    wchar_t message[32];
-    wchar_t party_leader[20];
-    gw::constants::Profession primary;
-    gw::constants::Profession secondary;
-    uint32_t level;
-    uint32_t timestamp;
-};
-static_assert(sizeof(PartySearch) == 0x94, "PartySearch size mismatch");
+    struct PartySearch {
+        /* +h0000 */ uint32_t party_search_id;
+        /* +h0004 */ uint32_t party_search_type;
+        /* +h0008 */ uint32_t hardmode;
+        /* +h000C */ uint32_t district;
+        /* +h0010 */ uint32_t language;
+        /* +h0014 */ uint32_t party_size;
+        /* +h0018 */ uint32_t hero_count;
+        /* +h001C */ wchar_t message[32];
+        /* +h005C */ wchar_t party_leader[20];
+        /* +h0084 */ uint32_t primary;
+        /* +h0088 */ uint32_t secondary;
+        /* +h008C */ uint32_t level;
+        /* +h0090 */ uint32_t timestamp;
+    };
+    static_assert(sizeof(PartySearch) == 0x94, "PartySearch size mismatch");
 
-}  // namespace gw::context
+}  // namespace GW::Context

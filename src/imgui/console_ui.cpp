@@ -16,7 +16,7 @@
 #include <string>
 #include <vector>
 
-namespace py4gw::imgui::console_ui {
+namespace PY4GW::imgui::console_ui {
 
 namespace {
 
@@ -370,4 +370,4 @@ void RenderFullConsole(bool* show_console, bool* show_compact_console) {
     RenderScriptBrowser();
 }
 
-}  // namespace py4gw::imgui::console_ui
+}  // namespace PY4GW::imgui::console_ui

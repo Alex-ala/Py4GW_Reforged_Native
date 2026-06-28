@@ -9,35 +9,35 @@
 
 #include <cstdint>
 
-namespace gw::context {
+namespace GW::Context {
 
-struct Quest {
-    gw::constants::QuestID quest_id;
-    uint32_t log_state;
-    wchar_t* location;
-    wchar_t* name;
-    wchar_t* npc;
-    gw::constants::MapID map_from;
-    GamePos marker;
-    uint32_t h0024;
-    gw::constants::MapID map_to;
-    wchar_t* description;
-    wchar_t* objectives;
+    struct Quest { // total: 0x34/52
+        /* +h0000 */ GW::Constants::QuestID quest_id;
+        /* +h0004 */ uint32_t log_state;
+        /* +h0008 */ wchar_t* location; // quest category
+        /* +h000C */ wchar_t* name; // quest name
+        /* +h0010 */ wchar_t* npc; //
+        /* +h0014 */ GW::Constants::MapID map_from;
+        /* +h0018 */ GamePos    marker;
+        /* +h0024 */ uint32_t h0024;
+        /* +h0028 */ GW::Constants::MapID map_to;
+        /* +h002C */ wchar_t* description; // namestring reward
+        /* +h0030 */ wchar_t* objectives; // namestring objective
 
-    bool IsCompleted() const { return (log_state & 0x2U) != 0; }
-    bool IsCurrentMissionQuest() const { return (log_state & 0x10U) != 0; }
-    bool IsAreaPrimary() const { return (log_state & 0x40U) != 0; }
-    bool IsPrimary() const { return (log_state & 0x20U) != 0; }
-};
-static_assert(sizeof(Quest) == 0x34, "Quest size mismatch");
+        inline bool IsCompleted() { return (log_state & 0x2) != 0; }
+        inline bool IsCurrentMissionQuest() { return (log_state & 0x10) != 0; }
+        inline bool IsAreaPrimary() { return (log_state & 0x40) != 0; } // e.g. "Primary Echovald Forest Quests"
+        inline bool IsPrimary() { return (log_state & 0x20) != 0; } // e.g. "Primary Quests"
+    };
+    static_assert(sizeof(Quest) == 0x34, "Quest size mismatch");
 
-struct MissionObjective {
-    uint32_t objective_id;
-    wchar_t* enc_str;
-    uint32_t type;
-};
-static_assert(sizeof(MissionObjective) == 0xC, "MissionObjective size mismatch");
+    struct MissionObjective { // total: 0xC/12
+        /* +h0000 */ uint32_t objective_id;
+        /* +h0004 */ wchar_t* enc_str;
+        /* +h0008 */ uint32_t type; // completed, bullet, etc...
+    };
+    static_assert(sizeof(MissionObjective) == 0xC, "MissionObjective size mismatch");
 
-using QuestLog = gw::GwArray<Quest>;
+    using QuestLog = GW::GWArray<Quest>;
 
-}  // namespace gw::context
+}  // namespace GW::Context

@@ -2,13 +2,13 @@
 
 #include <cstdarg>
 
-#define PY4GW_PANIC(message) ((void)(py4gw::Panic((message), __FILE__, (unsigned)__LINE__, __FUNCTION__), 0))
-#define PY4GW_ASSERT(expr) ((void)(!!(expr) || (py4gw::FatalAssert(#expr, __FILE__, (unsigned)__LINE__, __FUNCTION__), 0)))
-#define PY4GW_ASSERT_MSG(expr, message) ((void)(!!(expr) || (py4gw::FatalAssertMsg(#expr, (message), __FILE__, (unsigned)__LINE__, __FUNCTION__), 0)))
+#define PY4GW_PANIC(message) ((void)(PY4GW::Panic((message), __FILE__, (unsigned)__LINE__, __FUNCTION__), 0))
+#define PY4GW_ASSERT(expr) ((void)(!!(expr) || (PY4GW::FatalAssert(#expr, __FILE__, (unsigned)__LINE__, __FUNCTION__), 0)))
+#define PY4GW_ASSERT_MSG(expr, message) ((void)(!!(expr) || (PY4GW::FatalAssertMsg(#expr, (message), __FILE__, (unsigned)__LINE__, __FUNCTION__), 0)))
 #define PY4GW_REQUIRE(expr, message) PY4GW_ASSERT_MSG((expr), (message))
 #define PY4GW_UNREACHABLE(message) PY4GW_PANIC((message))
 
-namespace py4gw {
+namespace PY4GW {
 
 typedef void (*LogHandler)(
     void* context,
@@ -64,4 +64,4 @@ void __cdecl LogMessageV(
     const char* fmt,
     va_list args);
 
-}  // namespace py4gw
+}  // namespace PY4GW

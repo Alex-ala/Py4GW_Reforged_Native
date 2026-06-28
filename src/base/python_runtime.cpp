@@ -17,7 +17,7 @@
 #include <sstream>
 namespace py = pybind11;
 
-namespace py4gw::python_runtime {
+namespace PY4GW::python_runtime {
 
 namespace {
 
@@ -31,12 +31,12 @@ py::object g_main_function;
 py::object g_update_function;
 py::object g_draw_function;
 py::object g_console_scope;
-py4gw::Timer g_script_timer;
+PY4GW::Timer g_script_timer;
 
 struct DeferredMixedCommand {
     std::function<void()> action;
     int delay_ms = 0;
-    py4gw::Timer timer;
+    PY4GW::Timer timer;
     bool active = false;
 };
 
@@ -487,4 +487,4 @@ bool HasLoadedScript() {
     return !g_loaded_script_content.empty();
 }
 
-}  // namespace py4gw::python_runtime
+}  // namespace PY4GW::python_runtime

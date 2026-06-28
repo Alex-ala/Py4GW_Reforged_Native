@@ -5,59 +5,63 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace gw {
+namespace GW {
 
-template <typename T>
-class GwArray {
-public:
-    using iterator = T*;
-    using const_iterator = const T*;
+    // class GWArray
+    // generic game container seen throughout the games memory.
+    // reccomended to only use references to maintain up-to-date information ( GWArray<T>& )
 
-    iterator begin() { return buffer; }
-    const_iterator begin() const { return buffer; }
-    iterator end() { return buffer + size_value; }
-    const_iterator end() const { return buffer + size_value; }
+    template <typename T>
+    class GWArray {
+    public:
+        typedef       T* iterator;
+        typedef const T* const_iterator;
 
-    T& at(size_t index) {
-        PY4GW_ASSERT(buffer && index < size_value);
-        return buffer[index];
-    }
+        iterator       begin() { return m_buffer; }
+        const_iterator begin() const { return m_buffer; }
+        iterator       end() { return m_buffer + m_size; }
+        const_iterator end()   const { return m_buffer + m_size; }
 
-    const T& at(size_t index) const {
-        PY4GW_ASSERT(buffer && index < size_value);
-        return buffer[index];
-    }
+        GWArray()
+            : m_buffer(nullptr)
+            , m_capacity(0)
+            , m_size(0)
+            , m_param(0)
+        {
+        }
 
-    T& operator[](uint32_t index) {
-        return at(index);
-    }
+        GWArray(const GWArray&) = delete;
+        GWArray& operator=(const GWArray&) = delete;
 
-    const T& operator[](uint32_t index) const {
-        return at(index);
-    }
+        T& at(size_t index) {
+            GWCA_ASSERT(m_buffer && index < m_size);
+            return m_buffer[index];
+        }
 
-    bool valid() const {
-        return buffer != nullptr;
-    }
+        const T& at(size_t index) const {
+            GWCA_ASSERT(m_buffer && index < m_size);
+            return m_buffer[index];
+        }
 
-    void clear() {
-        size_value = 0;
-    }
+        T& operator[](uint32_t index) {
+            return at(index);
+        }
 
-    uint32_t size() const {
-        return size_value;
-    }
+        const T& operator[](uint32_t index) const {
+            GWCA_ASSERT(m_buffer && index < m_size);
+            return m_buffer[index];
+        }
 
-    uint32_t capacity() const {
-        return capacity_value;
-    }
+        bool valid() const { return m_buffer != nullptr; }
+        void clear() { m_size = 0; }
 
-    T* buffer = nullptr;
-    uint32_t capacity_value = 0;
-    uint32_t size_value = 0;
-    uint32_t param = 0;
-};
+        uint32_t size()     const { return m_size; }
+        uint32_t capacity() const { return m_capacity; }
 
-static_assert(sizeof(GwArray<uint32_t>) == 0x10, "GwArray has incorrect size");
+        T* m_buffer;    // +h0000
+        uint32_t m_capacity;  // +h0004
+        uint32_t m_size;      // +h0008
+        uint32_t m_param;     // +h000C
+    }; // Size: 0x0010
 
-}  // namespace gw
+}

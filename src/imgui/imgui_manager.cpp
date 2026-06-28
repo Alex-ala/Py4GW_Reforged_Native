@@ -27,10 +27,10 @@ bool g_is_dragging_imgui = false;
 bool g_dragging_initialized = false;
 HWND g_game_window = nullptr;
 WNDPROC g_original_wndproc = nullptr;
-py4gw::imgui::ShutdownCallback g_shutdown_callback = nullptr;
+PY4GW::imgui::ShutdownCallback g_shutdown_callback = nullptr;
 
 bool SetupImGuiFonts() {
-    return py4gw::imgui::FontManager::Instance().Initialize();
+    return PY4GW::imgui::FontManager::Instance().Initialize();
 }
 
 void ApplyImGuiTheme() {
@@ -89,8 +89,8 @@ void ApplyImGuiTheme() {
 
 bool RenderConsoleUiSafely(bool* request_shutdown) noexcept {
     __try {
-        py4gw::imgui::console_host_ui::BeginFrame();
-        py4gw::imgui::console_host_ui::Render(request_shutdown);
+        PY4GW::imgui::console_host_ui::BeginFrame();
+        PY4GW::imgui::console_host_ui::Render(request_shutdown);
         return true;
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         return false;
@@ -238,7 +238,7 @@ bool AttachWndProc() {
         return true;
     }
 
-    g_game_window = gw::render::GetWindowHandle();
+    g_game_window = GW::render::GetWindowHandle();
     if (!g_game_window) {
         return false;
     }
@@ -272,14 +272,14 @@ void RestoreWndProc() {
 
 }  // namespace
 
-namespace py4gw::imgui {
+namespace PY4GW::imgui {
 
 bool Initialize(IDirect3DDevice9* device) {
     if (g_imgui_initialized) {
         return true;
     }
 
-    g_game_window = gw::render::GetWindowHandle();
+    g_game_window = GW::render::GetWindowHandle();
     if (!g_game_window || !device) {
         return false;
     }
@@ -396,4 +396,4 @@ void SetShutdownCallback(ShutdownCallback callback) {
     g_shutdown_callback = callback;
 }
 
-}  // namespace py4gw::imgui
+}  // namespace PY4GW::imgui

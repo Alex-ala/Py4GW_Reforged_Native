@@ -15,19 +15,19 @@ void SafeInitializeCriticalSection(CRITICAL_SECTION* mtx) {
     if (!mtx || mtx->DebugInfo) {
         return;
     }
-    ::InitializeCriticalSection(&gw::stoc::g_mutex);
-    gw::stoc::g_mutex_initialized = true;
+    ::InitializeCriticalSection(&GW::StoC::g_mutex);
+    GW::StoC::g_mutex_initialized = true;
 }
 
 bool ResolveGameServerHandlers() {
     CrashContextScope context("startup", "stoc", "resolve_game_server_handlers");
-    const auto* pattern = py4gw::Patterns::Get("stoc.handler_table_pointer");
+    const auto* pattern = PY4GW::Patterns::Get("stoc.handler_table_pointer");
     if (!pattern) {
         Logger::Instance().LogError("Missing or invalid pattern: stoc.handler_table_pointer", "stoc");
         return false;
     }
 
-    const uintptr_t pointer_location = py4gw::Scanner::Find(
+    const uintptr_t pointer_location = PY4GW::Scanner::Find(
         pattern->pattern.c_str(),
         pattern->mask.c_str(),
         pattern->offset,
@@ -41,22 +41,22 @@ bool ResolveGameServerHandlers() {
         return false;
     }
 
-    auto** game_server = reinterpret_cast<gw::stoc::GameServer**>(handlers_addr);
+    auto** game_server = reinterpret_cast<GW::StoC::GameServer**>(handlers_addr);
     if (!(game_server && *game_server && (*game_server)->gs_codec)) {
         Logger::Instance().LogError("Game server handler table is not fully initialized.", "stoc");
         return false;
     }
 
-    gw::stoc::g_game_server_handlers = &(*game_server)->gs_codec->handlers;
-    return gw::stoc::g_game_server_handlers != nullptr;
+    GW::StoC::g_game_server_handlers = &(*game_server)->gs_codec->handlers;
+    return GW::StoC::g_game_server_handlers != nullptr;
 }
 
-bool __cdecl StoCHandler_Func(gw::packet::stoc::PacketBase* packet) {
-    py4gw::HookBase::EnterHook();
-    py4gw::HookStatus status = {};
+bool __cdecl StoCHandler_Func(GW::Packet::StoC::PacketBase* packet) {
+    PY4GW::HookBase::EnterHook();
+    PY4GW::HookStatus status = {};
 
-    auto it = gw::stoc::g_packet_entries[packet->header].begin();
-    const auto end = gw::stoc::g_packet_entries[packet->header].end();
+    auto it = GW::StoC::g_packet_entries[packet->header].begin();
+    const auto end = GW::StoC::g_packet_entries[packet->header].end();
     while (it != end) {
         if (it->altitude > 0) {
             break;
@@ -66,8 +66,8 @@ bool __cdecl StoCHandler_Func(gw::packet::stoc::PacketBase* packet) {
         ++it;
     }
 
-    if (!status.blocked && gw::stoc::g_original_functions) {
-        gw::stoc::g_original_functions[packet->header].handler_func(packet);
+    if (!status.blocked && GW::StoC::g_original_functions) {
+        GW::StoC::g_original_functions[packet->header].handler_func(packet);
     }
 
     while (it != end) {
@@ -76,89 +76,89 @@ bool __cdecl StoCHandler_Func(gw::packet::stoc::PacketBase* packet) {
         ++it;
     }
 
-    py4gw::HookBase::LeaveHook();
+    PY4GW::HookBase::LeaveHook();
     return true;
 }
 
-bool OriginalHandler(gw::packet::stoc::PacketBase* packet) {
+bool OriginalHandler(GW::Packet::StoC::PacketBase* packet) {
     bool ok = false;
-    SafeInitializeCriticalSection(&gw::stoc::g_mutex);
-    ::EnterCriticalSection(&gw::stoc::g_mutex);
-    if (gw::stoc::g_game_server_handlers &&
-        gw::stoc::g_original_functions &&
-        gw::stoc::g_stoc_handler_count > packet->header) {
-        gw::stoc::g_original_functions[packet->header].handler_func(packet);
+    SafeInitializeCriticalSection(&GW::StoC::g_mutex);
+    ::EnterCriticalSection(&GW::StoC::g_mutex);
+    if (GW::StoC::g_game_server_handlers &&
+        GW::StoC::g_original_functions &&
+        GW::StoC::g_stoc_handler_count > packet->header) {
+        GW::StoC::g_original_functions[packet->header].handler_func(packet);
     }
-    ::LeaveCriticalSection(&gw::stoc::g_mutex);
+    ::LeaveCriticalSection(&GW::StoC::g_mutex);
     return ok;
 }
 
 void EnableHooks() {
-    ::EnterCriticalSection(&gw::stoc::g_mutex);
-    gw::stoc::g_hooks_enabled = true;
-    for (uint32_t i = 0; gw::stoc::g_original_functions && i < gw::stoc::g_stoc_handler_count; ++i) {
-        gw::stoc::g_original_functions[i] = gw::stoc::g_game_server_handlers->at(i);
-        if (!gw::stoc::g_packet_entries[i].empty()) {
-            gw::stoc::g_game_server_handlers->at(i).handler_func = &StoCHandler_Func;
+    ::EnterCriticalSection(&GW::StoC::g_mutex);
+    GW::StoC::g_hooks_enabled = true;
+    for (uint32_t i = 0; GW::StoC::g_original_functions && i < GW::StoC::g_stoc_handler_count; ++i) {
+        GW::StoC::g_original_functions[i] = GW::StoC::g_game_server_handlers->at(i);
+        if (!GW::StoC::g_packet_entries[i].empty()) {
+            GW::StoC::g_game_server_handlers->at(i).handler_func = &StoCHandler_Func;
         }
     }
-    ::LeaveCriticalSection(&gw::stoc::g_mutex);
+    ::LeaveCriticalSection(&GW::StoC::g_mutex);
 }
 
 void DisableHooks() {
     CrashContextScope context("shutdown", "stoc", "disable_hooks");
-    ::EnterCriticalSection(&gw::stoc::g_mutex);
-    gw::stoc::g_hooks_enabled = false;
-    if (gw::stoc::g_original_functions) {
-        for (uint32_t i = 0; gw::stoc::g_game_server_handlers && i < gw::stoc::g_game_server_handlers->size(); ++i) {
-            gw::stoc::g_game_server_handlers->at(i).handler_func = gw::stoc::g_original_functions[i].handler_func;
+    ::EnterCriticalSection(&GW::StoC::g_mutex);
+    GW::StoC::g_hooks_enabled = false;
+    if (GW::StoC::g_original_functions) {
+        for (uint32_t i = 0; GW::StoC::g_game_server_handlers && i < GW::StoC::g_game_server_handlers->size(); ++i) {
+            GW::StoC::g_game_server_handlers->at(i).handler_func = GW::StoC::g_original_functions[i].handler_func;
         }
     }
-    ::LeaveCriticalSection(&gw::stoc::g_mutex);
+    ::LeaveCriticalSection(&GW::StoC::g_mutex);
 }
 
 void InitOnGameThread() {
     CrashContextScope context("startup", "stoc", "init_on_game_thread");
-    SafeInitializeCriticalSection(&gw::stoc::g_mutex);
-    ::EnterCriticalSection(&gw::stoc::g_mutex);
+    SafeInitializeCriticalSection(&GW::StoC::g_mutex);
+    ::EnterCriticalSection(&GW::StoC::g_mutex);
 
-    if (!ResolveGameServerHandlers() || !gw::stoc::g_game_server_handlers) {
-        ::LeaveCriticalSection(&gw::stoc::g_mutex);
+    if (!ResolveGameServerHandlers() || !GW::StoC::g_game_server_handlers) {
+        ::LeaveCriticalSection(&GW::StoC::g_mutex);
         return;
     }
 
-    gw::stoc::g_stoc_handler_count = gw::stoc::g_game_server_handlers->size();
-    Logger::Instance().LogInfo("STOC_HEADER_COUNT [" + std::to_string(gw::stoc::g_stoc_handler_count) + "]");
-    PY4GW_ASSERT(gw::stoc::g_stoc_handler_count == gw::stoc::kStoCHeaderCount);
+    GW::StoC::g_stoc_handler_count = GW::StoC::g_game_server_handlers->size();
+    Logger::Instance().LogInfo("STOC_HEADER_COUNT [" + std::to_string(GW::StoC::g_stoc_handler_count) + "]");
+    PY4GW_ASSERT(GW::StoC::g_stoc_handler_count == GW::StoC::kStoCHeaderCount);
 
-    if (!gw::stoc::g_original_functions) {
-        gw::stoc::g_original_functions = new gw::stoc::StoCHandler[gw::stoc::g_stoc_handler_count];
-        gw::stoc::g_mutex_initialized = true;
+    if (!GW::StoC::g_original_functions) {
+        GW::StoC::g_original_functions = new GW::StoC::StoCHandler[GW::StoC::g_stoc_handler_count];
+        GW::StoC::g_mutex_initialized = true;
     }
-    gw::stoc::g_packet_entries.resize(gw::stoc::g_stoc_handler_count);
+    GW::StoC::g_packet_entries.resize(GW::StoC::g_stoc_handler_count);
 
     EnableHooks();
-    gw::stoc::g_initialized = true;
-    ::LeaveCriticalSection(&gw::stoc::g_mutex);
+    GW::StoC::g_initialized = true;
+    ::LeaveCriticalSection(&GW::StoC::g_mutex);
 }
 
 void Exit() {
     CrashContextScope context("shutdown", "stoc", "exit");
     DisableHooks();
 
-    delete[] gw::stoc::g_original_functions;
-    gw::stoc::g_original_functions = nullptr;
-    gw::stoc::g_game_server_handlers = nullptr;
-    gw::stoc::g_stoc_handler_count = 0;
-    gw::stoc::g_packet_entries.clear();
+    delete[] GW::StoC::g_original_functions;
+    GW::StoC::g_original_functions = nullptr;
+    GW::StoC::g_game_server_handlers = nullptr;
+    GW::StoC::g_stoc_handler_count = 0;
+    GW::StoC::g_packet_entries.clear();
 
-    if (gw::stoc::g_mutex_initialized) {
-        ::DeleteCriticalSection(&gw::stoc::g_mutex);
-        gw::stoc::g_mutex_initialized = false;
+    if (GW::StoC::g_mutex_initialized) {
+        ::DeleteCriticalSection(&GW::StoC::g_mutex);
+        GW::StoC::g_mutex_initialized = false;
     }
 }
 
-namespace gw::stoc {
+namespace GW::StoC {
 
 CRITICAL_SECTION g_mutex;
 bool g_mutex_initialized = false;
@@ -175,8 +175,8 @@ bool Initialize() {
         return true;
     }
 
-    PY4GW_ASSERT(py4gw::Scanner::Initialize());
-    PY4GW_ASSERT(py4gw::Patterns::Initialize());
+    PY4GW_ASSERT(PY4GW::Scanner::Initialize());
+    PY4GW_ASSERT(PY4GW::Patterns::Initialize());
 
     SafeInitializeCriticalSection(&g_mutex);
     game_thread::Enqueue([] {
@@ -195,4 +195,4 @@ void Shutdown() {
     g_initialized = false;
 }
 
-}  // namespace gw::stoc
+}  // namespace GW::stoc

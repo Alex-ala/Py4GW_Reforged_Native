@@ -7,7 +7,7 @@
 #include <Windows.h>
 #include <cstdint>
 
-namespace py4gw {
+namespace PY4GW {
 
 class FileScanner {
 public:
@@ -29,4 +29,4 @@ private:
     uintptr_t ImageBase = 0;
 };
 
-}  // namespace py4gw
+}  // namespace PY4GW

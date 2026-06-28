@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <string>
 
-namespace py4gw::python_runtime {
+namespace PY4GW::python_runtime {
 
 enum class ScriptState {
     Stopped,
@@ -40,4 +40,4 @@ ScriptState GetScriptState();
 const char* GetScriptStateLabel();
 bool HasLoadedScript();
 
-}  // namespace py4gw::python_runtime
+}  // namespace PY4GW::python_runtime

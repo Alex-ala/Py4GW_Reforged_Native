@@ -80,7 +80,7 @@ inline bool IsKeyDown(int key) {
 
 #include <imHotKey.h>
 
-namespace py4gw::imgui::addons::hotkey_demo {
+namespace PY4GW::imgui::addons::hotkey_demo {
 
 void Render() {
     static std::array<ImHotKey::HotKey, 4> hotkeys = {{
@@ -104,4 +104,4 @@ void Render() {
     }
 }
 
-}  // namespace py4gw::imgui::addons::hotkey_demo
+}  // namespace PY4GW::imgui::addons::hotkey_demo

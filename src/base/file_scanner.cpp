@@ -44,7 +44,7 @@ static std::string ucwords(const char* src)
 
 }
 
-namespace py4gw {
+namespace PY4GW {
 
 bool FileScanner::CreateFromPath(const wchar_t* path, FileScanner* result)
 {
@@ -364,4 +364,4 @@ uintptr_t FileScanner::Find(const char* pattern, const char* mask, int offset, S
     return FindInRange(pattern, mask, offset, (uint32_t)sections[static_cast<size_t>(section)].start, (uint32_t)sections[static_cast<size_t>(section)].end);
 }
 
-}  // namespace py4gw
+}  // namespace PY4GW

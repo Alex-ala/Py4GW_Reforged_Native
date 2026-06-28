@@ -14,7 +14,7 @@
 
 #include <imgui.h>
 
-namespace py4gw::imgui::test_ui {
+namespace PY4GW::imgui::test_ui {
 
 namespace {
 
@@ -23,8 +23,8 @@ bool g_show_debug_log_window = false;
 bool g_show_about_window = false;
 bool g_show_style_editor = false;
 
-void RenderFontLine(const char* label, py4gw::imgui::FontId id, const char* sample) {
-    ImFont* font = py4gw::imgui::FontManager::Instance().Get(id);
+void RenderFontLine(const char* label, PY4GW::imgui::FontId id, const char* sample) {
+    ImFont* font = PY4GW::imgui::FontManager::Instance().Get(id);
     ImGui::Text("%s", label);
     if (font) {
         ImGui::PushFont(font);
@@ -40,11 +40,11 @@ void RenderFontShowcase() {
     ImGui::BulletText("Use this tab to verify family selection, size changes, and merged icons.");
     ImGui::Separator();
 
-    RenderFontLine("Regular 14", py4gw::imgui::FontId::Regular14, "The quick brown fox jumps over the lazy dog 0123456789");
-    RenderFontLine("Regular 22", py4gw::imgui::FontId::Regular22, "The quick brown fox jumps over the lazy dog 0123456789");
-    RenderFontLine("Bold 22", py4gw::imgui::FontId::Bold22, "Bold sample text for menu and heading use.");
-    RenderFontLine("Italic 22", py4gw::imgui::FontId::Italic22, "Italic sample text for emphasis.");
-    RenderFontLine("Bold Italic 30", py4gw::imgui::FontId::BoldItalic30, "Bold italic sample for large emphasis.");
+    RenderFontLine("Regular 14", PY4GW::imgui::FontId::Regular14, "The quick brown fox jumps over the lazy dog 0123456789");
+    RenderFontLine("Regular 22", PY4GW::imgui::FontId::Regular22, "The quick brown fox jumps over the lazy dog 0123456789");
+    RenderFontLine("Bold 22", PY4GW::imgui::FontId::Bold22, "Bold sample text for menu and heading use.");
+    RenderFontLine("Italic 22", PY4GW::imgui::FontId::Italic22, "Italic sample text for emphasis.");
+    RenderFontLine("Bold Italic 30", PY4GW::imgui::FontId::BoldItalic30, "Bold italic sample for large emphasis.");
 
     ImGui::Separator();
     ImGui::TextUnformatted("Font Awesome merge test");
@@ -61,7 +61,7 @@ void RenderFontShowcase() {
         ICON_FA_SAVE,
         ICON_FA_SEARCH);
 
-    ImFont* large_font = py4gw::imgui::FontManager::Instance().Get(py4gw::imgui::FontId::Regular46);
+    ImFont* large_font = PY4GW::imgui::FontManager::Instance().Get(PY4GW::imgui::FontId::Regular46);
     if (large_font) {
         ImGui::PushFont(large_font);
         ImGui::Text("%s %s %s", ICON_FA_STAR, ICON_FA_HEART, ICON_FA_BELL);
@@ -135,23 +135,23 @@ void RenderAddonWindows() {
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("FileBrowser")) {
-            py4gw::imgui::addons::filebrowser_demo::Render();
+            PY4GW::imgui::addons::filebrowser_demo::Render();
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("ImHotKey")) {
-            py4gw::imgui::addons::hotkey_demo::Render();
+            PY4GW::imgui::addons::hotkey_demo::Render();
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Markdown")) {
-            py4gw::imgui::addons::markdown_demo::Render();
+            PY4GW::imgui::addons::markdown_demo::Render();
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("ImAnim")) {
-            py4gw::imgui::addons::imanim_demo::Render();
+            PY4GW::imgui::addons::imanim_demo::Render();
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("imgui_club")) {
-            py4gw::imgui::addons::imgui_club_demo::Render();
+            PY4GW::imgui::addons::imgui_club_demo::Render();
             ImGui::EndTabItem();
         }
         ImGui::EndTabBar();
@@ -177,7 +177,7 @@ void RenderAddonWindows() {
 }  // namespace
 
 void BeginFrame() {
-    py4gw::imgui::addons::imanim_demo::BeginFrame();
+    PY4GW::imgui::addons::imanim_demo::BeginFrame();
 }
 
 void Render() {
@@ -185,4 +185,4 @@ void Render() {
     RenderAddonWindows();
 }
 
-}  // namespace py4gw::imgui::test_ui
+}  // namespace PY4GW::imgui::test_ui

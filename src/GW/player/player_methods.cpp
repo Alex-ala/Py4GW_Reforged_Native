@@ -11,8 +11,8 @@
 
 namespace {
 
-gw::context::TitleArray* GetTitleArray() {
-    auto* world = gw::context::GetWorldContext();
+GW::Context::TitleArray* GetTitleArray() {
+    auto* world = GW::Context::GetWorldContext();
     return world && world->titles.valid() ? &world->titles : nullptr;
 }
 
@@ -39,15 +39,15 @@ int wcsncasecmp(const wchar_t* s1, const wchar_t* s2, size_t n) {
 
 }  // namespace
 
-namespace gw::player {
+namespace GW::player {
 
 RemoveActiveTitleFn g_remove_active_title_func = nullptr;
 SetActiveTitleFn g_set_active_title_func = nullptr;
 DepositFactionFn g_deposit_faction_func = nullptr;
-context::TitleClientData* g_title_data = nullptr;
+Context::TitleClientData* g_title_data = nullptr;
 std::atomic<bool> g_initialized = false;
 
-bool SetActiveTitle(gw::constants::TitleID title_id) {
+bool SetActiveTitle(GW::Constants::TitleID title_id) {
     if (!g_set_active_title_func) {
         return false;
     }
@@ -69,21 +69,21 @@ uint32_t GetPlayerAgentId(uint32_t player_id) {
 }
 
 uint32_t GetAmountOfPlayersInInstance() {
-    auto* world = context::GetWorldContext();
+    auto* world = Context::GetWorldContext();
     return world && world->players.valid() ? world->players.size() - 1U : 0U;
 }
 
-context::PlayerArray* GetPlayerArray() {
-    auto* world = context::GetWorldContext();
+Context::PlayerArray* GetPlayerArray() {
+    auto* world = Context::GetWorldContext();
     return world && world->players.valid() ? &world->players : nullptr;
 }
 
 PlayerNumber GetPlayerNumber() {
-    auto* character = context::GetCharContext();
+    auto* character = Context::GetCharContext();
     return character ? character->player_number : 0;
 }
 
-context::Player* GetPlayerByID(uint32_t player_id) {
+Context::Player* GetPlayerByID(uint32_t player_id) {
     if (!player_id) {
         player_id = GetPlayerNumber();
     }
@@ -102,11 +102,11 @@ wchar_t* SetPlayerName(uint32_t player_id, const wchar_t* replace_name) {
     return player ? std::wcsncpy(player->name_enc + 2, replace_name, 20) : nullptr;
 }
 
-// bool ChangeSecondProfession(gw::constants::Profession profession, uint32_t hero_index) {
+// bool ChangeSecondProfession(GW::Constants::Profession profession, uint32_t hero_index) {
 //     return skillbar::ChangeSecondProfession(profession, hero_index);
 // }
 
-context::Player* GetPlayerByName(const wchar_t* name) {
+Context::Player* GetPlayerByName(const wchar_t* name) {
     if (!name) {
         return nullptr;
     }
@@ -127,7 +127,7 @@ context::Player* GetPlayerByName(const wchar_t* name) {
     return nullptr;
 }
 
-context::Title* GetTitleTrack(gw::constants::TitleID title_id) {
+Context::Title* GetTitleTrack(GW::Constants::TitleID title_id) {
     auto* titles = GetTitleArray();
     if (!(titles && titles->size() > static_cast<uint32_t>(title_id))) {
         return nullptr;
@@ -135,26 +135,26 @@ context::Title* GetTitleTrack(gw::constants::TitleID title_id) {
     return &titles->at(static_cast<uint32_t>(title_id));
 }
 
-gw::constants::TitleID GetActiveTitleId() {
+GW::Constants::TitleID GetActiveTitleId() {
     auto* player = GetPlayerByID();
     if (!(player && player->active_title_tier)) {
-        return gw::constants::TitleID::None;
+        return GW::Constants::TitleID::None;
     }
 
     auto* titles = GetTitleArray();
     if (!titles) {
-        return gw::constants::TitleID::None;
+        return GW::Constants::TitleID::None;
     }
 
     for (size_t title_id = 0; title_id < titles->size(); ++title_id) {
         if ((*titles)[static_cast<uint32_t>(title_id)].current_title_tier_index == player->active_title_tier) {
-            return static_cast<gw::constants::TitleID>(title_id);
+            return static_cast<GW::Constants::TitleID>(title_id);
         }
     }
-    return gw::constants::TitleID::None;
+    return GW::Constants::TitleID::None;
 }
 
-context::Title* GetActiveTitle() {
+Context::Title* GetActiveTitle() {
     return GetTitleTrack(GetActiveTitleId());
 }
 
@@ -172,7 +172,7 @@ std::vector<int> GetTitleIDs() {
     return title_ids;
 }
 
-context::TitleClientData* GetTitleData(gw::constants::TitleID title_id) {
+Context::TitleClientData* GetTitleData(GW::Constants::TitleID title_id) {
     return g_title_data ? &g_title_data[static_cast<uint32_t>(title_id)] : nullptr;
 }
 
@@ -184,4 +184,4 @@ bool DepositFaction(uint32_t allegiance) {
     return true;
 }
 
-}  // namespace gw::player
+}  // namespace GW::player

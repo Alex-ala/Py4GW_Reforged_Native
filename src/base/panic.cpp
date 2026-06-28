@@ -9,7 +9,7 @@
 #include <cstdarg>
 #include <cstdio>
 
-namespace py4gw {
+namespace PY4GW {
 
 namespace {
 
@@ -100,4 +100,4 @@ void __cdecl LogMessageV(
     s_log_handler(s_log_handler_context, level, message, file, line, function);
 }
 
-}  // namespace py4gw
+}  // namespace PY4GW

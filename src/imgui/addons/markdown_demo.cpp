@@ -33,7 +33,7 @@ ImGui::MarkdownImageData ImageCallback(ImGui::MarkdownLinkCallbackData) {
 
 }  // namespace
 
-namespace py4gw::imgui::addons::markdown_demo {
+namespace PY4GW::imgui::addons::markdown_demo {
 
 void Render() {
     static const char* kMarkdown = R"(# imgui_markdown
@@ -59,4 +59,4 @@ Visit [Dear ImGui](https://github.com/ocornut/imgui) or [ImPlot](https://github.
     ImGui::Markdown(kMarkdown, strlen(kMarkdown), config);
 }
 
-}  // namespace py4gw::imgui::addons::markdown_demo
+}  // namespace PY4GW::imgui::addons::markdown_demo

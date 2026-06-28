@@ -4,7 +4,7 @@
 
 #include <functional>
 
-namespace py4gw {
+namespace PY4GW {
 
 struct HookEntry {};
 
@@ -16,4 +16,4 @@ struct HookStatus {
 template <typename... Ts>
 using HookCallback = std::function<void(HookStatus* status, Ts...)>;
 
-}  // namespace py4gw
+}  // namespace PY4GW

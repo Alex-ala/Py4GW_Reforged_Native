@@ -11,8 +11,8 @@ BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID reserved) {
     switch (reason) {
     case DLL_PROCESS_ATTACH: {
         ::DisableThreadLibraryCalls(module);
-        py4gw::process_manager::SetModuleHandle(module);
-        HANDLE thread_handle = ::CreateThread(nullptr, 0, &py4gw::RuntimeThread, nullptr, 0, nullptr);
+        PY4GW::process_manager::SetModuleHandle(module);
+        HANDLE thread_handle = ::CreateThread(nullptr, 0, &PY4GW::RuntimeThread, nullptr, 0, nullptr);
         if (thread_handle != nullptr) {
             ::CloseHandle(thread_handle);
         } else {

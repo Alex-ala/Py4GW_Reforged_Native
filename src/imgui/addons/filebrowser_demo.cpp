@@ -11,7 +11,7 @@
 #include <filesystem>
 #include <memory>
 
-namespace py4gw::imgui::addons::filebrowser_demo {
+namespace PY4GW::imgui::addons::filebrowser_demo {
 
 namespace {
 
@@ -84,4 +84,4 @@ void Render() {
     ImGui::Text("Selected: %s", selected_path);
 }
 
-}  // namespace py4gw::imgui::addons::filebrowser_demo
+}  // namespace PY4GW::imgui::addons::filebrowser_demo

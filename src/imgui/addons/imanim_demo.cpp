@@ -5,7 +5,7 @@
 #include <imgui.h>
 #include <im_anim.h>
 
-namespace py4gw::imgui::addons::imanim_demo {
+namespace PY4GW::imgui::addons::imanim_demo {
 
 void BeginFrame() {
     iam_update_begin_frame();
@@ -37,4 +37,4 @@ void Render() {
     ImGui::TextWrapped("ImAnim is compiled in as a real addon source, not just a header include.");
 }
 
-}  // namespace py4gw::imgui::addons::imanim_demo
+}  // namespace PY4GW::imgui::addons::imanim_demo

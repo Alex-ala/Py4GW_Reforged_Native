@@ -6,31 +6,34 @@
 
 #include <cstdint>
 
-namespace gw::context {
+namespace GW::Context {
 
 using PlayerID = uint32_t;
 
-struct Player {
-    uint32_t agent_id;
-    uint32_t h0004[3];
-    uint32_t appearance_bitmap;
-    uint32_t flags;
-    uint32_t primary;
-    uint32_t secondary;
-    uint32_t h0020;
-    wchar_t* name_enc;
-    wchar_t* name;
-    uint32_t party_leader_player_number;
-    uint32_t active_title_tier;
-    uint32_t reforged_or_dhuums_flags;
-    uint32_t player_number;
-    uint32_t party_size;
-    gw::GwArray<void*> h0040;
+    struct Player { // total: 0x4C/76
+        /* +h0000 */ uint32_t agent_id;
+        /* +h0004 */ uint32_t h0004[3];
+        /* +h0010 */ uint32_t appearance_bitmap;
+        /* +h0014 */ uint32_t flags; // Bitwise field
+        /* +h0018 */ uint32_t primary;
+        /* +h001C */ uint32_t secondary;
+        /* +h0020 */ uint32_t h0020;
+        /* +h0024 */ wchar_t* name_enc;
+        /* +h0028 */ wchar_t* name;
+        /* +h002C */ uint32_t party_leader_player_number;
+        /* +h0030 */ uint32_t active_title_tier;
+        /* +h0034 */ uint32_t reforged_or_dhuums_flags;
+        /* +h0038 */ uint32_t player_number;
+        /* +h003C */ uint32_t party_size;
+        /* +h0040 */ GW::GWArray<void*> h0040;
 
-    bool IsPvP() const { return (flags & 0x800U) != 0; }
-};
+        inline bool IsPvP() {
+            return (flags & 0x800) != 0;
+        }
+
+    };
 static_assert(sizeof(Player) == 0x50, "Player size mismatch");
 
-using PlayerArray = gw::GwArray<Player>;
+using PlayerArray = GW::GWArray<Player>;
 
-}  // namespace gw::context
+}  // namespace GW::Context

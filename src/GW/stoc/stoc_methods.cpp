@@ -3,13 +3,13 @@
 #include "GW/stoc/stoc.h"
 
 void SafeInitializeCriticalSection(CRITICAL_SECTION* mtx);
-bool __cdecl StoCHandler_Func(gw::packet::stoc::PacketBase* packet);
-bool OriginalHandler(gw::packet::stoc::PacketBase* packet);
+bool __cdecl StoCHandler_Func(GW::Packet::StoC::PacketBase* packet);
+bool OriginalHandler(GW::Packet::StoC::PacketBase* packet);
 
-namespace gw::stoc {
+namespace GW::StoC {
 
 bool RegisterPacketCallback(
-    py4gw::HookEntry* entry,
+    PY4GW::HookEntry* entry,
     uint32_t header,
     const PacketCallback& callback,
     int altitude) {
@@ -40,13 +40,13 @@ bool RegisterPacketCallback(
 }
 
 bool RegisterPostPacketCallback(
-    py4gw::HookEntry* entry,
+    PY4GW::HookEntry* entry,
     uint32_t header,
     const PacketCallback& callback) {
     return RegisterPacketCallback(entry, header, callback, 0x8000);
 }
 
-size_t RemoveCallback(uint32_t header, py4gw::HookEntry* entry) {
+size_t RemoveCallback(uint32_t header, PY4GW::HookEntry* entry) {
     size_t removed = 0;
     SafeInitializeCriticalSection(&g_mutex);
     ::EnterCriticalSection(&g_mutex);
@@ -65,7 +65,7 @@ size_t RemoveCallback(uint32_t header, py4gw::HookEntry* entry) {
     return removed;
 }
 
-size_t RemoveCallbacks(py4gw::HookEntry* entry) {
+size_t RemoveCallbacks(PY4GW::HookEntry* entry) {
     size_t removed = 0;
     SafeInitializeCriticalSection(&g_mutex);
     ::EnterCriticalSection(&g_mutex);
@@ -84,12 +84,12 @@ size_t RemoveCallbacks(py4gw::HookEntry* entry) {
     return removed;
 }
 
-void RemovePostCallback(uint32_t header, py4gw::HookEntry* entry) {
+void RemovePostCallback(uint32_t header, PY4GW::HookEntry* entry) {
     RemoveCallback(header, entry);
 }
 
-bool EmulatePacket(packet::stoc::PacketBase* packet) {
+bool EmulatePacket(Packet::StoC::PacketBase* packet) {
     return OriginalHandler(packet);
 }
 
-}  // namespace gw::stoc
+}  // namespace GW::stoc

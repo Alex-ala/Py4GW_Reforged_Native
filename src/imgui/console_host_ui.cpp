@@ -7,7 +7,7 @@
 
 #include <imgui.h>
 
-namespace py4gw::imgui::console_host_ui {
+namespace PY4GW::imgui::console_host_ui {
 
 namespace {
 
@@ -76,4 +76,4 @@ void Render(bool* request_shutdown) {
     RenderShutdownConfirmationModal(request_shutdown);
 }
 
-}  // namespace py4gw::imgui::console_host_ui
+}  // namespace PY4GW::imgui::console_host_ui

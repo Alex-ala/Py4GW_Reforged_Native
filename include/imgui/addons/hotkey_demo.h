@@ -2,8 +2,8 @@
 
 #include "base/error_handling.h"
 
-namespace py4gw::imgui::addons::hotkey_demo {
+namespace PY4GW::imgui::addons::hotkey_demo {
 
 void Render();
 
-}  // namespace py4gw::imgui::addons::hotkey_demo
+}  // namespace PY4GW::imgui::addons::hotkey_demo

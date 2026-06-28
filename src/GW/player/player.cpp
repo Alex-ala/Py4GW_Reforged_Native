@@ -11,14 +11,14 @@ namespace {
 
 bool ResolveSetActiveTitle() {
     CrashContextScope context("startup", "player", "resolve_set_active_title");
-    const auto* anchor_pattern = py4gw::Patterns::Get("player.set_active_title_anchor");
-    const auto* call_pattern = py4gw::Patterns::Get("player.set_active_title_call");
+    const auto* anchor_pattern = PY4GW::Patterns::Get("player.set_active_title_anchor");
+    const auto* call_pattern = PY4GW::Patterns::Get("player.set_active_title_call");
     if (!anchor_pattern || !call_pattern) {
         Logger::Instance().LogError("Missing or invalid set active title pattern.", "player");
         return false;
     }
 
-    uintptr_t address = py4gw::Scanner::FindAssertion(
+    uintptr_t address = PY4GW::Scanner::FindAssertion(
         anchor_pattern->assertion_file.c_str(),
         anchor_pattern->assertion_message.c_str(),
         static_cast<uint32_t>(anchor_pattern->line_number),
@@ -27,7 +27,7 @@ bool ResolveSetActiveTitle() {
         return false;
     }
 
-    address = py4gw::Scanner::FindInRange(
+    address = PY4GW::Scanner::FindInRange(
         call_pattern->pattern.c_str(),
         call_pattern->mask.c_str(),
         call_pattern->offset,
@@ -37,50 +37,50 @@ bool ResolveSetActiveTitle() {
         return false;
     }
 
-    gw::player::g_set_active_title_func = reinterpret_cast<gw::player::SetActiveTitleFn>(
-        py4gw::Scanner::FunctionFromNearCall(address));
+    GW::player::g_set_active_title_func = reinterpret_cast<GW::player::SetActiveTitleFn>(
+        PY4GW::Scanner::FunctionFromNearCall(address));
     return Logger::AssertAddress(
         "SetActiveTitle_Func",
-        reinterpret_cast<uintptr_t>(gw::player::g_set_active_title_func),
+        reinterpret_cast<uintptr_t>(GW::player::g_set_active_title_func),
         "player");
 }
 
 bool ResolveRemoveActiveTitle() {
     CrashContextScope context("startup", "player", "resolve_remove_active_title");
-    if (!gw::player::g_set_active_title_func) {
+    if (!GW::player::g_set_active_title_func) {
         Logger::Instance().LogError("Set active title function must resolve before remove active title.", "player");
         return false;
     }
 
-    const auto* pattern = py4gw::Patterns::Get("player.remove_active_title_signature");
+    const auto* pattern = PY4GW::Patterns::Get("player.remove_active_title_signature");
     if (!pattern) {
         Logger::Instance().LogError("Missing or invalid pattern: player.remove_active_title_signature", "player");
         return false;
     }
 
-    uintptr_t address = reinterpret_cast<uintptr_t>(gw::player::g_set_active_title_func);
-    address = py4gw::Scanner::FindInRange(
+    uintptr_t address = reinterpret_cast<uintptr_t>(GW::player::g_set_active_title_func);
+    address = PY4GW::Scanner::FindInRange(
         pattern->pattern.c_str(),
         pattern->mask.c_str(),
         pattern->offset,
         address + 0x10,
         address + 0xFF);
-    gw::player::g_remove_active_title_func = reinterpret_cast<gw::player::RemoveActiveTitleFn>(address);
+    GW::player::g_remove_active_title_func = reinterpret_cast<GW::player::RemoveActiveTitleFn>(address);
     return Logger::AssertAddress(
         "RemoveActiveTitle_Func",
-        reinterpret_cast<uintptr_t>(gw::player::g_remove_active_title_func),
+        reinterpret_cast<uintptr_t>(GW::player::g_remove_active_title_func),
         "player");
 }
 
 bool ResolveDepositFaction() {
     CrashContextScope context("startup", "player", "resolve_deposit_faction");
-    const auto* pattern = py4gw::Patterns::Get("player.deposit_faction_callsite");
+    const auto* pattern = PY4GW::Patterns::Get("player.deposit_faction_callsite");
     if (!pattern) {
         Logger::Instance().LogError("Missing or invalid pattern: player.deposit_faction_callsite", "player");
         return false;
     }
 
-    const uintptr_t callsite = py4gw::Scanner::Find(
+    const uintptr_t callsite = PY4GW::Scanner::Find(
         pattern->pattern.c_str(),
         pattern->mask.c_str(),
         pattern->offset,
@@ -89,23 +89,23 @@ bool ResolveDepositFaction() {
         return false;
     }
 
-    gw::player::g_deposit_faction_func = reinterpret_cast<gw::player::DepositFactionFn>(
-        py4gw::Scanner::FunctionFromNearCall(callsite));
+    GW::player::g_deposit_faction_func = reinterpret_cast<GW::player::DepositFactionFn>(
+        PY4GW::Scanner::FunctionFromNearCall(callsite));
     return Logger::AssertAddress(
         "DepositFaction_Func",
-        reinterpret_cast<uintptr_t>(gw::player::g_deposit_faction_func),
+        reinterpret_cast<uintptr_t>(GW::player::g_deposit_faction_func),
         "player");
 }
 
 bool ResolveTitleData() {
     CrashContextScope context("startup", "player", "resolve_title_data");
-    const auto* pattern = py4gw::Patterns::Get("player.title_data_ref");
+    const auto* pattern = PY4GW::Patterns::Get("player.title_data_ref");
     if (!pattern) {
         Logger::Instance().LogError("Missing or invalid pattern: player.title_data_ref", "player");
         return false;
     }
 
-    const uintptr_t address = py4gw::Scanner::FindAssertion(
+    const uintptr_t address = PY4GW::Scanner::FindAssertion(
         pattern->assertion_file.c_str(),
         pattern->assertion_message.c_str(),
         static_cast<uint32_t>(pattern->line_number),
@@ -118,12 +118,12 @@ bool ResolveTitleData() {
     if (!Logger::AssertAddress("TitleData_Ptr", candidate, "player")) {
         return false;
     }
-    if (!py4gw::Scanner::IsValidPtr(candidate, py4gw::ScannerSection::RData)) {
+    if (!PY4GW::Scanner::IsValidPtr(candidate, PY4GW::ScannerSection::RData)) {
         Logger::Instance().LogError("Title data pointer is outside the expected rdata section.", "player");
         return false;
     }
 
-    gw::player::g_title_data = reinterpret_cast<gw::context::TitleClientData*>(candidate);
+    GW::player::g_title_data = reinterpret_cast<GW::Context::TitleClientData*>(candidate);
     return true;
 }
 
@@ -137,15 +137,15 @@ bool Init() {
 
 void Exit() {
     CrashContextScope context("shutdown", "player", "exit");
-    gw::player::g_remove_active_title_func = nullptr;
-    gw::player::g_set_active_title_func = nullptr;
-    gw::player::g_deposit_faction_func = nullptr;
-    gw::player::g_title_data = nullptr;
+    GW::player::g_remove_active_title_func = nullptr;
+    GW::player::g_set_active_title_func = nullptr;
+    GW::player::g_deposit_faction_func = nullptr;
+    GW::player::g_title_data = nullptr;
 }
 
 }  // namespace
 
-namespace gw::player {
+namespace GW::player {
 
 bool Initialize() {
     CrashContextScope context("startup", "player", "initialize");
@@ -153,8 +153,8 @@ bool Initialize() {
         return true;
     }
 
-    PY4GW_ASSERT(py4gw::Scanner::Initialize());
-    PY4GW_ASSERT(py4gw::Patterns::Initialize());
+    PY4GW_ASSERT(PY4GW::Scanner::Initialize());
+    PY4GW_ASSERT(PY4GW::Patterns::Initialize());
 
     if (!Init()) {
         Exit();
@@ -175,4 +175,4 @@ void Shutdown() {
     g_initialized = false;
 }
 
-}  // namespace gw::player
+}  // namespace GW::player

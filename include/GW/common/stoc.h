@@ -17,18 +17,18 @@ feel free to fill packets, and you can also add a suffix to
 the packet name, e.g. P391 -> P391_InstanceLoadMap
 */
 
-namespace gw {
+namespace GW {
     typedef uint32_t AgentID;
     typedef uint32_t ItemID;
-    namespace chat {
+    namespace Chat {
         enum Channel : int;
     }
-    namespace constants {
+    namespace Constants {
         enum class QuestID : uint32_t;
         enum class MapID : uint32_t;
     }
-    namespace packet {
-        namespace stoc {
+    namespace Packet {
+        namespace StoC {
             struct PacketBase {
                 uint32_t header;
             };
@@ -38,39 +38,39 @@ namespace gw {
             //  GenericModifier (i.e. GenericFloatTarget)
             //  GenericFloat
             namespace GenericValueID {
-                const uint32_t melee_attack_finished    = 1;  // GenericValue. Last melee attack finished successfully.
-                const uint32_t attack_stopped           = 3;  // GenericValue. Last melee/ranged attack stopped unsuccessfully. May be followed by interrupted (35).
-                const uint32_t attack_started           = 4;  // GenericTargetValue. caster_id is victim. target_id is attacker.
+                const uint32_t melee_attack_finished = 1;  // GenericValue. Last melee attack finished successfully.
+                const uint32_t attack_stopped = 3;  // GenericValue. Last melee/ranged attack stopped unsuccessfully. May be followed by interrupted (35).
+                const uint32_t attack_started = 4;  // GenericTargetValue. caster_id is victim. target_id is attacker.
 
-                const uint32_t add_effect               = 6;
-                const uint32_t remove_effect            = 7;
-                const uint32_t disabled                 = 8;  // GenericValue. e.g. aftercast. value = 1: disabled. value = 0: not disabled.
-                const uint32_t skill_damage             = 10; // GenericValue. The skill responsible for the last damage packet received (GenericTargetModifier).
-                const uint32_t apply_marker             = 11; // Exclamation mark / arrow above NPC head
-                const uint32_t remove_marker            = 12; // Exclamation mark / arrow above NPC head
-                const uint32_t damage                   = 16; // GenericTargetModifier. Non-armor-ignoring attack, spells
-                const uint32_t critical                 = 17; // GenericTargetModifier. Critical hit on autoattack
-                const uint32_t effect_on_target         = 20; // e.g. casting a skill on someone
-                const uint32_t effect_on_agent          = 21; // e.g. casting a skill on myself/location
-                const uint32_t animation                = 22;
-                const uint32_t animation_special        = 23; // When received before dance, makes it fancy e.g. CE dance, glowing hands
-                const uint32_t animation_loop           = 28; // e.g. dance
-                const uint32_t max_hp_reached           = 32; // GenericValue. Remove passive regen pips.
-                const uint32_t health                   = 34;
-                const uint32_t interrupted              = 35; // GenericValue. The last action (skill or attack) was interrupted. Follows <action>_stopped.
-                const uint32_t change_health_regen      = 44; // GenericFloat. Passive regen pips (?).
-                const uint32_t attack_skill_finished    = 46; // GenericValue. Last attack skill finished successfully.
-                const uint32_t instant_skill_activated  = 48; // GenericValue|(GenericTargetValue?). Unblocked skills - Stances, shouts, etc, not protectors defence.
-                const uint32_t attack_skill_stopped     = 49; // GenericValue. Last attack skill stopped unsuccessfully. May be followed by interrupted (35).
-                const uint32_t attack_skill_activated   = 50; // GenericValue|GenericValueTarget. caster_id is victim and target_id is caster.
-                const uint32_t energygain               = 52; // For example from Critical Strikes or energy tap
-                const uint32_t armorignoring            = 55; // GenericTargetModifier. All armor ignoring damage and heals
-                const uint32_t skill_finished           = 58; // GenericValue. Last skill finished successfully.
-                const uint32_t skill_stopped            = 59; // GenericValue. Last skill stopped unsuccessfully. May be followed by interrupted(35).
-                const uint32_t skill_activated          = 60; // GenericValue|GenericValueTarget. caster_id is victim and target_id is caster.
-                const uint32_t casttime                 = 61; // Non-standard cast time, value in seconds
-                const uint32_t energy_spent             = 62; // GenericFloat. The energy using your last skill.
-                const uint32_t knocked_down             = 63; // GenericFloat. value: duration.
+                const uint32_t add_effect = 6;
+                const uint32_t remove_effect = 7;
+                const uint32_t disabled = 8;  // GenericValue. e.g. aftercast. value = 1: disabled. value = 0: not disabled.
+                const uint32_t skill_damage = 10; // GenericValue. The skill responsible for the last damage packet received (GenericTargetModifier).
+                const uint32_t apply_marker = 11; // Exclamation mark / arrow above NPC head
+                const uint32_t remove_marker = 12; // Exclamation mark / arrow above NPC head
+                const uint32_t damage = 16; // GenericTargetModifier. Non-armor-ignoring attack, spells
+                const uint32_t critical = 17; // GenericTargetModifier. Critical hit on autoattack
+                const uint32_t effect_on_target = 20; // e.g. casting a skill on someone
+                const uint32_t effect_on_agent = 21; // e.g. casting a skill on myself/location
+                const uint32_t animation = 22;
+                const uint32_t animation_special = 23; // When received before dance, makes it fancy e.g. CE dance, glowing hands
+                const uint32_t animation_loop = 28; // e.g. dance
+                const uint32_t max_hp_reached = 32; // GenericValue. Remove passive regen pips.
+                const uint32_t health = 34;
+                const uint32_t interrupted = 35; // GenericValue. The last action (skill or attack) was interrupted. Follows <action>_stopped.
+                const uint32_t change_health_regen = 44; // GenericFloat. Passive regen pips (?).
+                const uint32_t attack_skill_finished = 46; // GenericValue. Last attack skill finished successfully.
+                const uint32_t instant_skill_activated = 48; // GenericValue|(GenericTargetValue?). Unblocked skills - Stances, shouts, etc, not protectors defence.
+                const uint32_t attack_skill_stopped = 49; // GenericValue. Last attack skill stopped unsuccessfully. May be followed by interrupted (35).
+                const uint32_t attack_skill_activated = 50; // GenericValue|GenericValueTarget. caster_id is victim and target_id is caster.
+                const uint32_t energygain = 52; // For example from Critical Strikes or energy tap
+                const uint32_t armorignoring = 55; // GenericTargetModifier. All armor ignoring damage and heals
+                const uint32_t skill_finished = 58; // GenericValue. Last skill finished successfully.
+                const uint32_t skill_stopped = 59; // GenericValue. Last skill stopped unsuccessfully. May be followed by interrupted(35).
+                const uint32_t skill_activated = 60; // GenericValue|GenericValueTarget. caster_id is victim and target_id is caster.
+                const uint32_t casttime = 61; // Non-standard cast time, value in seconds
+                const uint32_t energy_spent = 62; // GenericFloat. The energy using your last skill.
+                const uint32_t knocked_down = 63; // GenericFloat. value: duration.
             }
             namespace P156_Type = GenericValueID;
 
@@ -206,14 +206,14 @@ namespace gw {
             constexpr uint32_t Packet<DisplayCape>::STATIC_HEADER = GAME_SMSG_AGENT_DISPLAY_CAPE;
 
             struct QuestAdd : Packet<QuestAdd> {
-                gw::constants::QuestID quest_id;
-                gw::GamePos marker;
-                gw::constants::MapID map_to;
+                GW::Constants::QuestID quest_id;
+                GW::GamePos marker;
+                GW::Constants::MapID map_to;
                 uint32_t log_state;
                 wchar_t location[8];
                 wchar_t name[8];
                 wchar_t npc[8];
-                gw::constants::MapID map_from;
+                GW::Constants::MapID map_from;
             };
             constexpr uint32_t Packet<QuestAdd>::STATIC_HEADER = GAME_SMSG_QUEST_ADD;
 
@@ -288,7 +288,7 @@ namespace gw {
             // Deliver chat message (player sender in the instance)
             struct MessageLocal : Packet<MessageLocal> {
                 uint32_t player_number; // PlayerNumber of the sender
-                chat::Channel channel; // enum ChatChannel above.
+                Chat::Channel channel; // enum ChatChannel above.
             };
             constexpr uint32_t Packet<MessageLocal>::STATIC_HEADER = GAME_SMSG_CHAT_MESSAGE_LOCAL;
 
@@ -700,8 +700,8 @@ namespace gw {
             constexpr uint32_t Packet<GuildPlayerInfo>::STATIC_HEADER = GAME_SMSG_GUILD_PLAYER_INFO;
 
             struct ItemUpdateOwner : Packet<ItemUpdateOwner> {
-                gw::ItemID  item_id;
-                gw::AgentID owner_agent_id;
+                GW::ItemID  item_id;
+                GW::AgentID owner_agent_id;
                 float       seconds_reserved;
             };
             constexpr uint32_t Packet<ItemUpdateOwner>::STATIC_HEADER = GAME_SMSG_ITEM_UPDATE_OWNER;
@@ -776,11 +776,11 @@ namespace gw {
 
             // JumboMessage represents a message strewn across the center of the screen in big red or green characters.
             // Things like moral boosts, flag captures, victory, defeat...
-            struct JumboMessage : gw::packet::stoc::Packet<JumboMessage> {
+            struct JumboMessage : GW::Packet::StoC::Packet<JumboMessage> {
                 uint8_t type;   // JumboMessageType
                 uint32_t value; // JumboMessageValue
             };
-            const uint32_t gw::packet::stoc::Packet<JumboMessage>::STATIC_HEADER = GAME_SMSG_JUMBO_MESSAGE;
+            const uint32_t GW::Packet::StoC::Packet<JumboMessage>::STATIC_HEADER = GAME_SMSG_JUMBO_MESSAGE;
 
             struct InstanceLoadFile : Packet<InstanceLoadFile> {
                 uint32_t map_fileID;
@@ -1000,7 +1000,7 @@ namespace gw {
             constexpr uint32_t Packet<PlayerIsPartyLeader>::STATIC_HEADER = GAME_SMSG_PARTY_YOU_ARE_LEADER;
 
             struct RemoveEffect : Packet<RemoveEffect> {
-                gw::AgentID agent_id;
+                GW::AgentID agent_id;
                 unsigned effect_id; // not GW::SkillID
             };
             constexpr uint32_t Packet<RemoveEffect>::STATIC_HEADER = GAME_SMSG_EFFECT_REMOVED;

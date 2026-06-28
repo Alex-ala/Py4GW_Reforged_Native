@@ -14,8 +14,8 @@ namespace {
 bool WaitForRenderHooksToDrain() {
     CrashContextScope context("shutdown", "render", "wait_for_hooks_to_drain");
     for (int i = 0; i < 125; ++i) {
-        if (gw::render::g_active_render_hooks.load() == 0 &&
-            !gw::render::g_in_render_loop.load()) {
+        if (GW::render::g_active_render_hooks.load() == 0 &&
+            !GW::render::g_in_render_loop.load()) {
             return true;
         }
         ::Sleep(16);
@@ -27,13 +27,13 @@ bool WaitForRenderHooksToDrain() {
 
 bool ResolveWindowHandlePointer() {
     CrashContextScope context("startup", "render", "resolve_window_handle_ptr");
-    const auto* pattern = py4gw::Patterns::Get("render.window_handle_ptr");
+    const auto* pattern = PY4GW::Patterns::Get("render.window_handle_ptr");
     if (!pattern) {
         Logger::Instance().LogError("Missing or invalid pattern: render.window_handle_ptr", "render");
         return false;
     }
 
-    const uintptr_t scan = py4gw::Scanner::Find(
+    const uintptr_t scan = PY4GW::Scanner::Find(
         pattern->pattern.c_str(),
         pattern->mask.c_str(),
         pattern->offset,
@@ -46,24 +46,24 @@ bool ResolveWindowHandlePointer() {
     if (!Logger::AssertAddress("window_handle_ptr", candidate, "render")) {
         return false;
     }
-    if (!py4gw::Scanner::IsValidPtr(candidate, py4gw::ScannerSection::Data)) {
+    if (!PY4GW::Scanner::IsValidPtr(candidate, PY4GW::ScannerSection::Data)) {
         Logger::Instance().LogError("window_handle_ptr is outside the expected data section.", "render");
         return false;
     }
 
-    gw::render::g_window_handle_ptr = candidate;
+    GW::render::g_window_handle_ptr = candidate;
     return true;
 }
 
 bool ResolveResetHook() {
     CrashContextScope context("startup", "render", "resolve_reset_hook");
-    const auto* pattern = py4gw::Patterns::Get("render.reset_target");
+    const auto* pattern = PY4GW::Patterns::Get("render.reset_target");
     if (!pattern) {
         Logger::Instance().LogError("Missing or invalid pattern: render.reset_target", "render");
         return false;
     }
 
-    const uintptr_t scan = py4gw::Scanner::Find(
+    const uintptr_t scan = PY4GW::Scanner::Find(
         pattern->pattern.c_str(),
         pattern->mask.c_str(),
         0,
@@ -72,20 +72,20 @@ bool ResolveResetHook() {
         return false;
     }
 
-    gw::render::g_reset_func = reinterpret_cast<gw::render::ResetFn>(
-        py4gw::Scanner::ToFunctionStart(scan, static_cast<uint32_t>(pattern->offset)));
-    return Logger::AssertAddress("GwReset_Func", reinterpret_cast<uintptr_t>(gw::render::g_reset_func), "render");
+    GW::render::g_reset_func = reinterpret_cast<GW::render::ResetFn>(
+        PY4GW::Scanner::ToFunctionStart(scan, static_cast<uint32_t>(pattern->offset)));
+    return Logger::AssertAddress("GwReset_Func", reinterpret_cast<uintptr_t>(GW::render::g_reset_func), "render");
 }
 
 bool ResolveEndSceneHook() {
     CrashContextScope context("startup", "render", "resolve_end_scene_hook");
-    const auto* pattern = py4gw::Patterns::Get("render.end_scene_target");
+    const auto* pattern = PY4GW::Patterns::Get("render.end_scene_target");
     if (!pattern) {
         Logger::Instance().LogError("Missing or invalid pattern: render.end_scene_target", "render");
         return false;
     }
 
-    const uintptr_t scan = py4gw::Scanner::Find(
+    const uintptr_t scan = PY4GW::Scanner::Find(
         pattern->pattern.c_str(),
         pattern->mask.c_str(),
         pattern->offset,
@@ -94,20 +94,20 @@ bool ResolveEndSceneHook() {
         return false;
     }
 
-    gw::render::g_end_scene_func =
-        reinterpret_cast<gw::render::EndSceneFn>(py4gw::Scanner::ToFunctionStart(scan));
-    return Logger::AssertAddress("GwEndScene_Func", reinterpret_cast<uintptr_t>(gw::render::g_end_scene_func), "render");
+    GW::render::g_end_scene_func =
+        reinterpret_cast<GW::render::EndSceneFn>(PY4GW::Scanner::ToFunctionStart(scan));
+    return Logger::AssertAddress("GwEndScene_Func", reinterpret_cast<uintptr_t>(GW::render::g_end_scene_func), "render");
 }
 
 bool ResolveGetTransformFunction() {
     CrashContextScope context("startup", "render", "resolve_get_transform");
-    const auto* pattern = py4gw::Patterns::Get("render.get_transform_target");
+    const auto* pattern = PY4GW::Patterns::Get("render.get_transform_target");
     if (!pattern) {
         Logger::Instance().LogError("Missing or invalid pattern: render.get_transform_target", "render");
         return false;
     }
 
-    const uintptr_t scan = py4gw::Scanner::Find(
+    const uintptr_t scan = PY4GW::Scanner::Find(
         pattern->pattern.c_str(),
         pattern->mask.c_str(),
         pattern->offset,
@@ -116,36 +116,36 @@ bool ResolveGetTransformFunction() {
         return false;
     }
 
-    gw::render::g_get_transform_func =
-        reinterpret_cast<gw::render::GetTransformFn>(py4gw::Scanner::ToFunctionStart(scan));
+    GW::render::g_get_transform_func =
+        reinterpret_cast<GW::render::GetTransformFn>(PY4GW::Scanner::ToFunctionStart(scan));
     return Logger::AssertAddress(
         "GwGetTransform_func",
-        reinterpret_cast<uintptr_t>(gw::render::g_get_transform_func),
+        reinterpret_cast<uintptr_t>(GW::render::g_get_transform_func),
         "render");
 }
 
-bool __cdecl OnEndScene(gw::render::GwDxContext* ctx, void* unk) {
-    py4gw::HookBase::EnterHook();
-    ++gw::render::g_active_render_hooks;
+bool __cdecl OnEndScene(GW::render::GwDxContext* ctx, void* unk) {
+    PY4GW::HookBase::EnterHook();
+    ++GW::render::g_active_render_hooks;
 
-    if (gw::render::g_shutting_down || !gw::render::g_render_lock_initialized) {
-        const bool retval = gw::render::g_end_scene_original ? gw::render::g_end_scene_original(ctx, unk) : false;
-        --gw::render::g_active_render_hooks;
-        py4gw::HookBase::LeaveHook();
+    if (GW::render::g_shutting_down || !GW::render::g_render_lock_initialized) {
+        const bool retval = GW::render::g_end_scene_original ? GW::render::g_end_scene_original(ctx, unk) : false;
+        --GW::render::g_active_render_hooks;
+        PY4GW::HookBase::LeaveHook();
         return retval;
     }
 
-    ::EnterCriticalSection(&gw::render::g_render_lock);
-    gw::render::g_in_render_loop = true;
-    gw::render::g_dx_context = ctx;
-    if (!gw::render::g_shutting_down && gw::render::g_render_callback) {
-        gw::render::g_render_callback(ctx->device);
+    ::EnterCriticalSection(&GW::render::g_render_lock);
+    GW::render::g_in_render_loop = true;
+    GW::render::g_dx_context = ctx;
+    if (!GW::render::g_shutting_down && GW::render::g_render_callback) {
+        GW::render::g_render_callback(ctx->device);
     }
-    const bool retval = gw::render::g_end_scene_original(ctx, unk);
-    gw::render::g_in_render_loop = false;
-    ::LeaveCriticalSection(&gw::render::g_render_lock);
-    --gw::render::g_active_render_hooks;
-    py4gw::HookBase::LeaveHook();
+    const bool retval = GW::render::g_end_scene_original(ctx, unk);
+    GW::render::g_in_render_loop = false;
+    ::LeaveCriticalSection(&GW::render::g_render_lock);
+    --GW::render::g_active_render_hooks;
+    PY4GW::HookBase::LeaveHook();
     return retval;
 }
 
@@ -157,7 +157,7 @@ bool ResolveScreenCaptureHook() {
     // Logger::AssertAddress("ScreenCapture_Func", (uintptr_t)ScreenCapture_Func, "RenderModule");
 }
 
-bool __cdecl OnScreenCapture(gw::render::GwDxContext* ctx, void* unk) {
+bool __cdecl OnScreenCapture(GW::render::GwDxContext* ctx, void* unk) {
     // Original RenderMgr logic:
     // HookBase::EnterHook();
     // if (!GW::UI::GetIsShiftScreenShot() && render_callback) {
@@ -173,24 +173,24 @@ Forward parity note:
 - Keeping the original logic here is preferable to activating a partial hook path.
 */
 
-bool __cdecl OnReset(gw::render::GwDxContext* ctx) {
-    py4gw::HookBase::EnterHook();
-    ++gw::render::g_active_render_hooks;
-    gw::render::g_dx_context = ctx;
-    if (!gw::render::g_shutting_down && gw::render::g_reset_callback) {
-        gw::render::g_reset_callback(ctx->device);
+bool __cdecl OnReset(GW::render::GwDxContext* ctx) {
+    PY4GW::HookBase::EnterHook();
+    ++GW::render::g_active_render_hooks;
+    GW::render::g_dx_context = ctx;
+    if (!GW::render::g_shutting_down && GW::render::g_reset_callback) {
+        GW::render::g_reset_callback(ctx->device);
     }
-    const bool retval = gw::render::g_reset_original ? gw::render::g_reset_original(ctx) : false;
-    --gw::render::g_active_render_hooks;
-    py4gw::HookBase::LeaveHook();
+    const bool retval = GW::render::g_reset_original ? GW::render::g_reset_original(ctx) : false;
+    --GW::render::g_active_render_hooks;
+    PY4GW::HookBase::LeaveHook();
     return retval;
 }
 
 bool Init() {
     CrashContextScope context("startup", "render", "init");
-    gw::render::g_shutting_down = false;
-    ::InitializeCriticalSection(&gw::render::g_render_lock);
-    gw::render::g_render_lock_initialized = true;
+    GW::render::g_shutting_down = false;
+    ::InitializeCriticalSection(&GW::render::g_render_lock);
+    GW::render::g_render_lock_initialized = true;
 
     if (!ResolveWindowHandlePointer() ||
         !ResolveResetHook() ||
@@ -199,14 +199,14 @@ bool Init() {
         return false;
     }
 
-    const int end_scene_status = py4gw::HookBase::CreateHook(
-        reinterpret_cast<void**>(&gw::render::g_end_scene_func),
+    const int end_scene_status = PY4GW::HookBase::CreateHook(
+        reinterpret_cast<void**>(&GW::render::g_end_scene_func),
         reinterpret_cast<void*>(&OnEndScene),
-        reinterpret_cast<void**>(&gw::render::g_end_scene_original));
-    const int reset_status = py4gw::HookBase::CreateHook(
-        reinterpret_cast<void**>(&gw::render::g_reset_func),
+        reinterpret_cast<void**>(&GW::render::g_end_scene_original));
+    const int reset_status = PY4GW::HookBase::CreateHook(
+        reinterpret_cast<void**>(&GW::render::g_reset_func),
         reinterpret_cast<void*>(&OnReset),
-        reinterpret_cast<void**>(&gw::render::g_reset_original));
+        reinterpret_cast<void**>(&GW::render::g_reset_original));
 
     const bool end_scene_ok = Logger::AssertHook("GwEndScene_Func", end_scene_status, "render");
     const bool reset_ok = Logger::AssertHook("GwReset_Func", reset_status, "render");
@@ -215,59 +215,59 @@ bool Init() {
 
 void EnableHooks() {
     CrashContextScope context("runtime", "render", "enable_hooks");
-    if (gw::render::g_end_scene_func) {
-        py4gw::HookBase::EnableHooks(reinterpret_cast<void*>(gw::render::g_end_scene_func));
+    if (GW::render::g_end_scene_func) {
+        PY4GW::HookBase::EnableHooks(reinterpret_cast<void*>(GW::render::g_end_scene_func));
     }
-    if (gw::render::g_reset_func) {
-        py4gw::HookBase::EnableHooks(reinterpret_cast<void*>(gw::render::g_reset_func));
+    if (GW::render::g_reset_func) {
+        PY4GW::HookBase::EnableHooks(reinterpret_cast<void*>(GW::render::g_reset_func));
     }
-    gw::render::g_hooks_enabled = true;
+    GW::render::g_hooks_enabled = true;
 }
 
 void DisableHooks() {
     CrashContextScope context("shutdown", "render", "disable_hooks");
-    if (!gw::render::g_hooks_enabled) {
+    if (!GW::render::g_hooks_enabled) {
         return;
     }
-    if (gw::render::g_end_scene_func) {
-        py4gw::HookBase::DisableHooks(reinterpret_cast<void*>(gw::render::g_end_scene_func));
+    if (GW::render::g_end_scene_func) {
+        PY4GW::HookBase::DisableHooks(reinterpret_cast<void*>(GW::render::g_end_scene_func));
     }
-    if (gw::render::g_reset_func) {
-        py4gw::HookBase::DisableHooks(reinterpret_cast<void*>(gw::render::g_reset_func));
+    if (GW::render::g_reset_func) {
+        PY4GW::HookBase::DisableHooks(reinterpret_cast<void*>(GW::render::g_reset_func));
     }
-    gw::render::g_hooks_enabled = false;
+    GW::render::g_hooks_enabled = false;
 }
 
 void Exit() {
     CrashContextScope context("shutdown", "render", "exit");
-    gw::render::g_render_callback = nullptr;
-    gw::render::g_reset_callback = nullptr;
-    gw::render::g_in_render_loop = false;
-    if (gw::render::g_end_scene_func) {
-        py4gw::HookBase::RemoveHook(reinterpret_cast<void*>(gw::render::g_end_scene_func));
+    GW::render::g_render_callback = nullptr;
+    GW::render::g_reset_callback = nullptr;
+    GW::render::g_in_render_loop = false;
+    if (GW::render::g_end_scene_func) {
+        PY4GW::HookBase::RemoveHook(reinterpret_cast<void*>(GW::render::g_end_scene_func));
     }
-    if (gw::render::g_reset_func) {
-        py4gw::HookBase::RemoveHook(reinterpret_cast<void*>(gw::render::g_reset_func));
+    if (GW::render::g_reset_func) {
+        PY4GW::HookBase::RemoveHook(reinterpret_cast<void*>(GW::render::g_reset_func));
     }
-    if (gw::render::g_render_lock_initialized) {
-        ::DeleteCriticalSection(&gw::render::g_render_lock);
-        gw::render::g_render_lock_initialized = false;
+    if (GW::render::g_render_lock_initialized) {
+        ::DeleteCriticalSection(&GW::render::g_render_lock);
+        GW::render::g_render_lock_initialized = false;
     }
 
-    gw::render::g_dx_context = nullptr;
-    gw::render::g_window_handle_ptr = 0;
-    gw::render::g_end_scene_func = nullptr;
-    gw::render::g_end_scene_original = nullptr;
-    gw::render::g_reset_func = nullptr;
-    gw::render::g_reset_original = nullptr;
-    gw::render::g_get_transform_func = nullptr;
-    gw::render::g_hooks_enabled = false;
-    gw::render::g_active_render_hooks = 0;
+    GW::render::g_dx_context = nullptr;
+    GW::render::g_window_handle_ptr = 0;
+    GW::render::g_end_scene_func = nullptr;
+    GW::render::g_end_scene_original = nullptr;
+    GW::render::g_reset_func = nullptr;
+    GW::render::g_reset_original = nullptr;
+    GW::render::g_get_transform_func = nullptr;
+    GW::render::g_hooks_enabled = false;
+    GW::render::g_active_render_hooks = 0;
 }
 
 }  // namespace
 
-namespace gw::render {
+namespace GW::render {
 
 bool Initialize() {
     CrashContextScope context("startup", "render", "initialize");
@@ -275,13 +275,13 @@ bool Initialize() {
         return true;
     }
 
-    PY4GW_ASSERT(py4gw::Scanner::Initialize());
-    PY4GW_ASSERT(py4gw::Patterns::Initialize());
+    PY4GW_ASSERT(PY4GW::Scanner::Initialize());
+    PY4GW_ASSERT(PY4GW::Patterns::Initialize());
 
-    py4gw::HookBase::Initialize();
+    PY4GW::HookBase::Initialize();
     if (!Init()) {
         Exit();
-        py4gw::HookBase::Deinitialize();
+        PY4GW::HookBase::Deinitialize();
         return false;
     }
 
@@ -303,11 +303,11 @@ void Shutdown() {
     WaitForRenderHooksToDrain();
 
     Exit();
-    py4gw::HookBase::Deinitialize();
+    PY4GW::HookBase::Deinitialize();
 
     g_in_render_loop = false;
     g_shutting_down = false;
     g_initialized = false;
 }
 
-}  // namespace gw::render
+}  // namespace GW::render

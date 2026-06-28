@@ -12,15 +12,15 @@
 
 namespace {
 
-py4gw::FileScanner fileScanner;
+PY4GW::FileScanner fileScanner;
 
 uintptr_t section_offset_from_disk = 0;
-py4gw::ScannerSectionRange mem_sections[static_cast<size_t>(py4gw::ScannerSection::Count)] = {};
+PY4GW::ScannerSectionRange mem_sections[static_cast<size_t>(PY4GW::ScannerSection::Count)] = {};
 bool g_initialized = false;
 
 }
 
-namespace py4gw {
+namespace PY4GW {
 
 bool Scanner::Initialize(HMODULE hModule) {
     if (g_initialized) {
@@ -209,4 +209,4 @@ uintptr_t Scanner::ToFunctionStart(uintptr_t call_instruction_address, uint32_t 
     return FindInRange("\x55\x8b\xec", "xxx", 0, call_instruction_address, call_instruction_address - scan_range);
 }
 
-}  // namespace py4gw
+}  // namespace PY4GW
