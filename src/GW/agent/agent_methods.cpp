@@ -187,32 +187,44 @@ namespace GW::agent {
         return ui::SendUIMessage(ui::UIMessage::kSendWorldAction, &packet);
     }
 
-    bool CallTarget(uint32_t agent_id) {
-        const auto* agent = GetAgentByID(agent_id);
-        const auto* living = agent ? agent->GetAsAgentLiving() : nullptr;
-        if (!living) {
+    AgentLiving* GetAgentLivingByID(uint32_t agent_id) { //Reimplement; this was removed from GWCA
+        auto* agents = agent_id ? GetAgentArray() : nullptr;
+        if (agents && agent_id < agents->size()) {
+            Agent* a = agents->at(agent_id);
+            if (a && a->GetIsLivingType()) {
+                return a->GetAsAgentLiving();
+            }
+        }
+        return nullptr;
+    }
+
+    bool CallTarget(const AgentLiving* agent) {
+        if (!agent) {
             return false;
         }
 
-        if (living->allegiance == Constants::Allegiance::Enemy) {
-            const auto* target = GetTarget();
-            if (!target) {
+        if (agent->allegiance == Constants::Allegiance::Enemy) {
+            const uint32_t target_id = agent->agent_id;
+            if (!target_id || !GetAgentLivingByID(target_id)) {
                 return false;
             }
-
             ui::packet::kSendCallTarget packet{
                 Constants::CallTargetType::AttackingOrTargetting,
-                target->agent_id
+                target_id
             };
             return ui::SendUIMessage(ui::UIMessage::kSendCallTarget, &packet);
         }
 
         ui::packet::kSendWorldAction packet{
             Constants::WorldActionId::InteractPlayerOrOther,
-            living->agent_id,
+            agent->agent_id,
             true
         };
         return ui::SendUIMessage(ui::UIMessage::kSendWorldAction, &packet);
+    }
+
+    bool CallTarget(uint32_t agent_id) {
+        return CallTarget(GetAgentLivingByID(agent_id));
     }
 
     wchar_t* GetPlayerNameByLoginNumber(uint32_t login_number) {

@@ -42,6 +42,7 @@ void __cdecl OnSendGadgetDialog(uint32_t dialog_id);
 void __cdecl OnChangeTarget(uint32_t agent_id, uint32_t auto_target_id);
 void __cdecl OnCallTarget(Constants::CallTargetType type, uint32_t target_id);
 void __cdecl OnDoWorldAction(Constants::WorldActionId action_id, uint32_t agent_id, bool suppress_call_target);
+bool ManagerCanFindAgent(uint32_t agent_id);
 void OnUIMessage(PY4GW::HookStatus* status, ui::UIMessage message_id, void* wparam, void* lparam);
 
 SendDialogFn g_send_agent_dialog_func = nullptr;
@@ -109,6 +110,20 @@ void __cdecl OnDoWorldAction(Constants::WorldActionId action_id, uint32_t agent_
     PY4GW::HookBase::LeaveHook();
 }
 
+// Mirrors the game's ManagerFindAgent (AvSelect.cpp): an agent id is only
+// "findable" when it is within the agent table bounds and the slot pointer is
+// non-null. SetSelections/CallTarget assert (and crash on assertion-enabled
+// builds) when a non-zero id is not findable at the moment the action runs.
+// The agent table read here (m_buffer/m_size) is the exact same table the
+// game indexes, so this check is equivalent to ManagerFindAgent(id) != 0.
+// Agent id 0 is always allowed (it clears the selection and is not asserted).
+bool ManagerCanFindAgent(uint32_t agent_id) {
+    if (agent_id == 0)
+        return true;
+    Context::AgentArray* agents = Context::GetAgentArray();
+    return agents && agent_id < agents->size() && agents->at(agent_id) != nullptr;
+}
+
 void OnUIMessage(PY4GW::HookStatus* status, ui::UIMessage message_id, void* wparam, void*) {
     if (status && status->blocked) {
         return;
@@ -128,7 +143,12 @@ void OnUIMessage(PY4GW::HookStatus* status, ui::UIMessage message_id, void* wpar
     case ui::UIMessage::kSendChangeTarget:
         if (g_change_target_original) {
             const auto* packet = static_cast<ui::packet::kSendChangeTarget*>(wparam);
-            if (packet) {
+            // Last-moment guard, synchronous with the real SetSelections call:
+            // skip if either id would trip AvSelect.cpp:780/781
+            // (!(id && !ManagerFindAgent(id))) instead of letting the client crash.
+            if (packet &&
+                ManagerCanFindAgent(packet->target_id) &&
+                ManagerCanFindAgent(packet->auto_target_id)) {
                 g_change_target_original(packet->target_id, packet->auto_target_id);
             }
         }
@@ -146,7 +166,9 @@ void OnUIMessage(PY4GW::HookStatus* status, ui::UIMessage message_id, void* wpar
     case ui::UIMessage::kSendCallTarget:
         if (g_call_target_original) {
             const auto* packet = static_cast<ui::packet::kSendCallTarget*>(wparam);
-            if (packet) {
+            // Skip calling a target the game can no longer find, same rationale
+            // as kSendChangeTarget above.
+            if (packet && ManagerCanFindAgent(packet->agent_id)) {
                 g_call_target_original(packet->call_type, packet->agent_id);
             }
         }

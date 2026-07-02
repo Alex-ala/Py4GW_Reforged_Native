@@ -37,3 +37,6 @@ __pycache__/
 # Logs and dumps
 *.log
 *.dmp
+
+# Per-account runtime settings (INI documents, imgui layouts)
+/settings/

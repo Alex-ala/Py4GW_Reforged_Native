@@ -7,6 +7,7 @@
 #include "base/memory_manager.h"
 #include "base/memory_patcher.h"
 #include "GW/agent/agent.h"
+#include "GW/agent_recolor/agent_recolor.h"
 #include "GW/camera/camera.h"
 #include "GW/chat/chat.h"
 #include "GW/context/context.h"
@@ -18,6 +19,7 @@
 #include "GW/item/item.h"
 #include "GW/map/map.h"
 #include "GW/merchant/merchant.h"
+#include "GW/name_obfuscator/name_obfuscator.h"
 #include "GW/party/party.h"
 #include "GW/player/player.h"
 #include "GW/quest/quest.h"
@@ -45,7 +47,7 @@ bool ScanMemoryManager() {
 void ShutdownMemoryManager() {
 }
 
-constexpr std::array<InitStep, 21> kInitSteps = {{
+constexpr std::array<InitStep, 23> kInitSteps = {{
     {"game_thread", "initialize", &GW::game_thread::Initialize, &GW::game_thread::Shutdown},
     {"stoc", "initialize", &GW::StoC::Initialize, &GW::StoC::Shutdown},
     {"render", "initialize", &GW::render::Initialize, &GW::render::Shutdown},
@@ -67,6 +69,8 @@ constexpr std::array<InitStep, 21> kInitSteps = {{
     {"merchant", "initialize", &GW::merchant::Initialize, &GW::merchant::Shutdown},
     {"skillbar", "initialize", &GW::skillbar::Initialize, &GW::skillbar::Shutdown},
     {"party", "initialize", &GW::party::Initialize, &GW::party::Shutdown},
+    {"name_obfuscator", "initialize", &GW::name_obfuscator::Initialize, &GW::name_obfuscator::Shutdown},
+    {"agent_recolor", "initialize", &GW::agent_recolor::Initialize, &GW::agent_recolor::Shutdown},
 }};
 
 void ShutdownInitializedSteps(size_t count) {

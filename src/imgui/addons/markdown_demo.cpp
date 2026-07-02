@@ -59,4 +59,17 @@ Visit [Dear ImGui](https://github.com/ocornut/imgui) or [ImPlot](https://github.
     ImGui::Markdown(kMarkdown, strlen(kMarkdown), config);
 }
 
+void RenderText(const char* text, std::size_t len) {
+    static ImGui::MarkdownConfig config = [] {
+        ImGui::MarkdownConfig value;
+        value.linkCallback = &LinkCallback;
+        value.imageCallback = &ImageCallback;
+        value.formatFlags = ImGuiMarkdownFormatFlags_GithubStyle;
+        return value;
+    }();
+    if (text && len) {
+        ImGui::Markdown(text, len, config);
+    }
+}
+
 }  // namespace PY4GW::imgui::addons::markdown_demo

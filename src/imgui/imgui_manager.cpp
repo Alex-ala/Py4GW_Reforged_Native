@@ -8,6 +8,7 @@
 #include "base/logger.h"
 #include "imgui/console_host_ui.h"
 #include "imgui/font_manager.h"
+#include "system/system.h"
 
 #include <WindowsX.h>
 #include <d3d9.h>
@@ -15,6 +16,9 @@
 #include <imgui.h>
 #include <imgui_impl_dx9.h>
 #include <imgui_impl_win32.h>
+
+#include <filesystem>
+#include <string>
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 
@@ -28,6 +32,35 @@ bool g_dragging_initialized = false;
 HWND g_game_window = nullptr;
 WNDPROC g_original_wndproc = nullptr;
 PY4GW::imgui::ShutdownCallback g_shutdown_callback = nullptr;
+bool g_account_ini_applied = false;
+std::string g_account_ini_path;
+
+// Ini persistence stays disabled until the account anchor is resolved; then
+// ImGui reads/writes its layout under <dll_dir>/settings/<email>/imgui.ini.
+void ApplyAccountIniPath() {
+    if (g_account_ini_applied) {
+        return;
+    }
+
+    auto& system = PY4GW::System::Instance();
+    if (!system.HasAccountEmail()) {
+        return;
+    }
+    const auto settings_dir = system.GetSettingsDirectory();
+    if (settings_dir.empty()) {
+        return;
+    }
+
+    g_account_ini_path = (settings_dir / "imgui.ini").string();
+    ImGuiIO& io = ImGui::GetIO();
+    io.IniFilename = g_account_ini_path.c_str();
+
+    std::error_code ec;
+    if (std::filesystem::exists(g_account_ini_path, ec)) {
+        ImGui::LoadIniSettingsFromDisk(g_account_ini_path.c_str());
+    }
+    g_account_ini_applied = true;
+}
 
 bool SetupImGuiFonts() {
     return PY4GW::imgui::FontManager::Instance().Initialize();
@@ -296,6 +329,7 @@ bool Initialize(IDirect3DDevice9* device) {
 
     ImGuiIO& io = ImGui::GetIO();
     io.IniFilename = nullptr;
+    g_account_ini_applied = false;
     io.LogFilename = nullptr;
     io.MouseDrawCursor = false;
     io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
@@ -354,6 +388,8 @@ bool BeginFrame(IDirect3DDevice9* device) {
         }
         return false;
     }
+
+    ApplyAccountIniPath();
 
     ImGui_ImplDX9_NewFrame();
     ImGui_ImplWin32_NewFrame();

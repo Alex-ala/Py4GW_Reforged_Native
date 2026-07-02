@@ -5,7 +5,6 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
-#include <vector>
 
 enum class MessageType {
     Info,
@@ -16,15 +15,6 @@ enum class MessageType {
     Performance,
     Notice,
     Hook
-};
-
-struct LoggerEntry {
-    std::string timestamp;
-    std::string display_timestamp;
-    std::string module_name;
-    std::string level;
-    MessageType message_type;
-    std::string message;
 };
 
 class Logger {
@@ -52,13 +42,16 @@ public:
 
     static const std::unordered_map<std::string, uintptr_t>& GetScanResults();
     static const std::unordered_map<std::string, int>& GetHookResults();
-    std::vector<LoggerEntry> GetEntries() const;
-    void ClearEntries();
+
+    // File-only write; does not touch the on-screen console buffer.
+    bool WriteFileLine(const std::string& module_name, const std::string& level, const std::string& message);
 
     void SetLogFile(const std::string& file_path);
 
+    static const char* MessageTypeToLevel(MessageType message_type);
+    static MessageType LevelToMessageType(const std::string& level);
+
 private:
-    int max_entries = 1000;
     Logger() = default;
     ~Logger() = default;
     Logger(const Logger&) = delete;
@@ -66,10 +59,7 @@ private:
 
     std::mutex log_mutex_;
     std::string log_file_path_;
-    std::vector<LoggerEntry> entries_;
 
     std::string GetTimestamp(const char* format) const;
-    static const char* MessageTypeToLevel(MessageType message_type);
-    static MessageType LevelToMessageType(const std::string& level);
     bool WriteLog(const std::string& module_name, const std::string& level, MessageType message_type, const std::string& message, bool export_to_disk);
 };

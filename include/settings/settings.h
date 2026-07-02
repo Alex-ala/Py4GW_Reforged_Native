@@ -1,0 +1,124 @@
+#pragma once
+
+#include "base/error_handling.h"
+
+#include <cstdint>
+#include <filesystem>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <vector>
+
+namespace PY4GW {
+
+// INI-backed settings per docs/settings-ini-design.md. Documents are owned by
+// SettingsManager and anchored inside the DLL-side settings tree:
+//   Scope::Account -> settings/<email>/<name>  (staged until anchor resolves)
+//   Scope::Global  -> settings/<name>          (bound immediately)
+
+enum class SettingsScope {
+    Account,
+    Global
+};
+
+class IniFile {
+public:
+    // Typed getters never throw: missing key or unconvertible text returns
+    // the caller's default.
+    std::string GetString(const std::string& section, const std::string& key, const std::string& default_value = "") const;
+    bool GetBool(const std::string& section, const std::string& key, bool default_value = false) const;
+    long long GetInt(const std::string& section, const std::string& key, long long default_value = 0) const;
+    double GetFloat(const std::string& section, const std::string& key, double default_value = 0.0) const;
+
+    // Setters take effect in memory immediately and mark the document dirty;
+    // the manager autosave pump persists it.
+    void SetString(const std::string& section, const std::string& key, const std::string& value);
+    void SetBool(const std::string& section, const std::string& key, bool value);
+    void SetInt(const std::string& section, const std::string& key, long long value);
+    void SetFloat(const std::string& section, const std::string& key, double value);
+
+    bool HasKey(const std::string& section, const std::string& key) const;
+    std::vector<std::string> GetSections() const;
+    std::vector<std::string> GetKeys(const std::string& section) const;
+    bool DeleteKey(const std::string& section, const std::string& key);
+    bool DeleteSection(const std::string& section);
+
+    // Escape hatches; normal flow relies on the autosave pump.
+    bool Save();
+    bool Reload();
+
+    bool IsDirty() const;
+    bool IsBound() const;
+    const std::string& Name() const;
+    SettingsScope Scope() const;
+
+private:
+    friend class SettingsManager;
+
+    struct IniLine {
+        enum class Kind { KeyValue, Comment, Raw };
+        Kind kind = Kind::Raw;
+        std::string key;
+        std::string value;
+        std::string raw;
+    };
+    struct IniSection {
+        std::string name;  // empty name = preamble before the first header
+        std::vector<IniLine> lines;
+    };
+
+    IniFile(std::string name, SettingsScope scope);
+    IniFile(const IniFile&) = delete;
+    IniFile& operator=(const IniFile&) = delete;
+
+    void Bind(const std::filesystem::path& path);
+    void AutosaveTick(uint64_t now_ms);
+
+    bool LoadLocked();
+    bool SaveLocked();
+    std::string SerializeLocked() const;
+    void ParseLocked(const std::string& content);
+    void MarkDirtyLocked();
+
+    const IniSection* FindSectionLocked(const std::string& section) const;
+    IniSection& FindOrCreateSectionLocked(const std::string& section);
+    const IniLine* FindKeyLocked(const std::string& section, const std::string& key) const;
+    void SetValueLocked(const std::string& section, const std::string& key, const std::string& value);
+
+    mutable std::mutex mutex_;
+    std::string name_;
+    SettingsScope scope_;
+    std::filesystem::path path_;
+    bool bound_ = false;
+    bool dirty_ = false;
+    uint64_t first_dirty_tick_ = 0;
+    uint64_t last_change_tick_ = 0;
+    std::vector<IniSection> sections_;
+};
+
+class SettingsManager {
+public:
+    static SettingsManager& Instance();
+
+    // Returns the process-wide document for (name, scope); same pair always
+    // yields the same document. Names are sanitized to a bare filename.
+    IniFile& Open(const std::string& name, SettingsScope scope = SettingsScope::Account);
+
+    // Stepped from the runtime update loop: binds account documents once the
+    // account anchor resolves, then runs the debounced autosave pump.
+    void Update();
+
+    // Saves every dirty bound document; wired into shutdown.
+    void FlushAll();
+
+private:
+    SettingsManager() = default;
+    ~SettingsManager() = default;
+    SettingsManager(const SettingsManager&) = delete;
+    SettingsManager& operator=(const SettingsManager&) = delete;
+
+    std::mutex registry_mutex_;
+    std::vector<std::unique_ptr<IniFile>> documents_;
+};
+
+}  // namespace PY4GW

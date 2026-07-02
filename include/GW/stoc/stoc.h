@@ -73,6 +73,12 @@ void RemovePostCallback(PY4GW::HookEntry* entry) {
     RemovePostCallback(Packet::StoC::Packet<T>::STATIC_HEADER, entry);
 }
 
+// Returns the resolved template size for a header from the live handler
+// table, or sizeof(PacketBase) when the header is out of range or the table
+// is not resolved. Exposed for consumers that need per-header packet sizes
+// (e.g. the packet sniffer) without re-scanning the handler table.
+uint32_t GetPacketSize(uint32_t header);
+
 bool EmulatePacket(Packet::StoC::PacketBase* packet);
 
 template <typename T>

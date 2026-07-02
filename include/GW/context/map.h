@@ -226,6 +226,27 @@ namespace GW::Context {
         //... Player coords and shit beyond this point if they are desirable :p
     };
 
+#pragma pack(push, 1)
+    struct MapContextSnapshot {
+        float map_boundaries[5] = {};
+        float trapezoid_bounds[6] = {};
+        uintptr_t terrain = 0;
+        uintptr_t zones = 0;
+        uintptr_t props = 0;
+        uintptr_t pathing_sub1 = 0;
+        uintptr_t pathing_sub2 = 0;
+        uint32_t pathing_map_count = 0;
+        uint32_t pathing_block_count = 0;
+        uint32_t total_trapezoid_count = 0;
+        uint32_t prop_model_count = 0;
+        uint32_t prop_array_count = 0;
+        uintptr_t instance_info = 0;
+        uint32_t instance_type = 0;
+        uintptr_t current_map_info = 0;
+        uint32_t terrain_count = 0;
+    };
+#pragma pack(pop)
+
     static_assert(offsetof(MapContext, sub1) == 0x74, "MapContext::sub1 offset mismatch");
     static_assert(offsetof(MapContext, props) == 0x7C, "MapContext::props offset mismatch");
     static_assert(offsetof(MapContext, terrain) == 0x84, "MapContext::terrain offset mismatch");

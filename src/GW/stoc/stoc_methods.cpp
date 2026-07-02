@@ -109,6 +109,20 @@ void RemovePostCallback(uint32_t header, PY4GW::HookEntry* entry) {
     RemoveCallback(header, entry);
 }
 
+uint32_t GetPacketSize(uint32_t header) {
+    uint32_t size = sizeof(Packet::StoC::PacketBase);
+    SafeInitializeCriticalSection(&g_mutex);
+    ::EnterCriticalSection(&g_mutex);
+    if (g_game_server_handlers && g_game_server_handlers->size() > header) {
+        const uint32_t template_size = g_game_server_handlers->at(header).template_size;
+        if (template_size) {
+            size = template_size;
+        }
+    }
+    ::LeaveCriticalSection(&g_mutex);
+    return size;
+}
+
 bool EmulatePacket(Packet::StoC::PacketBase* packet) {
     return OriginalHandler(packet);
 }

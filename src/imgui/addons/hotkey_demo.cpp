@@ -7,6 +7,7 @@
 #include <imgui.h>
 
 #include <array>
+#include <vector>
 
 namespace ImGui {
 
@@ -102,6 +103,26 @@ void Render() {
         ImHotKey::GetHotKeyLib(hotkey.functionKeys, label, sizeof(label), hotkey.functionName);
         ImGui::BulletText("%s", label);
     }
+}
+
+void EditKeys(const char** names, const char** libs, unsigned int* keys, int count, const char* popup_label) {
+    if (count <= 0 || !names || !keys) {
+        return;
+    }
+    std::vector<ImHotKey::HotKey> hk(static_cast<size_t>(count));
+    for (int i = 0; i < count; ++i) {
+        hk[i].functionName = names[i];
+        hk[i].functionLib = libs ? libs[i] : "";
+        hk[i].functionKeys = keys[i];
+    }
+    ImHotKey::Edit(hk.data(), hk.size(), popup_label);
+    for (int i = 0; i < count; ++i) {
+        keys[i] = hk[i].functionKeys;
+    }
+}
+
+void KeyLib(unsigned int keys, char* buffer, std::size_t buffer_size) {
+    ImHotKey::GetHotKeyLib(keys, buffer, buffer_size);
 }
 
 }  // namespace PY4GW::imgui::addons::hotkey_demo

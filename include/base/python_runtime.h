@@ -19,6 +19,15 @@ void ExecutePythonUpdate();
 void ExecutePythonDraw();
 void ProcessDeferredActions();
 
+// Widget manager: an always-on second script host (Py4GW_widget_manager.py),
+// independent of the user/console script.
+bool StartWidgetManager();
+void StopWidgetManager();
+void ExecuteWidgetManagerUpdate();
+void ExecuteWidgetManagerDraw();
+ScriptState GetWidgetManagerState();
+std::string GetWidgetManagerStatus();
+
 bool SetSelectedScriptPath(const std::string& path);
 const std::string& GetSelectedScriptPath();
 

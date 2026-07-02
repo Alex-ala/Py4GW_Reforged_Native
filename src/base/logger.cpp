@@ -3,6 +3,7 @@
 #include "base/logger.h"
 
 #include "base/process_manager.h"
+#include "system/system.h"
 
 #include <ctime>
 #include <filesystem>
@@ -24,16 +25,6 @@ const std::unordered_map<std::string, uintptr_t>& Logger::GetScanResults() {
 
 const std::unordered_map<std::string, int>& Logger::GetHookResults() {
     return s_hook_results;
-}
-
-std::vector<LoggerEntry> Logger::GetEntries() const {
-    std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(log_mutex_));
-    return entries_;
-}
-
-void Logger::ClearEntries() {
-    std::lock_guard<std::mutex> lock(log_mutex_);
-    entries_.clear();
 }
 
 void Logger::SetLogFile(const std::string& file_path) {
@@ -163,16 +154,29 @@ MessageType Logger::LevelToMessageType(const std::string& level) {
     return MessageType::Info;
 }
 
-bool Logger::WriteLog(const std::string& module_name, const std::string& level, MessageType message_type, const std::string& message, bool export_to_disk) {
+bool Logger::WriteFileLine(const std::string& module_name, const std::string& level, const std::string& message) {
     std::lock_guard<std::mutex> lock(log_mutex_);
-    const std::string timestamp = GetTimestamp("%Y-%m-%d %H:%M:%S");
-    const std::string display_timestamp = GetTimestamp("%H:%M:%S");
-    const std::string line = timestamp + " [" + module_name + "] [" + level + "] " + message;
-    entries_.push_back({ timestamp, display_timestamp, module_name, level, message_type, message });
-    if (entries_.size() > max_entries) {
-        entries_.erase(entries_.begin(), entries_.begin() + (entries_.size() - max_entries));
+    const std::string line = GetTimestamp("%Y-%m-%d %H:%M:%S") + " [" + module_name + "] [" + level + "] " + message;
+    try {
+        if (!log_file_path_.empty()) {
+            std::ofstream log_file(log_file_path_, std::ios::out | std::ios::app);
+            if (log_file.is_open()) {
+                log_file << line << std::endl;
+                log_file.close();
+            }
+        }
+        ::OutputDebugStringA((line + "\n").c_str());
     }
+    catch (...) {
+    }
+    return true;
+}
 
+bool Logger::WriteLog(const std::string& module_name, const std::string& level, MessageType message_type, const std::string& message, bool export_to_disk) {
+    PY4GW::System::Instance().AppendConsoleMessage(module_name, message_type, message);
+
+    std::lock_guard<std::mutex> lock(log_mutex_);
+    const std::string line = GetTimestamp("%Y-%m-%d %H:%M:%S") + " [" + module_name + "] [" + level + "] " + message;
     try {
         if (export_to_disk && !log_file_path_.empty()) {
             std::ofstream log_file(log_file_path_, std::ios::out | std::ios::app);

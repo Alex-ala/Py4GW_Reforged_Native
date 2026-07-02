@@ -14,6 +14,11 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+if(MSVC)
+    # Compile translation units in parallel within each target.
+    add_compile_options(/MP)
+endif()
+
 option(PY4GW_BUILD_IMGUI_DEMO "Compile Dear ImGui demo sources." ON)
 
 # Keep the injected DLL beside the runtime payload directories so the module can
@@ -143,14 +148,3 @@ target_link_libraries(Py4GW
         winmm.lib
 )
 
-add_custom_command(TARGET Py4GW POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_CURRENT_SOURCE_DIR}/fonts
-        $<TARGET_FILE_DIR:Py4GW>/fonts
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_CURRENT_SOURCE_DIR}/scripts
-        $<TARGET_FILE_DIR:Py4GW>/scripts
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_CURRENT_SOURCE_DIR}/offsets
-        $<TARGET_FILE_DIR:Py4GW>/offsets
-)

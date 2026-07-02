@@ -2,8 +2,10 @@
 
 #include "base/python_runtime.h"
 
+#include "GW/shared_memory/manager.h"
 #include "base/logger.h"
 #include "base/process_manager.h"
+#include "system/system.h"
 #include "base/timer.h"
 
 #include <imgui.h>
@@ -23,15 +25,7 @@ namespace {
 
 py::scoped_interpreter* g_python_runtime = nullptr;
 PyThreadState* g_python_thread_state = nullptr;
-ScriptState g_script_state = ScriptState::Stopped;
-std::string g_selected_script_path;
-std::string g_loaded_script_content;
-py::object g_script_module;
-py::object g_main_function;
-py::object g_update_function;
-py::object g_draw_function;
 py::object g_console_scope;
-PY4GW::Timer g_script_timer;
 
 struct DeferredMixedCommand {
     std::function<void()> action;
@@ -42,22 +36,13 @@ struct DeferredMixedCommand {
 
 DeferredMixedCommand g_mixed_deferred;
 
-bool CallPythonFunctionSafe(py::object& fn, const char* label) {
-    if (!fn || fn.is_none()) {
-        return false;
+std::string Narrow(std::wstring_view value) {
+    std::string out;
+    out.reserve(value.size());
+    for (const wchar_t ch : value) {
+        out.push_back(ch >= 0 && ch <= 0x7f ? static_cast<char>(ch) : '?');
     }
-
-    try {
-        fn();
-        return true;
-    } catch (const py::error_already_set& error) {
-        g_script_state = ScriptState::Stopped;
-        Logger::Instance().LogError(std::string("Python error (") + label + "): " + error.what());
-    } catch (const std::exception& error) {
-        g_script_state = ScriptState::Stopped;
-        Logger::Instance().LogError(std::string("Runtime error (") + label + "): " + error.what());
-    }
-    return false;
+    return out;
 }
 
 py::object GetCallableIfExists(py::object& module, const char* name) {
@@ -75,36 +60,250 @@ py::object GetCallableIfExists(py::object& module, const char* name) {
 std::string LoadPythonScript(const std::string& file_path) {
     std::ifstream script_file(file_path);
     if (!script_file.is_open()) {
-        Logger::Instance().LogError("Failed to open script file: " + file_path);
+        System::Instance().WriteConsoleMessage("Py4GW", MessageType::Error, "Failed to open script file: " + file_path);
         return {};
     }
 
     std::stringstream buffer;
     buffer << script_file.rdbuf();
     if (buffer.str().empty()) {
-        Logger::Instance().LogError("Script file is empty: " + file_path);
+        System::Instance().WriteConsoleMessage("Py4GW", MessageType::Error, "Script file is empty: " + file_path);
     }
     return buffer.str();
 }
 
-void ResetScriptEnvironment() {
-    g_loaded_script_content.clear();
-    g_script_module = py::object();
-    g_main_function = py::object();
-    g_update_function = py::object();
-    g_draw_function = py::object();
-    g_script_state = ScriptState::Stopped;
-    Logger::Instance().LogNotice("Python environment reset.");
-}
+// One independent Python script environment: module, entry points, run state,
+// and timer. Two instances exist - the user/console script and the always-on
+// widget manager - so both run side by side without sharing state.
+class ScriptHost {
+public:
+    ScriptHost(std::string console_name, std::string display)
+        : console_name_(std::move(console_name)), display_(std::move(display)) {}
 
-void ClearScriptEnvironment() {
-    g_loaded_script_content.clear();
-    g_script_module = py::object();
-    g_main_function = py::object();
-    g_update_function = py::object();
-    g_draw_function = py::object();
-    g_script_state = ScriptState::Stopped;
-}
+    bool SetPath(const std::string& path) {
+        selected_path_ = path;
+        return !selected_path_.empty();
+    }
+    const std::string& GetPath() const { return selected_path_; }
+
+    ScriptState State() const { return state_; }
+    const char* StateLabel() const {
+        switch (state_) {
+        case ScriptState::Running: return "Running";
+        case ScriptState::Paused: return "Paused";
+        case ScriptState::Stopped: return "Stopped";
+        }
+        return "Unknown";
+    }
+    double ElapsedMs() const { return timer_.getElapsedTime(); }
+    bool HasLoaded() const { return !loaded_content_.empty(); }
+    py::object& Module() { return module_; }
+
+    void Reset(bool announce) {
+        loaded_content_.clear();
+        module_ = py::object();
+        main_fn_ = py::object();
+        update_fn_ = py::object();
+        draw_fn_ = py::object();
+        state_ = ScriptState::Stopped;
+        if (announce) {
+            System::Instance().WriteConsoleMessage(console_name_, MessageType::Notice, "Python environment reset.");
+        }
+    }
+
+    void MarkStarted() {
+        state_ = ScriptState::Running;
+        timer_.reset();
+    }
+
+    bool Load() {
+        if (selected_path_.empty()) {
+            System::Instance().WriteConsoleMessage(console_name_, MessageType::Error, display_ + " path is empty.");
+            return false;
+        }
+
+        py::gil_scoped_acquire gil;
+        Reset(false);
+        loaded_content_ = LoadPythonScript(selected_path_);
+        if (loaded_content_.empty()) {
+            System::Instance().WriteConsoleMessage(console_name_, MessageType::Error, "Failed to load " + LowerDisplay() + ".");
+            return false;
+        }
+
+        try {
+            py::module_ py_compile = py::module_::import("py_compile");
+            try {
+                py_compile.attr("compile")(selected_path_, py::none(), py::none(), py::bool_(true));
+                System::Instance().WriteConsoleMessage(console_name_, MessageType::Notice, display_ + " compiled successfully.");
+            } catch (const py::error_already_set& error) {
+                System::Instance().WriteConsoleMessage(console_name_, MessageType::Error, std::string("Python syntax error: ") + error.what());
+                state_ = ScriptState::Stopped;
+                return false;
+            }
+
+            py::object types_module = py::module_::import("types");
+            module_ = types_module.attr("ModuleType")("py4gw_script_module");
+            module_.attr("__file__") = py::str(selected_path_);
+            try {
+                py::exec(loaded_content_, module_.attr("__dict__"));
+            } catch (const py::error_already_set& error) {
+                System::Instance().WriteConsoleMessage(console_name_, MessageType::Error, std::string("Python error: ") + error.what());
+                state_ = ScriptState::Stopped;
+                return false;
+            }
+
+            main_fn_ = GetCallableIfExists(module_, "main");
+            update_fn_ = GetCallableIfExists(module_, "update");
+            draw_fn_ = GetCallableIfExists(module_, "draw");
+
+            if (draw_fn_ && !draw_fn_.is_none()) {
+                System::Instance().WriteConsoleMessage(console_name_, MessageType::Notice, "draw() function found.");
+            }
+            if (update_fn_ && !update_fn_.is_none()) {
+                System::Instance().WriteConsoleMessage(console_name_, MessageType::Notice, "update() function found.");
+            }
+            if (main_fn_ && !main_fn_.is_none()) {
+                System::Instance().WriteConsoleMessage(console_name_, MessageType::Notice, "main() function found.");
+            }
+
+            if ((main_fn_ && !main_fn_.is_none()) ||
+                (update_fn_ && !update_fn_.is_none()) ||
+                (draw_fn_ && !draw_fn_.is_none())) {
+                return true;
+            }
+
+            state_ = ScriptState::Stopped;
+            System::Instance().WriteConsoleMessage(console_name_, MessageType::Error, "No main()/update()/draw() function found in the " + LowerDisplay() + ".");
+        } catch (const py::error_already_set& error) {
+            System::Instance().WriteConsoleMessage(console_name_, MessageType::Error, std::string("Python error: ") + error.what());
+            state_ = ScriptState::Stopped;
+        } catch (const std::exception& error) {
+            System::Instance().WriteConsoleMessage(console_name_, MessageType::Error, std::string("Standard exception: ") + error.what());
+            state_ = ScriptState::Stopped;
+        } catch (...) {
+            System::Instance().WriteConsoleMessage(console_name_, MessageType::Error, "Unknown error occurred during script execution.");
+            state_ = ScriptState::Stopped;
+        }
+        return false;
+    }
+
+    bool Start() {
+        if (state_ == ScriptState::Paused) {
+            state_ = ScriptState::Running;
+            timer_.Resume();
+            System::Instance().WriteConsoleMessage(console_name_, MessageType::Notice, display_ + " resumed.");
+            return true;
+        }
+        if (!Load()) {
+            Reset(false);
+            state_ = ScriptState::Stopped;
+            timer_.stop();
+            System::Instance().WriteConsoleMessage(console_name_, MessageType::Notice, display_ + " stopped.");
+            return false;
+        }
+        MarkStarted();
+        System::Instance().WriteConsoleMessage(console_name_, MessageType::Notice, display_ + " started.");
+        return true;
+    }
+
+    bool Run() {
+        if (state_ == ScriptState::Stopped && Load()) {
+            MarkStarted();
+            System::Instance().WriteConsoleMessage(console_name_, MessageType::Notice, display_ + " started.");
+            return true;
+        }
+        return false;
+    }
+
+    void Stop() {
+        py::gil_scoped_acquire gil;
+        Reset(true);
+        state_ = ScriptState::Stopped;
+        timer_.stop();
+        System::Instance().WriteConsoleMessage(console_name_, MessageType::Notice, display_ + " stopped.");
+    }
+
+    bool Pause() {
+        if (state_ != ScriptState::Running) {
+            return false;
+        }
+        state_ = ScriptState::Paused;
+        timer_.Pause();
+        System::Instance().WriteConsoleMessage(console_name_, MessageType::Notice, display_ + " paused.");
+        return true;
+    }
+
+    bool Resume() {
+        if (state_ != ScriptState::Paused) {
+            return false;
+        }
+        state_ = ScriptState::Running;
+        timer_.Resume();
+        System::Instance().WriteConsoleMessage(console_name_, MessageType::Notice, display_ + " resumed.");
+        return true;
+    }
+
+    void ExecuteUpdate() {
+        if (state_ != ScriptState::Running || loaded_content_.empty()) {
+            return;
+        }
+        py::gil_scoped_acquire gil;
+        CallSafe(update_fn_, "update()");
+    }
+
+    void ExecuteDraw() {
+        if (state_ != ScriptState::Running || loaded_content_.empty()) {
+            return;
+        }
+        py::gil_scoped_acquire gil;
+        if (CallSafe(draw_fn_, "draw()")) {
+            return;
+        }
+        CallSafe(main_fn_, "main()");
+    }
+
+private:
+    std::string LowerDisplay() const {
+        std::string out = display_;
+        for (char& ch : out) {
+            if (ch >= 'A' && ch <= 'Z') {
+                ch = static_cast<char>(ch - 'A' + 'a');
+            }
+        }
+        return out;
+    }
+
+    bool CallSafe(py::object& fn, const char* label) {
+        if (!fn || fn.is_none()) {
+            return false;
+        }
+        try {
+            fn();
+            return true;
+        } catch (const py::error_already_set& error) {
+            state_ = ScriptState::Stopped;
+            System::Instance().WriteConsoleMessage(console_name_, MessageType::Error, std::string("Python error (") + label + "): " + error.what());
+        } catch (const std::exception& error) {
+            state_ = ScriptState::Stopped;
+            System::Instance().WriteConsoleMessage(console_name_, MessageType::Error, std::string("Runtime error (") + label + "): " + error.what());
+        }
+        return false;
+    }
+
+    std::string console_name_;
+    std::string display_;
+    ScriptState state_ = ScriptState::Stopped;
+    std::string selected_path_;
+    std::string loaded_content_;
+    py::object module_;
+    py::object main_fn_;
+    py::object update_fn_;
+    py::object draw_fn_;
+    PY4GW::Timer timer_;
+};
+
+ScriptHost g_user_host("Py4GW", "Script");
+ScriptHost g_widget_host("WidgetManager", "Widget manager");
 
 void ScheduleDeferredAction(std::function<void()> fn, int delay_ms) {
     g_mixed_deferred.action = std::move(fn);
@@ -117,39 +316,39 @@ void ScheduleDeferredAction(std::function<void()> fn, int delay_ms) {
 PYBIND11_EMBEDDED_MODULE(Py4GW, m) {
     m.doc() = "Embedded Py4GW runtime module.";
     m.def("version", []() { return "0.1.0"; });
-    m.def("log", [](const std::string& message) { Logger::Instance().LogInfo(message); });
+    m.def("log", [](const std::string& message) { PY4GW::System::Instance().WriteConsoleMessage("Py4GW", MessageType::Info, message); });
     m.def("get_projects_path", []() -> std::string {
         return process_manager::GetModuleDirectory().string();
     });
 
-    py::module_ console = m.def_submodule("Console", "Console and logger bindings");
-    console.def("log", [](const std::string& module_name, const std::string& message, const std::string& level, bool export_to_disk) {
-        Logger::Instance().Log(module_name, level, message, export_to_disk);
-    }, py::arg("module_name"), py::arg("message"), py::arg("level") = "INFO", py::arg("export") = false);
-    console.def("info", [](const std::string& module_name, const std::string& message, bool export_to_disk) {
-        Logger::Instance().Log(module_name, "INFO", message, export_to_disk);
-    }, py::arg("module_name"), py::arg("message"), py::arg("export") = false);
-    console.def("warning", [](const std::string& module_name, const std::string& message, bool export_to_disk) {
-        Logger::Instance().Log(module_name, "WARNING", message, export_to_disk);
-    }, py::arg("module_name"), py::arg("message"), py::arg("export") = false);
-    console.def("error", [](const std::string& module_name, const std::string& message, bool export_to_disk) {
-        Logger::Instance().Log(module_name, "ERROR", message, export_to_disk);
-    }, py::arg("module_name"), py::arg("message"), py::arg("export") = false);
-    console.def("notice", [](const std::string& module_name, const std::string& message, bool export_to_disk) {
-        Logger::Instance().Log(module_name, "NOTICE", message, export_to_disk);
-    }, py::arg("module_name"), py::arg("message"), py::arg("export") = false);
-    console.def("success", [](const std::string& module_name, const std::string& message, bool export_to_disk) {
-        Logger::Instance().Log(module_name, "SUCCESS", message, export_to_disk);
-    }, py::arg("module_name"), py::arg("message"), py::arg("export") = false);
-    console.def("debug", [](const std::string& module_name, const std::string& message, bool export_to_disk) {
-        Logger::Instance().Log(module_name, "DEBUG", message, export_to_disk);
-    }, py::arg("module_name"), py::arg("message"), py::arg("export") = false);
-    console.def("performance", [](const std::string& module_name, const std::string& message, bool export_to_disk) {
-        Logger::Instance().Log(module_name, "PERFORMANCE", message, export_to_disk);
-    }, py::arg("module_name"), py::arg("message"), py::arg("export") = false);
-    console.def("print", [](const std::string& message, bool export_to_disk) {
-        Logger::Instance().Log("Python", "INFO", message, export_to_disk);
-    }, py::arg("message"), py::arg("export") = false);
+    py::module_ console = m.def_submodule("Console", "Console output bindings (screen-only; see PySystem for full control)");
+    console.def("log", [](const std::string& module_name, const std::string& message, const std::string& level) {
+        PY4GW::System::Instance().WriteConsoleMessage(module_name, level, message);
+    }, py::arg("module_name"), py::arg("message"), py::arg("level") = "INFO");
+    console.def("info", [](const std::string& module_name, const std::string& message) {
+        PY4GW::System::Instance().WriteConsoleMessage(module_name, MessageType::Info, message);
+    }, py::arg("module_name"), py::arg("message"));
+    console.def("warning", [](const std::string& module_name, const std::string& message) {
+        PY4GW::System::Instance().WriteConsoleMessage(module_name, MessageType::Warning, message);
+    }, py::arg("module_name"), py::arg("message"));
+    console.def("error", [](const std::string& module_name, const std::string& message) {
+        PY4GW::System::Instance().WriteConsoleMessage(module_name, MessageType::Error, message);
+    }, py::arg("module_name"), py::arg("message"));
+    console.def("notice", [](const std::string& module_name, const std::string& message) {
+        PY4GW::System::Instance().WriteConsoleMessage(module_name, MessageType::Notice, message);
+    }, py::arg("module_name"), py::arg("message"));
+    console.def("success", [](const std::string& module_name, const std::string& message) {
+        PY4GW::System::Instance().WriteConsoleMessage(module_name, MessageType::Success, message);
+    }, py::arg("module_name"), py::arg("message"));
+    console.def("debug", [](const std::string& module_name, const std::string& message) {
+        PY4GW::System::Instance().WriteConsoleMessage(module_name, MessageType::Debug, message);
+    }, py::arg("module_name"), py::arg("message"));
+    console.def("performance", [](const std::string& module_name, const std::string& message) {
+        PY4GW::System::Instance().WriteConsoleMessage(module_name, MessageType::Performance, message);
+    }, py::arg("module_name"), py::arg("message"));
+    console.def("print", [](const std::string& message) {
+        PY4GW::System::Instance().WriteConsoleMessage("Python", MessageType::Info, message);
+    }, py::arg("message"));
     console.def("load", [](const std::string& path) {
         SetSelectedScriptPath(path);
         return LoadSelectedScript();
@@ -179,6 +378,50 @@ PYBIND11_EMBEDDED_MODULE(Py4GW, m) {
         DeferStopAndRun(delay_ms);
     }, py::arg("delay_ms") = 1000);
 
+    py::module_ shared_memory = m.def_submodule("SharedMemory", "Shared memory publisher bindings");
+    shared_memory.def("is_ready", []() {
+        return GW::shared_memory::RuntimeManager().IsValid();
+    });
+    shared_memory.def("get_name", []() {
+        const auto& name = GW::shared_memory::RuntimeManager().Name();
+        return Narrow(name);
+    });
+    shared_memory.def("get_size", []() {
+        return GW::shared_memory::RuntimeManager().Size();
+    });
+    shared_memory.def("get_sequence", []() {
+        const auto* header = GW::shared_memory::RuntimeManager().Header();
+        return header ? header->sequence : 0u;
+    });
+    shared_memory.def("get_frame_counter", []() {
+        const auto* header = GW::shared_memory::RuntimeManager().Header();
+        return header ? header->frame_counter : 0ull;
+    });
+    shared_memory.def("list_segments", []() {
+        return GW::shared_memory::RuntimeManager().GetSegmentNames();
+    });
+    shared_memory.def("get_segment", [](const std::string& name) {
+        py::dict result;
+        const auto descriptor = GW::shared_memory::RuntimeManager().GetSegmentDescriptor(name);
+        if (!descriptor.has_value()) {
+            return result;
+        }
+        result["name"] = std::string(descriptor->name);
+        result["offset"] = descriptor->offset;
+        result["size"] = descriptor->size;
+        result["update_interval_frames"] = descriptor->update_interval_frames;
+        result["publish_count"] = descriptor->publish_count;
+        result["last_published_frame"] = descriptor->last_published_frame;
+        result["last_result"] = descriptor->last_result;
+        return result;
+    }, py::arg("name"));
+    shared_memory.def("set_update_interval", [](const std::string& name, uint32_t frames) {
+        return GW::shared_memory::RuntimeManager().SetSegmentUpdateInterval(name, frames);
+    }, py::arg("name"), py::arg("frames"));
+    shared_memory.def("publish_now", [](const std::string& name) {
+        return GW::shared_memory::RuntimeManager().PublishSegment(name);
+    }, py::arg("name"));
+
     py::module_ imgui = m.def_submodule("ImGui", "Minimal ImGui bindings for script smoke tests");
     imgui.def("begin", [](const std::string& name) {
         return ImGui::Begin(name.c_str());
@@ -206,8 +449,34 @@ bool Initialize() {
             sys.attr("path").attr("insert")(0, (root / "scripts").string());
         }
         py::module_::import("Py4GW");
+        py::module_::import("PySystem");
+        py::module_::import("PySettings");
+        py::module_::import("PyProfiler");
+        py::module_::import("PyCallback");
+        py::module_::import("PyListeners");
+        py::module_::import("PyAgent");
+        py::module_::import("PyAgentRecolor");
+        py::module_::import("PyCamera");
+        py::module_::import("PyChat");
+        py::module_::import("PyEffects");
+        py::module_::import("PyFriendList");
+        py::module_::import("PyGameThread");
+        py::module_::import("PyGuild");
+        py::module_::import("PyItem");
+        py::module_::import("PyMap");
+        py::module_::import("PyMerchant");
+        py::module_::import("PyNameObfuscator");
+        py::module_::import("PyPacketSniffer");
+        py::module_::import("PyParty");
+        py::module_::import("PyPing");
+        py::module_::import("PyPlayer");
+        py::module_::import("PyQuest");
+        py::module_::import("PyRender");
+        py::module_::import("PySkillbar");
+        py::module_::import("PyKeystroke");
+        py::module_::import("PyMouse");
+        py::module_::import("PyImGui");
         g_console_scope = py::module_::import("__main__");
-        g_script_state = ScriptState::Stopped;
         g_python_thread_state = PyEval_SaveThread();
         return true;
     } catch (const std::exception& error) {
@@ -226,29 +495,45 @@ void Shutdown() {
         PyEval_RestoreThread(g_python_thread_state);
         g_python_thread_state = nullptr;
     }
-    ClearScriptEnvironment();
+    g_user_host.Reset(false);
+    g_widget_host.Reset(false);
     g_console_scope = py::object();
     delete g_python_runtime;
     g_python_runtime = nullptr;
 }
 
 void ExecutePythonUpdate() {
-    if (g_script_state != ScriptState::Running || g_loaded_script_content.empty()) {
-        return;
-    }
-    py::gil_scoped_acquire gil;
-    CallPythonFunctionSafe(g_update_function, "update()");
+    g_user_host.ExecuteUpdate();
 }
 
 void ExecutePythonDraw() {
-    if (g_script_state != ScriptState::Running || g_loaded_script_content.empty()) {
-        return;
-    }
-    py::gil_scoped_acquire gil;
-    if (CallPythonFunctionSafe(g_draw_function, "draw()")) {
-        return;
-    }
-    CallPythonFunctionSafe(g_main_function, "main()");
+    g_user_host.ExecuteDraw();
+}
+
+// Widget manager: an always-on second script host (Py4GW_widget_manager.py).
+bool StartWidgetManager() {
+    g_widget_host.SetPath((process_manager::GetModuleDirectory() / "Py4GW_widget_manager.py").string());
+    return g_widget_host.Run();
+}
+
+void StopWidgetManager() {
+    g_widget_host.Stop();
+}
+
+void ExecuteWidgetManagerUpdate() {
+    g_widget_host.ExecuteUpdate();
+}
+
+void ExecuteWidgetManagerDraw() {
+    g_widget_host.ExecuteDraw();
+}
+
+ScriptState GetWidgetManagerState() {
+    return g_widget_host.State();
+}
+
+std::string GetWidgetManagerStatus() {
+    return g_widget_host.StateLabel();
 }
 
 void ProcessDeferredActions() {
@@ -261,181 +546,62 @@ void ProcessDeferredActions() {
 }
 
 bool SetSelectedScriptPath(const std::string& path) {
-    g_selected_script_path = path;
-    return !g_selected_script_path.empty();
+    return g_user_host.SetPath(path);
 }
 
 const std::string& GetSelectedScriptPath() {
-    return g_selected_script_path;
+    return g_user_host.GetPath();
 }
 
 bool LoadSelectedScript() {
-    if (g_selected_script_path.empty()) {
-        Logger::Instance().LogError("Script path is empty.");
-        return false;
-    }
-
-    py::gil_scoped_acquire gil;
-    ClearScriptEnvironment();
-    g_loaded_script_content = LoadPythonScript(g_selected_script_path);
-    if (g_loaded_script_content.empty()) {
-        Logger::Instance().LogError("Failed to load script.");
-        return false;
-    }
-
-    try {
-        py::module_ py_compile = py::module_::import("py_compile");
-        try {
-            py_compile.attr("compile")(g_selected_script_path, py::none(), py::none(), py::bool_(true));
-            Logger::Instance().LogNotice("Script compiled successfully.");
-        } catch (const py::error_already_set& error) {
-            Logger::Instance().LogError(std::string("Python syntax error: ") + error.what());
-            g_script_state = ScriptState::Stopped;
-            return false;
-        }
-
-        py::object types_module = py::module_::import("types");
-        g_script_module = types_module.attr("ModuleType")("py4gw_script_module");
-        g_script_module.attr("__file__") = py::str(g_selected_script_path);
-        try {
-            py::exec(g_loaded_script_content, g_script_module.attr("__dict__"));
-        } catch (const py::error_already_set& error) {
-            Logger::Instance().LogError(std::string("Python error: ") + error.what());
-            g_script_state = ScriptState::Stopped;
-            return false;
-        }
-
-        g_main_function = GetCallableIfExists(g_script_module, "main");
-        g_update_function = GetCallableIfExists(g_script_module, "update");
-        g_draw_function = GetCallableIfExists(g_script_module, "draw");
-
-        if (g_draw_function && !g_draw_function.is_none()) {
-            Logger::Instance().LogNotice("draw() function found.");
-        }
-        if (g_update_function && !g_update_function.is_none()) {
-            Logger::Instance().LogNotice("update() function found.");
-        }
-        if (g_main_function && !g_main_function.is_none()) {
-            Logger::Instance().LogNotice("main() function found.");
-        }
-
-        if ((g_main_function && !g_main_function.is_none()) ||
-            (g_update_function && !g_update_function.is_none()) ||
-            (g_draw_function && !g_draw_function.is_none())) {
-            return true;
-        }
-
-        g_script_state = ScriptState::Stopped;
-        Logger::Instance().LogError("No main()/update()/draw() function found in the script.");
-    } catch (const py::error_already_set& error) {
-        Logger::Instance().LogError(std::string("Python error: ") + error.what());
-        g_script_state = ScriptState::Stopped;
-    } catch (const std::exception& error) {
-        Logger::Instance().LogError(std::string("Standard exception: ") + error.what());
-        g_script_state = ScriptState::Stopped;
-    } catch (...) {
-        Logger::Instance().LogError("Unknown error occurred during script execution.");
-        g_script_state = ScriptState::Stopped;
-    }
-
-    return false;
+    return g_user_host.Load();
 }
 
 bool StartSelectedScript() {
-    if (g_script_state == ScriptState::Paused) {
-        g_script_state = ScriptState::Running;
-        g_script_timer.Resume();
-        Logger::Instance().LogNotice("Script resumed.");
-        return true;
-    }
-    if (!LoadSelectedScript()) {
-        ResetScriptEnvironment();
-        g_script_state = ScriptState::Stopped;
-        g_script_timer.stop();
-        Logger::Instance().LogNotice("Script stopped.");
-        return false;
-    }
-    g_script_state = ScriptState::Running;
-    g_script_timer.reset();
-    Logger::Instance().LogNotice("Script started.");
-    return true;
+    return g_user_host.Start();
 }
 
 bool RunScript() {
-    if (g_script_state == ScriptState::Stopped) {
-        if (LoadSelectedScript()) {
-            g_script_state = ScriptState::Running;
-            g_script_timer.reset();
-            Logger::Instance().LogNotice("Script started from binding.");
-            return true;
-        }
-    }
-    return false;
+    return g_user_host.Run();
 }
 
 void StopScript() {
-    py::gil_scoped_acquire gil;
-    ResetScriptEnvironment();
-    g_script_state = ScriptState::Stopped;
-    g_script_timer.stop();
-    Logger::Instance().LogNotice("Script stopped.");
+    g_user_host.Stop();
 }
 
 bool PauseScript() {
-    if (g_script_state != ScriptState::Running) {
-        return false;
-    }
-    g_script_state = ScriptState::Paused;
-    g_script_timer.Pause();
-    Logger::Instance().LogNotice("Script paused.");
-    return true;
+    return g_user_host.Pause();
 }
 
 bool ResumeScript() {
-    if (g_script_state != ScriptState::Paused) {
-        return false;
-    }
-    g_script_state = ScriptState::Running;
-    g_script_timer.Resume();
-    Logger::Instance().LogNotice("Script resumed.");
-    return true;
+    return g_user_host.Resume();
 }
 
 std::string GetScriptStatus() {
-    switch (g_script_state) {
-    case ScriptState::Running:
-        return "Running";
-    case ScriptState::Paused:
-        return "Paused";
-    case ScriptState::Stopped:
-        return "Stopped";
-    }
-    return "Unknown";
+    return g_user_host.StateLabel();
 }
 
 double GetScriptElapsedMilliseconds() {
-    return g_script_timer.getElapsedTime();
+    return g_user_host.ElapsedMs();
 }
 
 void DeferLoadAndRun(const std::string& path, int delay_ms) {
     ScheduleDeferredAction([path]() {
-        SetSelectedScriptPath(path);
-        if (LoadSelectedScript()) {
-            g_script_state = ScriptState::Running;
-            g_script_timer.reset();
-            Logger::Instance().LogNotice("Deferred: script loaded and started.");
+        g_user_host.SetPath(path);
+        if (g_user_host.Load()) {
+            g_user_host.MarkStarted();
+            System::Instance().WriteConsoleMessage("Py4GW", MessageType::Notice, "Deferred: script loaded and started.");
         }
     }, delay_ms);
 }
 
 void DeferStopLoadAndRun(const std::string& path, int delay_ms) {
     ScheduleDeferredAction([path]() {
-        StopScript();
-        SetSelectedScriptPath(path);
-        if (LoadSelectedScript()) {
-            g_script_state = ScriptState::Running;
-            g_script_timer.reset();
-            Logger::Instance().LogNotice("Deferred: stopped, loaded and started.");
+        g_user_host.Stop();
+        g_user_host.SetPath(path);
+        if (g_user_host.Load()) {
+            g_user_host.MarkStarted();
+            System::Instance().WriteConsoleMessage("Py4GW", MessageType::Notice, "Deferred: stopped, loaded and started.");
         }
     }, delay_ms);
 }
@@ -444,14 +610,14 @@ void DeferStopAndRun(int delay_ms) {
     ScheduleDeferredAction([]() {
         StopScript();
         RunScript();
-        Logger::Instance().LogNotice("Deferred: stopped and restarted.");
+        System::Instance().WriteConsoleMessage("Py4GW", MessageType::Notice, "Deferred: stopped and restarted.");
     }, delay_ms);
 }
 
 bool ExecuteCommand(const std::string& command) {
     py::gil_scoped_acquire gil;
     try {
-        py::object scope = g_script_module;
+        py::object scope = g_user_host.Module();
         if (!scope || scope.is_none()) {
             if (!g_console_scope || g_console_scope.is_none()) {
                 g_console_scope = py::module_::import("__main__");
@@ -460,36 +626,31 @@ bool ExecuteCommand(const std::string& command) {
         }
 
         py::object result = py::eval(command, scope.attr("__dict__"));
-        Logger::Instance().Log("Python", "INFO", ">>> " + command, false);
+        System::Instance().WriteConsoleMessage("Python", MessageType::Info, ">>> " + command);
         if (!result.is_none()) {
-            Logger::Instance().Log("Python", "INFO", py::str(result).cast<std::string>(), false);
+            System::Instance().WriteConsoleMessage("Python", MessageType::Info, py::str(result).cast<std::string>());
         }
         return true;
     } catch (const py::error_already_set& error) {
-        Logger::Instance().LogError(std::string("Error executing command: ") + command + "\n" + error.what(), "Python");
+        System::Instance().WriteConsoleMessage("Python", MessageType::Error, std::string("Error executing command: ") + command + "\n" + error.what());
     } catch (const std::exception& error) {
-        Logger::Instance().LogError(std::string("Standard error executing command: ") + command + "\n" + error.what(), "Python");
+        System::Instance().WriteConsoleMessage("Python", MessageType::Error, std::string("Standard error executing command: ") + command + "\n" + error.what());
     } catch (...) {
-        Logger::Instance().LogError("Unknown error executing command: " + command, "Python");
+        System::Instance().WriteConsoleMessage("Python", MessageType::Error, "Unknown error executing command: " + command);
     }
     return false;
 }
 
 ScriptState GetScriptState() {
-    return g_script_state;
+    return g_user_host.State();
 }
 
 const char* GetScriptStateLabel() {
-    switch (g_script_state) {
-    case ScriptState::Running: return "Running";
-    case ScriptState::Paused: return "Paused";
-    case ScriptState::Stopped: return "Stopped";
-    }
-    return "Unknown";
+    return g_user_host.StateLabel();
 }
 
 bool HasLoadedScript() {
-    return !g_loaded_script_content.empty();
+    return g_user_host.HasLoaded();
 }
 
 }  // namespace PY4GW::python_runtime

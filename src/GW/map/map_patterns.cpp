@@ -78,4 +78,48 @@ bool ResolveMapTypeInstanceInfos() {
         PY4GW::Patterns::Resolve("map.map_type_instance_infos_ptr", &Context::g_map_type_instance_infos);
 }
 
+// Raw raycast bridge symbols (PyMap raycast, ported from legacy py_map.cpp).
+// Resolved lazily on first use from the bindings, parity with the legacy
+// Ensure* helpers; byte patterns and assertion strings live in offsets/map.json.
+using MapIntersectFn = uint32_t(__cdecl*)(Vec3f* origin, Vec3f* unit_direction, Vec3f* hit_point, int* prop_layer);
+using TerrainQueryIntersectionFn = uint32_t(__cdecl*)(void* terrain, Vec3f* src, Vec3f* dest, float unk, float* dist);
+using GrModelIntersectConeFn = uint32_t(__cdecl*)(void* model, Vec3f* origin, Vec3f* unit_dir, float cone, float* distance, int flag);
+
+MapIntersectFn g_map_intersect_func = nullptr;
+TerrainQueryIntersectionFn g_terrain_query_intersection_func = nullptr;
+GrModelIntersectConeFn g_gr_model_intersect_cone_func = nullptr;
+
+// MapCliQueryIntersection: terrain + walkable-prop collision. Tries the disp32
+// anchor first (EXE build 20-5-2026), then the older disp8 encoding; both sit
+// inside the function and to_function_start walks back to the prologue.
+bool ResolveMapIntersectFunction() {
+    if (g_map_intersect_func) {
+        return true;
+    }
+    CrashContextScope context("runtime", "map", "resolve_map_cli_query_intersection");
+    PY4GW::Patterns::Resolve("map.map_cli_query_intersection_func", &g_map_intersect_func);
+    return g_map_intersect_func != nullptr;
+}
+
+// ITerrain::QueryIntersection: terrain-only test used by the reference HasLos.
+bool ResolveTerrainQueryIntersection() {
+    if (g_terrain_query_intersection_func) {
+        return true;
+    }
+    CrashContextScope context("runtime", "map", "resolve_terrain_query_intersection");
+    PY4GW::Patterns::Resolve("map.terrain_query_intersection_func", &g_terrain_query_intersection_func);
+    return g_terrain_query_intersection_func != nullptr;
+}
+
+// CIGrModel::IntersectCone: per-geoset interactive-prop mesh test, resolved by
+// the stable "Invalid unit vector" assertion anchor in GrModel.cpp.
+bool ResolveGrModelIntersectCone() {
+    if (g_gr_model_intersect_cone_func) {
+        return true;
+    }
+    CrashContextScope context("runtime", "map", "resolve_gr_model_intersect_cone");
+    PY4GW::Patterns::Resolve("map.gr_model_intersect_cone_func", &g_gr_model_intersect_cone_func);
+    return g_gr_model_intersect_cone_func != nullptr;
+}
+
 }  // namespace GW::map

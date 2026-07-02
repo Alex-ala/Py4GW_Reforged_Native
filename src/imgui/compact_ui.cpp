@@ -6,6 +6,7 @@
 #include "base/logger.h"
 #include "base/process_manager.h"
 #include "base/python_runtime.h"
+#include "system/system.h"
 
 #include <imgui.h>
 #include <imfilebrowser.h>
@@ -51,7 +52,7 @@ void RenderScriptBrowser() {
     browser.Display();
     if (browser.HasSelected()) {
         python_runtime::SetSelectedScriptPath(browser.GetSelected().string());
-        Logger::Instance().LogInfo("Selected script: " + python_runtime::GetSelectedScriptPath(), false);
+        System::Instance().WriteConsoleMessage("Py4GW", MessageType::Info, "Selected script: " + python_runtime::GetSelectedScriptPath());
         browser.ClearSelected();
     }
 }
@@ -64,11 +65,12 @@ void SyncPathBuffer() {
 }  // namespace
 
 void RenderCompactConsole(bool* show_console, bool* show_compact_console) {
-    ImGui::SetNextWindowPos(compact_console_pos, ImGuiCond_Once);
-    ImGui::SetNextWindowCollapsed(compact_console_collapsed, ImGuiCond_Once);
+    // FirstUseEver: only seed defaults when the window has no saved ini entry.
+    ImGui::SetNextWindowPos(compact_console_pos, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowCollapsed(compact_console_collapsed, ImGuiCond_FirstUseEver);
 
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_AlwaysAutoResize;
-    if (!ImGui::Begin("Py4GW##compactPy4GWconsole", show_compact_console, flags)) {
+    if (!ImGui::Begin("Py4GW###Py4GWCompactConsole", show_compact_console, flags)) {
         ImGui::End();
         //RenderScriptBrowser();
         return;
@@ -131,7 +133,7 @@ void RenderCompactConsole(bool* show_console, bool* show_compact_console) {
             const bool next_show_console = !*show_console;
             *show_console = next_show_console;
             *show_compact_console = !next_show_console;
-            Logger::Instance().LogNotice("Toggled Full Cosole.", false);
+            System::Instance().WriteConsoleMessage("Py4GW", MessageType::Notice, "Toggled Full Cosole.");
         }
         if (*show_console) {
             ShowTooltipInternal("Hide Full Console");
@@ -141,27 +143,31 @@ void RenderCompactConsole(bool* show_console, bool* show_compact_console) {
 
         ImGui::TableNextColumn();
         if (ImGui::Button(ICON_FA_STICKY_NOTE "##StickyNote", ImVec2(30, 30))) {
-            Logger::Instance().ClearEntries();
+            System::Instance().ClearConsoleMessages();
         }
         ShowTooltipInternal("Clear the console output");
 
         ImGui::TableNextColumn();
         if (ImGui::Button(ICON_FA_SAVE "##Save", ImVec2(30, 30))) {
-            const auto output_path = process_manager::GetModuleDirectory() / "Py4GW_console_log.txt";
-            std::ofstream output(output_path, std::ios::out | std::ios::trunc);
-            const auto entries = Logger::Instance().GetEntries();
-            if (output.is_open()) {
-                for (const auto& entry : entries) {
-                    output << "[" << entry.timestamp << "] [" << entry.module_name << "] " << entry.message << "\n";
+            const std::string save_path = System::SaveFileDialog();
+            if (!save_path.empty()) {
+                std::ofstream output(save_path, std::ios::out | std::ios::trunc);
+                if (output.is_open()) {
+                    const auto entries = System::Instance().GetConsoleMessages();
+                    for (const auto& entry : entries) {
+                        output << "[" << entry.timestamp << "] [" << entry.module_name << "] " << entry.message << "\n";
+                    }
+                    System::Instance().WriteConsoleMessage("Py4GW", MessageType::Notice, "Console log saved to " + save_path);
+                } else {
+                    System::Instance().WriteConsoleMessage("Py4GW", MessageType::Error, "Failed to open file for writing: " + save_path);
                 }
-                Logger::Instance().LogNotice("Console log saved to " + output_path.string(), false);
             }
         }
         ShowTooltipInternal("Save console output to file");
 
         ImGui::TableNextColumn();
         if (ImGui::Button(ICON_FA_COPY "##Copy", ImVec2(30, 30))) {
-            const auto entries = Logger::Instance().GetEntries();
+            const auto entries = System::Instance().GetConsoleMessages();
             std::string text;
             for (const auto& entry : entries) {
                 text += "[" + entry.timestamp + "] [" + entry.module_name + "] " + entry.message + "\n";

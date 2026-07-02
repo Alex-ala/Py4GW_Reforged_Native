@@ -66,6 +66,28 @@
       "mask": "x",
       "offset": "0",
       "section": "text"
+    },
+    "map_cli_query_intersection_disp32": {
+      "pattern": "\\xFF\\x75\\x08\\xD9\\x5D\\xFC\\xFF\\xB7\\x7C\\x00\\x00\\x00",
+      "mask": "xxxxxxxxxxxx",
+      "offset": "0",
+      "section": "text"
+    },
+    "map_cli_query_intersection_disp8": {
+      "pattern": "\\xFF\\x75\\x08\\xD9\\x5D\\xFC\\xFF\\x77\\x7C",
+      "mask": "xxxxxxxxx",
+      "offset": "0",
+      "section": "text"
+    },
+    "terrain_query_intersection_anchor": {
+      "pattern": "\\x8D\\x48\\x18\\x57\\x8B\\x7D\\x0C",
+      "mask": "xxxxxxx",
+      "offset": "0",
+      "section": "text"
+    },
+    "gr_model_invalid_unit_vector_assertion": {
+      "assertion_file": "P:\\Code\\Engine\\Gr\\GrModel.cpp",
+      "assertion_message": "Invalid unit vector"
     }
   },
   "resolvers": {
@@ -148,6 +170,42 @@
       "steps": [
         { "name": "scan_target", "op": "scan", "pattern": "mission_map_ui_callback", "out": "scan" },
         { "name": "to_function_start", "op": "to_function_start", "in": "scan", "out": "final" }
+      ]
+    },
+    "map_cli_query_intersection_func": {
+      "log_level": "error",
+      "on_fail": "continue",
+      "attempts": [
+        {
+          "name": "disp32_anchor",
+          "steps": [
+            { "name": "scan_anchor", "op": "scan", "pattern": "map_cli_query_intersection_disp32", "out": "anchor" },
+            { "name": "to_function_start", "op": "to_function_start", "in": "anchor", "out": "final" }
+          ]
+        },
+        {
+          "name": "disp8_anchor",
+          "steps": [
+            { "name": "scan_anchor", "op": "scan", "pattern": "map_cli_query_intersection_disp8", "out": "anchor" },
+            { "name": "to_function_start", "op": "to_function_start", "in": "anchor", "out": "final" }
+          ]
+        }
+      ]
+    },
+    "terrain_query_intersection_func": {
+      "log_level": "error",
+      "on_fail": "continue",
+      "steps": [
+        { "name": "scan_anchor", "op": "scan", "pattern": "terrain_query_intersection_anchor", "out": "anchor" },
+        { "name": "to_function_start", "op": "to_function_start", "in": "anchor", "out": "final" }
+      ]
+    },
+    "gr_model_intersect_cone_func": {
+      "log_level": "error",
+      "on_fail": "continue",
+      "steps": [
+        { "name": "scan_assertion", "op": "scan", "pattern": "gr_model_invalid_unit_vector_assertion", "out": "assert_addr" },
+        { "name": "to_function_start", "op": "to_function_start", "in": "assert_addr", "out": "final" }
       ]
     }
   }

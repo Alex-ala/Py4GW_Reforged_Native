@@ -14,6 +14,7 @@
 namespace GW::Context {
     typedef uint32_t AgentID;
     typedef uint32_t ItemID;
+    inline constexpr uint32_t kSharedMemoryAgentArrayMaxSize = 300;
 
     struct VisibleEffect {
         uint32_t unk; //enchantment = 1, weapon spell = 9
@@ -375,6 +376,42 @@ namespace GW::Context {
     using MapAgentArray = GW::GWArray<MapAgent>;
     using AgentInfoArray = GW::GWArray<AgentInfo>;
     using AgentMovementArray = GW::GWArray<AgentMovement*>;
+
+#pragma pack(push, 1)
+    struct AgentSnapshotEntry {
+        uintptr_t ptr = 0;
+        uint32_t agent_id = 0;
+    };
+
+    struct AgentRefSnapshotEntry {
+        uint32_t agent_id = 0;
+        uint32_t index = 0;
+    };
+
+    struct AgentRefSnapshotArray {
+        uint32_t count = 0;
+        AgentRefSnapshotEntry entries[kSharedMemoryAgentArrayMaxSize] = {};
+    };
+
+    struct AgentArraySnapshot {
+        uint32_t max_size = kSharedMemoryAgentArrayMaxSize;
+        uint32_t count = 0;
+        AgentSnapshotEntry entries[kSharedMemoryAgentArrayMaxSize] = {};
+        AgentRefSnapshotArray all = {};
+        AgentRefSnapshotArray ally = {};
+        AgentRefSnapshotArray neutral = {};
+        AgentRefSnapshotArray enemy = {};
+        AgentRefSnapshotArray spirit_pet = {};
+        AgentRefSnapshotArray minion = {};
+        AgentRefSnapshotArray npc_minipet = {};
+        AgentRefSnapshotArray living = {};
+        AgentRefSnapshotArray item = {};
+        AgentRefSnapshotArray owned_item = {};
+        AgentRefSnapshotArray gadget = {};
+        AgentRefSnapshotArray dead_ally = {};
+        AgentRefSnapshotArray dead_enemy = {};
+    };
+#pragma pack(pop)
 
     struct AgentMovement;
 

@@ -6,6 +6,8 @@
 #include "base/logger.h"
 #include "base/process_manager.h"
 #include "base/python_runtime.h"
+#include "settings/settings.h"
+#include "system/system.h"
 
 #include <imgui.h>
 #include <imfilebrowser.h>
@@ -26,6 +28,7 @@ int g_history_pos = -1;
 char g_command_buffer[256] = {};
 char g_path_buffer[512] = {};
 bool g_auto_scroll = true;
+bool g_auto_scroll_loaded = false;
 
 ImVec2 console_pos = ImVec2(5, 30);
 ImVec2 console_size = ImVec2(800, 700);
@@ -106,7 +109,7 @@ void RenderScriptBrowser() {
     browser.Display();
     if (browser.HasSelected()) {
         python_runtime::SetSelectedScriptPath(browser.GetSelected().string());
-        Logger::Instance().LogInfo("Selected script: " + python_runtime::GetSelectedScriptPath(), false);
+        System::Instance().WriteConsoleMessage("Py4GW", MessageType::Info, "Selected script: " + python_runtime::GetSelectedScriptPath());
         browser.ClearSelected();
     }
 }
@@ -117,7 +120,7 @@ void SyncPathBuffer() {
 }
 
 void CopyLogToClipboard() {
-    const auto entries = Logger::Instance().GetEntries();
+    const auto entries = System::Instance().GetConsoleMessages();
     std::string text;
     for (const auto& entry : entries) {
         text += "[" + entry.timestamp + "] [" + entry.module_name + "] " + entry.message + "\n";
@@ -125,18 +128,22 @@ void CopyLogToClipboard() {
     ImGui::SetClipboardText(text.c_str());
 }
 
-void SaveLogToDefaultFile() {
-    const auto output_path = process_manager::GetModuleDirectory() / "Py4GW_console_log.txt";
-    std::ofstream output(output_path, std::ios::out | std::ios::trunc);
+void SaveLogToFile() {
+    const std::string save_path = System::SaveFileDialog();
+    if (save_path.empty()) {
+        return;
+    }
+    std::ofstream output(save_path, std::ios::out | std::ios::trunc);
     if (!output.is_open()) {
+        System::Instance().WriteConsoleMessage("Py4GW", MessageType::Error, "Failed to open file for writing: " + save_path);
         return;
     }
 
-    const auto entries = Logger::Instance().GetEntries();
+    const auto entries = System::Instance().GetConsoleMessages();
     for (const auto& entry : entries) {
         output << "[" << entry.timestamp << "] [" << entry.module_name << "] " << entry.message << "\n";
     }
-    Logger::Instance().LogNotice("Console log saved to " + output_path.string(), false);
+    System::Instance().WriteConsoleMessage("Py4GW", MessageType::Notice, "Console log saved to " + save_path);
 }
 
 void RenderControls(bool* show_console, bool* show_compact_console) {
@@ -206,7 +213,7 @@ void RenderControls(bool* show_console, bool* show_compact_console) {
 }
 
 void RenderLog(bool* show_console, bool* show_compact_console) {
-    const auto entries = Logger::Instance().GetEntries();
+    const auto entries = System::Instance().GetConsoleMessages();
 
     if (ImGui::BeginTable("ConsoleControlsTable", 6, ImGuiTableFlags_SizingStretchProp)) {
         ImGui::TableNextRow();
@@ -214,14 +221,14 @@ void RenderLog(bool* show_console, bool* show_compact_console) {
         // Clear Console Button
         ImGui::TableSetColumnIndex(0);
         if (ImGui::Button("Clear")) {
-            Logger::Instance().ClearEntries();
+            System::Instance().ClearConsoleMessages();
         }
         ShowTooltipInternal("Clear the console output");
 
         // Save Log Button
         ImGui::TableSetColumnIndex(1);
         if (ImGui::Button("Save Log")) {
-            SaveLogToDefaultFile();
+            SaveLogToFile();
         }
         ShowTooltipInternal("Save console output to file");
 
@@ -236,7 +243,7 @@ void RenderLog(bool* show_console, bool* show_compact_console) {
         if (ImGui::Button(ICON_FA_WINDOW_MAXIMIZE "##MaximizeFULL")) {
             *show_console = false;
             *show_compact_console = true;
-            Logger::Instance().LogNotice("Toggled Compact Cosole.", false);
+            System::Instance().WriteConsoleMessage("Py4GW", MessageType::Notice, "Toggled Compact Cosole.");
         }
         if (*show_console) {
             ShowTooltipInternal("Hide Console");
@@ -245,7 +252,14 @@ void RenderLog(bool* show_console, bool* show_compact_console) {
         }
 
         ImGui::TableSetColumnIndex(4);
-        ImGui::Checkbox("Auto-Scroll", &g_auto_scroll);
+        auto& ini = SettingsManager::Instance().Open("Py4GW.ini");
+        if (!g_auto_scroll_loaded && ini.IsBound()) {
+            g_auto_scroll = ini.GetBool("console", "auto_scroll", g_auto_scroll);
+            g_auto_scroll_loaded = true;
+        }
+        if (ImGui::Checkbox("Auto-Scroll", &g_auto_scroll)) {
+            ini.SetBool("console", "auto_scroll", g_auto_scroll);
+        }
         ShowTooltipInternal("Toggle auto-scrolling of console output");
 
         ImGui::EndTable();
@@ -267,7 +281,7 @@ void RenderLog(bool* show_console, bool* show_compact_console) {
 
     if (ImGui::BeginPopupContextWindow()) {
         if (ImGui::Selectable("Clear")) {
-            Logger::Instance().ClearEntries();
+            System::Instance().ClearConsoleMessages();
         }
         ImGui::EndPopup();
     }
@@ -323,13 +337,14 @@ void RenderCommandInput() {
 }  // namespace
 
 void RenderFullConsole(bool* show_console, bool* show_compact_console) {
-    ImGui::SetNextWindowPos(console_pos, ImGuiCond_Once);
-    ImGui::SetNextWindowSize(console_size, ImGuiCond_Once);
-    ImGui::SetNextWindowCollapsed(console_collapsed, ImGuiCond_Once);
+    // FirstUseEver: only seed defaults when the window has no saved ini entry,
+    // so per-account saved settings restore even though this window is created
+    // after the account ini is loaded.
+    ImGui::SetNextWindowPos(console_pos, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(console_size, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowCollapsed(console_collapsed, ImGuiCond_FirstUseEver);
 
-
-
-    if (!ImGui::Begin("Py4GW Console", show_console)) {
+    if (!ImGui::Begin("Py4GW Console###Py4GWFullConsole", show_console)) {
         ImGui::End();
         //RenderScriptBrowser();
         return;
