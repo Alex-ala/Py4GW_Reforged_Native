@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <functional>
 #include <optional>
 #include <string>
@@ -48,6 +49,11 @@ struct SegmentOptions {
     uint32_t update_interval_frames = 1;
     bool zero_before_write = true;
     bool clear_on_failure = true;
+    // Toggle. When false the slot is kept but published as all zeros, so the
+    // layout never changes. Flip at the subscribe line or at runtime via
+    // SetSegmentEnabled. (To remove a struct entirely, comment its subscribe
+    // line - that DOES shift the layout, by design.)
+    bool enabled = true;
 };
 
 using WriterCallback = std::function<bool(void* payload, size_t size, uint64_t frame_counter)>;
@@ -82,6 +88,57 @@ public:
             },
             options);
     }
+
+    // ------------------------------------------------------------------
+    // Subscription surface (the per-module *_shared_memory.cpp files use
+    // these). One line per struct. Every subscription carries the same
+    // enable/disable toggle: enabled -> writes the data, disabled -> writes
+    // zeros into the same slot (layout unchanged). Comment the line out to
+    // remove the struct entirely (that shifts the layout - by design).
+    //
+    // SubscribeStruct  : copy the singleton's data into its slot each frame
+    //                    (map-ready gated).
+    // SubscribePointer : publish only the address (8 bytes); Python
+    //                    materializes it via ctypes.
+    // SubscribeSnapshot: a fixed-size POD the writer fills (e.g. the classified
+    //                    agent array).
+    // The full-struct vs pointer choice per struct is the caller's, not this
+    // class's - this class only transports whatever a line subscribes.
+    // ------------------------------------------------------------------
+    template <typename T>
+    bool SubscribeStruct(std::string_view name, T* (*getter)(), bool enabled = true) {
+        SegmentOptions options;
+        options.enabled = enabled;
+        return RegisterStruct<T>(name, [getter](T& value, uint64_t) -> bool {
+            if (!PublishGuardReady()) {
+                return false;
+            }
+            const T* source = getter();
+            if (!source) {
+                return false;
+            }
+            std::memcpy(&value, source, sizeof(T));
+            return true;
+        }, options);
+    }
+
+    bool SubscribePointer(std::string_view name, std::function<uintptr_t()> getter, bool enabled = true);
+
+    template <typename T>
+    bool SubscribeSnapshot(std::string_view name, std::function<bool(T& value, uint64_t frame_counter)> filler, bool enabled = true) {
+        SegmentOptions options;
+        options.enabled = enabled;
+        return RegisterStruct<T>(name, std::move(filler), options);
+    }
+
+    // Runtime toggle for any subscribed segment (enabled -> data, disabled ->
+    // zeros; slot and layout preserved either way).
+    bool SetSegmentEnabled(std::string_view name, bool enabled);
+
+    // Publish safety gate shared by every SubscribeStruct writer: never deep-copy
+    // a game context while a map transition is in flight (the game thread rebuilds
+    // the context tree concurrently -> reproducible 0xC0000005 in the memcpy).
+    static bool PublishGuardReady();
 
     // Materialize the shared-memory layout after every segment has been
     // registered. This computes descriptor offsets and allocates one backing

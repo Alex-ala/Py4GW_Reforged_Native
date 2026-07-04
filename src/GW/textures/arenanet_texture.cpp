@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <memory>
-#include "GW/gw_dat_reader/arenanet_texture.h"
+#include "GW/textures/arenanet_texture.h"
 
-namespace GW::gw_dat_reader {
+namespace GW::textures {
 
 void AtexSubCode1_( unsigned int a, unsigned int b, unsigned int c );
 void AtexSubCode2_( unsigned int a, unsigned int b, unsigned int c, unsigned int d, unsigned int e, unsigned int f );
@@ -1995,4 +1995,4 @@ void AtexSubCode7_( unsigned int a, unsigned int b ) {
 }
 
 
-}  // namespace GW::gw_dat_reader
+}  // namespace GW::textures

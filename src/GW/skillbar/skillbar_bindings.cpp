@@ -2,6 +2,7 @@
 #include <pybind11/pybind11.h>
 
 #include "GW/skillbar/skillbar.h"
+#include "GW/context/skill.h"
 
 #include <string>
 #include <vector>
@@ -38,6 +39,21 @@ PYBIND11_EMBEDDED_MODULE(PySkillbar, m) {
     m.def("get_skill_profession", [](uint32_t skill_id) -> uint32_t {
         return static_cast<uint32_t>(GW::skillbar::GetSkillProfession(
             static_cast<GW::Constants::SkillID>(skill_id)));
+    }, py::arg("skill_id"));
+
+    // Skill icon file ids (GW.dat texture ids). icon_file_id is the primary
+    // icon; the hi-res id is the larger variant. Feed either to
+    // PyTexture.get_texture_by_file_id or a "gwdat://<id>" key.
+    m.def("get_skill_icon_file_id", [](uint32_t skill_id) -> uint32_t {
+        const GW::Context::Skill* s = GW::skillbar::GetSkillConstantData(
+            static_cast<GW::Constants::SkillID>(skill_id));
+        return s ? s->icon_file_id : 0u;
+    }, py::arg("skill_id"));
+
+    m.def("get_skill_icon_file_id_hi_res", [](uint32_t skill_id) -> uint32_t {
+        const GW::Context::Skill* s = GW::skillbar::GetSkillConstantData(
+            static_cast<GW::Constants::SkillID>(skill_id));
+        return s ? s->icon_file_id_hi_res : 0u;
     }, py::arg("skill_id"));
 
     m.def("get_attribute_profession", [](uint32_t attribute_id) -> uint32_t {

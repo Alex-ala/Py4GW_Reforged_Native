@@ -2,9 +2,9 @@
 
 #include "base/CrashHandler.h"
 #include "base/patterns.h"
-#include "GW/gw_dat_reader/gw_dat_reader.h"
+#include "GW/textures/gw_dat_reader.h"
 
-namespace GW::gw_dat_reader {
+namespace GW::textures {
 
 // Definitions for the module-owned resolved symbols.
 OpenFileByFileId_pt g_open_file_by_file_id_func = nullptr;
@@ -56,4 +56,4 @@ bool ResolveDepalletizeFunc() {
     return PY4GW::Patterns::Resolve("gw_dat_reader.depalletize_func", &g_depalletize_func);
 }
 
-}  // namespace GW::gw_dat_reader
+}  // namespace GW::textures

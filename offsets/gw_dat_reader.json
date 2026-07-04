@@ -39,6 +39,12 @@
       "mask": "x",
       "offset": "0x0",
       "section": "text"
+    },
+    "push_esi_call": {
+      "pattern": "\\x56\\xe8",
+      "mask": "xx",
+      "offset": "0x0",
+      "section": "text"
     }
   },
   "resolvers": {
@@ -84,15 +90,17 @@
     "close_rec_obj_func": {
       "steps": [
         { "name": "scan_compare", "op": "scan", "pattern": "amet_compare", "out": "anchor" },
-        { "name": "find_call", "op": "find_in_range", "pattern": "near_call", "start": "anchor", "start_add": "0x0", "end": "anchor", "end_add": "-0xff", "out": "callsite" },
+        { "name": "find_call", "op": "find_in_range", "pattern": "push_esi_call", "start": "anchor", "start_add": "0x0", "end": "anchor", "end_add": "-0xff", "out": "push_site" },
+        { "name": "advance_to_call", "op": "add", "in": "push_site", "value": "0x1", "out": "callsite" },
         { "name": "resolve_target", "op": "function_from_near_call", "in": "callsite", "out": "final" }
       ]
     },
     "free_file_buffer_func": {
       "steps": [
         { "name": "scan_compare", "op": "scan", "pattern": "amet_compare", "out": "anchor" },
-        { "name": "find_first_call", "op": "find_in_range", "pattern": "near_call", "start": "anchor", "start_add": "0x0", "end": "anchor", "end_add": "-0xff", "out": "first_call" },
-        { "name": "find_second_call", "op": "find_in_range", "pattern": "near_call", "start": "first_call", "start_add": "-0x1", "end": "first_call", "end_add": "-0xff", "out": "callsite" },
+        { "name": "find_first_call", "op": "find_in_range", "pattern": "push_esi_call", "start": "anchor", "start_add": "0x0", "end": "anchor", "end_add": "-0xff", "out": "first_push" },
+        { "name": "find_second_call", "op": "find_in_range", "pattern": "push_esi_call", "start": "first_push", "start_add": "-0x1", "end": "first_push", "end_add": "-0xff", "out": "second_push" },
+        { "name": "advance_to_call", "op": "add", "in": "second_push", "value": "0x1", "out": "callsite" },
         { "name": "resolve_target", "op": "function_from_near_call", "in": "callsite", "out": "final" }
       ]
     }

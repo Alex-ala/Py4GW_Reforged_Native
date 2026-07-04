@@ -2,6 +2,7 @@
 
 #include "base/error_handling.h"
 
+#include <cmath>
 #include <cstdint>
 
 namespace GW {
@@ -219,8 +220,13 @@ namespace GW {
         return (p.x * p.x) + (p.y * p.y);
     }
 
-    float GetNorm(Vec3f p);
-    float GetNorm(Vec2f p);
+    inline float GetNorm(Vec3f p) {
+        return sqrtf((p.x * p.x) + (p.y * p.y) + (p.z * p.z));
+    }
+
+    inline float GetNorm(Vec2f p) {
+        return sqrtf((p.x * p.x) + (p.y * p.y));
+    }
 
     inline Vec3f Normalize(Vec3f v) {
         float n = GetNorm(v);

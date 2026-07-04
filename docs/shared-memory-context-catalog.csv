@@ -1,0 +1,131 @@
+group,name,size,fields,is_root,parent,decision,rule,notes
+Root,AgentContext,var,27,yes,,FULL,<=30 fields,holds the dynamic agent array as a property (pointer resolved on demand)
+Root,CharContext,0x440,34,yes,,PTR,>30 fields,
+Root,WorldContext,0x854,107,yes,,PTR,>30 fields,biggest context
+Root,PartyContext,0xD0,14,yes,,FULL,<=30 fields,member arrays behind pointers
+Root,ItemContext,0x10C,43,yes,,PTR,>30 fields,
+Root,MapContext,var,18,yes,,FULL,<=30 fields,pathing/props behind pointers
+Root,GameContext,0x5C,23,yes,,FULL,<=30 fields,
+Root,GameplayContext,0x78,3,yes,,FULL,<=30 fields,
+Root,GuildContext,var,34,yes,,PTR,>30 fields,
+Root,TradeContext,0x38,4,yes,,FULL,<=30 fields,
+Root,AccountContext,0x138,9,yes,,FULL,<=30 fields,
+Root,FriendList,var,8,yes,,FULL,<=30 fields,friends array behind pointer
+Root,PreGameContext,0x100,12,yes,,FULL,<=30 fields,
+Root,MissionMapContext,0x48,12,yes,,FULL,<=30 fields,
+Root,WorldMapContext,0x224,21,yes,,FULL,<=30 fields,
+Root,Camera,var,57,yes,,PTR,>30 fields,
+Root,TextParser,0x1D4,14,yes,,FULL,<=30 fields,
+Root,GwDxContext,var,16,yes,,FULL,<=30 fields,render/D3D
+Root,SalvageSessionInfo,0x24,5,yes,,FULL,<=30 fields,
+Sub-Agents,Agent,0xC4,38,no,AgentContext,PTR,>30 fields,base agent
+Sub-Agents,AgentLiving,0x1C4,105,no,AgentContext,PTR,>30 fields,rich per-agent record
+Sub-Agents,AgentItem,0xD4,4,no,AgentContext,FULL,<=30 fields,
+Sub-Agents,AgentGadget,0xE4,5,no,AgentContext,FULL,<=30 fields,
+Sub-Agents,AgentMovement,0x80,12,no,AgentContext,FULL,<=30 fields,
+Sub-Agents,Equipment,0xD8,14,no,AgentContext,FULL,<=30 fields,
+Sub-Agents,TagInfo,-,4,no,AgentContext,FULL,<=30 fields,
+Sub-Agents,VisibleEffect,0xC,1,no,AgentContext,FULL,<=30 fields,
+Sub-Agents,AgentEffects,0x24,3,no,AgentContext,FULL,<=30 fields,
+Sub-Agents,AgentInfo,0x38,2,no,AgentContext,FULL,<=30 fields,
+Sub-Agents,AgentSummaryInfo,0xC,4,no,AgentContext,FULL,<=30 fields,
+Sub-Agents,MapAgent,0x34,13,no,AgentContext,FULL,<=30 fields,
+Sub-Agents,NPC,0x30,12,no,AgentContext,FULL,<=30 fields,
+Sub-World,PlayerControlledCharacter,0x134,76,no,WorldContext,PTR,>30 fields,
+Sub-World,AccountInfo,0x1C,7,no,WorldContext,FULL,<=30 fields,
+Sub-World,PartyAlly,0xC,3,no,WorldContext,FULL,<=30 fields,
+Sub-World,PartyMemberMoraleInfo,-,4,no,WorldContext,FULL,<=30 fields,
+Sub-World,PartyMoraleLink,0xC,3,no,WorldContext,FULL,<=30 fields,
+Sub-World,ProfessionState,0x14,4,no,WorldContext,FULL,<=30 fields,
+Sub-World,PetInfo,0x1C,7,no,WorldContext,FULL,<=30 fields,
+Sub-World,ControlledMinions,0x8,2,no,WorldContext,FULL,<=30 fields,
+Sub-World,DupeSkill,0x8,2,no,WorldContext,FULL,<=30 fields,
+Sub-World,Player,0x50,15,no,WorldContext,FULL,<=30 fields,
+Sub-Attributes,Attribute,0x14,5,no,WorldContext,FULL,<=30 fields,
+Sub-Attributes,AttributeInfo,0x14,5,no,WorldContext,FULL,<=30 fields,
+Sub-Attributes,PartyAttribute,0x43C,2,no,WorldContext,FULL,<=30 fields,large by bytes (inline array) but few fields - confirm
+Sub-Attributes,Title,0x2C,11,no,WorldContext,FULL,<=30 fields,
+Sub-Attributes,TitleTier,0xC,3,no,WorldContext,FULL,<=30 fields,
+Sub-Attributes,TitleClientData,-,2,no,WorldContext,FULL,<=30 fields,
+Sub-Attributes,Quest,0x34,11,no,WorldContext,FULL,<=30 fields,
+Sub-Attributes,MissionObjective,0xC,3,no,WorldContext,FULL,<=30 fields,
+Sub-Party,PlayerPartyMember,0xC,3,no,PartyContext,FULL,<=30 fields,
+Sub-Party,HeroPartyMember,-,6,no,PartyContext,FULL,<=30 fields,
+Sub-Party,HenchmanPartyMember,0x34,4,no,PartyContext,FULL,<=30 fields,
+Sub-Party,PartyInfo,0x84,7,no,PartyContext,FULL,<=30 fields,
+Sub-Party,PartySearch,0x94,13,no,PartyContext,FULL,<=30 fields,
+Sub-Party,HeroInfo,0x78,9,no,PartyContext,FULL,<=30 fields,
+Sub-Party,HeroFlag,0x24,8,no,PartyContext,FULL,<=30 fields,
+Sub-Items,Inventory,0x98,8,no,ItemContext,FULL,<=30 fields,
+Sub-Items,Bag,0x28,7,no,ItemContext,FULL,<=30 fields,
+Sub-Items,Item,0x54,26,no,ItemContext,FULL,<=30 fields,borderline (has union - may be higher) - confirm
+Sub-Items,ItemData,0x10,0,no,ItemContext,FULL,<=30 fields,
+Sub-Items,ItemModifier,0x4,0,no,ItemContext,FULL,<=30 fields,
+Sub-Items,ItemFormula,0x14,4,no,ItemContext,FULL,<=30 fields,
+Sub-Items,MaterialCost,0x10,4,no,ItemContext,FULL,<=30 fields,
+Sub-Items,WeaponSet,0x8,2,no,ItemContext,FULL,<=30 fields,
+Sub-Items,DyeInfo,0x3,1,no,ItemContext,FULL,<=30 fields,
+Sub-Items,CompositeModelInfo,0x30,2,no,ItemContext,FULL,<=30 fields,
+Sub-Items,PvPItemInfo,0x24,1,no,ItemContext,FULL,<=30 fields,
+Sub-Items,PvPItemUpgradeInfo,0x28,7,no,ItemContext,FULL,<=30 fields,
+Sub-Items,InventoryTableEntry,0xC,3,no,ItemContext,FULL,<=30 fields,
+Sub-Items,ItemClickParam,0xC,3,no,ItemContext,FULL,<=30 fields,
+Sub-Map,AreaInfo,0x7C,31,no,MapContext,PTR,>30 fields,borderline (31) - confirm
+Sub-Map,InstanceInfo,-,5,no,MapContext,FULL,<=30 fields,
+Sub-Map,MapTypeInstanceInfo,-,3,no,MapContext,FULL,<=30 fields,
+Sub-Map,MapDimensions,-,6,no,MapContext,FULL,<=30 fields,
+Sub-Map,PropsContext,0x1A4,6,no,MapContext,FULL,<=30 fields,
+Sub-Map,MapProp,0x90,18,no,MapContext,FULL,<=30 fields,
+Sub-Map,PropModelInfo,0x18,6,no,MapContext,FULL,<=30 fields,
+Sub-Map,PropByType,-,2,no,MapContext,FULL,<=30 fields,
+Sub-Map,RecObject,0xC,3,no,MapContext,FULL,<=30 fields,
+Sub-Map,PathingMap,0x54,21,no,MapContext,FULL,<=30 fields,
+Sub-Map,PathingTrapezoid,0x30,10,no,MapContext,FULL,<=30 fields,
+Sub-Map,Portal,0x14,6,no,MapContext,FULL,<=30 fields,pathing graph
+Sub-Map,Node,0x8,2,no,MapContext,FULL,<=30 fields,pathing graph
+Sub-Map,SinkNode,0xC,1,no,MapContext,FULL,<=30 fields,pathing graph
+Sub-Map,XNode,0x20,4,no,MapContext,FULL,<=30 fields,pathing graph
+Sub-Map,YNode,0x18,3,no,MapContext,FULL,<=30 fields,pathing graph
+Sub-Map,MissionMapIcon,0x28,10,no,MissionMapContext,FULL,<=30 fields,
+Sub-Map,MissionMapSubContext,-,1,no,MissionMapContext,FULL,<=30 fields,
+Sub-Map,MissionMapSubContext2,-,9,no,MissionMapContext,FULL,<=30 fields,
+Sub-Skills,Skillbar,0xBC,6,no,(skillbar),FULL,<=30 fields,
+Sub-Skills,SkillbarSkill,0x14,5,no,(skillbar),FULL,<=30 fields,
+Sub-Skills,SkillbarCast,-,3,no,(skillbar),FULL,<=30 fields,
+Sub-Skills,Skill,0xA4,48,no,(skill data),PTR,>30 fields,
+Sub-Skills,SkillTemplate,-,0,no,(skillbar),FULL,<=30 fields,
+Sub-Skills,SkillTemplateAttribute,-,0,no,(skillbar),FULL,<=30 fields,
+Sub-Skills,Buff,0x10,4,no,AgentContext,FULL,<=30 fields,
+Sub-Skills,Effect,0x18,6,no,AgentContext,FULL,<=30 fields,
+Sub-Guild,Guild,0xAC,12,no,GuildContext,FULL,<=30 fields,
+Sub-Guild,GuildPlayer,0x174,12,no,GuildContext,FULL,<=30 fields,
+Sub-Guild,GuildHistoryEvent,0x208,3,no,GuildContext,FULL,<=30 fields,large by bytes but few fields - confirm
+Sub-Guild,CapeDesign,0x1C,7,no,GuildContext,FULL,<=30 fields,
+Sub-Guild,GHKey,-,1,no,GuildContext,FULL,<=30 fields,
+Sub-Guild,TownAlliance,0x78,8,no,GuildContext,FULL,<=30 fields,
+Sub-Misc,Friend,-,7,no,FriendList,FULL,<=30 fields,
+Sub-Misc,FriendEventData,-,4,no,FriendList,FULL,<=30 fields,
+Sub-Misc,TradeItem,0x8,2,no,TradeContext,FULL,<=30 fields,
+Sub-Misc,TradePlayer,0x14,2,no,TradeContext,FULL,<=30 fields,
+Sub-Misc,AccountUnlockedCount,0xC,3,no,AccountContext,FULL,<=30 fields,
+Sub-Misc,AccountUnlockedItemInfo,0xC,2,no,AccountContext,FULL,<=30 fields,
+Sub-Misc,CharProgressBar,0x2C,2,no,CharContext,FULL,<=30 fields,
+Sub-Misc,ObserverMatch,0x78,8,no,CharContext,FULL,<=30 fields,
+Sub-Misc,ChatBuffer,-,4,no,(chat),FULL,<=30 fields,
+Sub-Misc,ChatMessage,-,4,no,(chat),FULL,<=30 fields,
+Sub-Misc,Cinematic,-,2,no,CinematicContext,FULL,<=30 fields,
+Sub-Misc,GadgetContext,0x10,1,no,,FULL,<=30 fields,possible root
+Sub-Misc,GadgetInfo,0x10,4,no,GadgetContext,FULL,<=30 fields,
+Sub-Misc,LoginCharacter,0x78,0,no,PreGameContext,FULL,<=30 fields,field count undercounted (inline) - confirm
+Sub-Misc,TextCache,0x4,1,no,TextParser,FULL,<=30 fields,
+Sub-Misc,SubStruct1,-,1,no,TextParser,FULL,<=30 fields,
+Sub-Misc,SubStructUnk,0x54,9,no,TextParser,FULL,<=30 fields,
+Derived,AgentCategorizedIdLists,var,-,no,AgentContext,PTR,dynamic list,ally/enemy/neutral/minion/pet/item/gadget/dead - classified each frame
+Derived,RuntimePointersSnapshot,var,-,no,,FULL,static pointer table,all context addresses (the pointer directory)
+UI-State,WindowPosition,-,3,no,ui,FULL,<=30 fields,UI state not a packet
+UI-State,AgentNameTagInfo,-,15,no,ui,FULL,<=30 fields,UI state not a packet
+UI-State,FloatingWindow,0x24,9,no,ui,FULL,<=30 fields,UI state not a packet
+UI-State,EnumPreferenceInfo,-,5,no,ui,FULL,<=30 fields,UI state not a packet
+UI-State,NumberPreferenceInfo,-,5,no,ui,FULL,<=30 fields,UI state not a packet
+UI-State,UIChatMessage,-,3,no,ui,FULL,<=30 fields,UI state not a packet
+UI-Packet,ui.h message packets (~70),-,-,no,ui,SKIP,transient,not context state

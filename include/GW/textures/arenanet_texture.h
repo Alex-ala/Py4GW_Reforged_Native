@@ -4,7 +4,7 @@
 
 // ArenaNet texture decoder. Ported from the legacy AtexAsm decompressor,
 // reverse-engineered from the Guild Wars client.
-namespace GW::gw_dat_reader {
+namespace GW::textures {
 
 struct SImageDescriptor {
     int xres, yres;
@@ -18,4 +18,4 @@ struct SImageDescriptor {
 
 void AtexDecompress(unsigned int* input, unsigned int unknown, unsigned int imageformat, SImageDescriptor ImageDescriptor, unsigned int* output);
 
-}  // namespace GW::gw_dat_reader
+}  // namespace GW::textures

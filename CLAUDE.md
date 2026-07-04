@@ -18,7 +18,7 @@ The build output `Py4GW.dll` is written to the **repo root** (not a `bin/` dir) 
 32-bit is mandatory — CMake hard-fails on non-Windows or non-Win32 architecture.
 
 ```powershell
-# Preset-based (writes to ./vs2022-win32)
+# Preset-based (writes to ./build)
 cmake --preset vs2022-win32
 cmake --build --preset vs2022-win32-relwithdebinfo   # or vs2022-win32-debug
 

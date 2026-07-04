@@ -120,6 +120,38 @@ namespace GW::Context {
         bool GetIsMaterial() const;
         bool GetIsZcoin() const;
         ItemModifier* GetModifier(uint32_t identifier) const;
+
+        // Fields/properties migrated from legacy ItemExtension (folded into
+        // Item by user direction - they were never an extension, just more
+        // item properties). Legacy IsStackable is covered by GetIsStackable
+        // above; legacy GetModifier was already ported.
+        bool IsSparkly() const { return (interaction & 0x2000) == 0; }
+        bool GetIsIdentified() const { return (interaction & 1) != 0; }
+        bool IsPrefixUpgradable() const { return ((interaction >> 14) & 1) == 0; }
+        bool IsSuffixUpgradable() const { return ((interaction >> 15) & 1) == 0; }
+        bool IsUsable() const { return (interaction & 0x1000000) != 0; }
+        bool IsTradable() const { return (interaction & 0x100) == 0; }
+        bool IsInscription() const { return (interaction & 0x25000000) == 0x25000000; }
+        bool IsBlue() const { return single_item_name && single_item_name[0] == 0xA3F; }
+        bool IsPurple() const { return (interaction & 0x400000) != 0; }
+        bool IsGreen() const { return (interaction & 0x10) != 0; }
+        bool IsGold() const { return (interaction & 0x20000) != 0; }
+        bool IsInventoryItem() const { return bag && (bag->IsInventoryBag() || bag->bag_type == GW::Constants::BagType::Equipped); }
+        bool IsStorageItem() const { return bag && (bag->IsStorageBag() || bag->IsMaterialStorage()); }
+
+        uint32_t GetUses() const;
+        bool IsTome() const;
+        bool IsIdentificationKit() const;
+        bool IsLesserKit() const;
+        bool IsExpertSalvageKit() const;
+        bool IsPerfectSalvageKit() const;
+        bool IsSalvageKit() const;
+        bool IsRareMaterial() const;
+        GW::Constants::Rarity GetRarity() const;
+        bool IsWeapon() const;
+        bool IsArmor() const;
+        bool IsSalvagable() const;
+        bool IsOfferedInTrade() const;
     };
     static_assert(sizeof(Item) == 0x54, "Item size mismatch");
 

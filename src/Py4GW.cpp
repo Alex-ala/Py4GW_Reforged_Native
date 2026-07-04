@@ -3,9 +3,12 @@
 #include "Py4GW.h"
 #include "GW/GuildWars.h"
 #include "GW/context/map.h"
+#include "GW/dialog/dialog.h"
 #include "GW/map/map.h"
 #include "GW/render/render.h"
 #include "GW/shared_memory/manager.h"
+#include "GW/textures/gw_dat_reader.h"
+#include "GW/textures/texture_manager.h"
 #include "callback/callback.h"
 #include "listeners/listeners.h"
 #include "profiler/profiler.h"
@@ -235,10 +238,17 @@ void UpdateLoopStep() {
     RunAutoexecOnce();
     RunWidgetManagerOnce();
 
+    // Resume dialog callbacks once a map transition settles (legacy called
+    // Dialog::PollMapChange from the update loop before the GIL).
+    GW::dialog::PollMapChange();
+
     using PyCallback = PY4GW::PyCallback;
     PyCallback::ExecutePhase(PyCallback::Phase::PreUpdate, PyCallback::Context::Update);
     PyCallback::ExecutePhase(PyCallback::Phase::Data, PyCallback::Context::Update);
     PyCallback::ExecutePhase(PyCallback::Phase::Update, PyCallback::Context::Update);
+
+    // Drain queued texture CPU-decode jobs (async DAT texture pipeline).
+    GW::textures::GWDatReader::Instance().CpuUpdate();
 
     const uint64_t frame_id = PY4GW::System::GetTickCount64();
     PY4GW::Profiler::Start("Update.Script");
@@ -276,6 +286,11 @@ void DrawLoop(IDirect3DDevice9* device) {
     if (!PY4GW::imgui::BeginFrame(device)) {
         return;
     }
+
+    // Texture pipeline: publish the live device and drain queued GPU-upload
+    // jobs so decoded DAT textures become available this frame.
+    GW::textures::TextureManager::Instance().SetDevice(device);
+    GW::textures::GWDatReader::Instance().DxUpdate(device);
 
     if (kEnableDebugProbe) {
         RenderDebugProbeWindow();

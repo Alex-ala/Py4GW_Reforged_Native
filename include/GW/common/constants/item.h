@@ -13,6 +13,15 @@ enum class BagType {
     MaterialStorage
 };
 
+// Migrated from legacy ItemExtension.h.
+enum class Rarity : uint8_t {
+    White,
+    Blue,
+    Purple,
+    Gold,
+    Green
+};
+
 enum class DyeColor : uint8_t {
     None = 0,
     Blue = 2,

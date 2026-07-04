@@ -1,0 +1,69 @@
+#include <pybind11/embed.h>
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+
+#include "overlay/dx_overlay.h"
+
+namespace py = pybind11;
+
+using PY4GW::overlay::DXOverlay;
+
+void bind_dx_overlay(py::module_& m) {
+    py::class_<DXOverlay>(m, "DXOverlay")
+        .def(py::init<>())
+        .def("set_primitives", &DXOverlay::set_primitives, py::arg("primitives"), py::arg("draw_color") = 0xFFFFFFFF)
+        .def("build_pathing_trapezoid_geometry", &DXOverlay::build_pathing_trapezoid_geometry, py::arg("color") = 0xFF00FF00)
+        .def("inverse_rendering", &DXOverlay::inverse_rendering, py::arg("enabled"))
+        .def("set_world_zoom_x", &DXOverlay::set_world_zoom_x, py::arg("zoom"))
+        .def("set_world_zoom_y", &DXOverlay::set_world_zoom_y, py::arg("zoom"))
+        .def("set_world_pan", &DXOverlay::set_world_pan, py::arg("x"), py::arg("y"))
+        .def("set_world_rotation", &DXOverlay::set_world_rotation, py::arg("r"))
+        .def("set_world_space", &DXOverlay::set_world_space, py::arg("enabled"))
+        .def("set_world_scale", &DXOverlay::set_world_scale, py::arg("scale"))
+
+        .def("set_screen_offset", &DXOverlay::set_screen_offset, py::arg("x"), py::arg("y"))
+        .def("set_screen_zoom_x", &DXOverlay::set_screen_zoom_x, py::arg("zoom"))
+        .def("set_screen_zoom_y", &DXOverlay::set_screen_zoom_y, py::arg("zoom"))
+        .def("set_screen_rotation", &DXOverlay::set_screen_rotation, py::arg("r"))
+
+        .def("set_circular_mask", &DXOverlay::set_circular_mask, py::arg("enabled"))
+        .def("set_circular_mask_radius", &DXOverlay::set_circular_mask_radius, py::arg("radius"))
+        .def("set_circular_mask_center", &DXOverlay::set_circular_mask_center, py::arg("x"), py::arg("y"))
+
+        .def("set_rectangle_mask", &DXOverlay::set_rectangle_mask, py::arg("enabled"))
+        .def("set_rectangle_mask_bounds", &DXOverlay::set_rectangle_mask_bounds, py::arg("x"), py::arg("y"), py::arg("width"), py::arg("height"))
+
+        .def("render", &DXOverlay::render)
+
+        .def("DrawLine", &DXOverlay::DrawLine, py::arg("from"), py::arg("to"), py::arg("color") = 0xFFFFFFFF, py::arg("thickness") = 1.0f)
+        .def("DrawTriangle", &DXOverlay::DrawTriangle, py::arg("p1"), py::arg("p2"), py::arg("p3"), py::arg("color") = 0xFFFFFFFF, py::arg("thickness") = 1.0f)
+        .def("DrawTriangleFilled", &DXOverlay::DrawTriangleFilled, py::arg("p1"), py::arg("p2"), py::arg("p3"), py::arg("color") = 0xFFFFFFFF)
+        .def("DrawQuad", &DXOverlay::DrawQuad, py::arg("p1"), py::arg("p2"), py::arg("p3"), py::arg("p4"), py::arg("color") = 0xFFFFFFFF, py::arg("thickness") = 1.0f)
+        .def("DrawQuadFilled", &DXOverlay::DrawQuadFilled, py::arg("p1"), py::arg("p2"), py::arg("p3"), py::arg("p4"), py::arg("color") = 0xFFFFFFFF)
+        .def("DrawPoly", &DXOverlay::DrawPoly, py::arg("center"), py::arg("radius"), py::arg("color") = 0xFFFFFFFF, py::arg("segments") = 3, py::arg("thickness") = 1.0f)
+        .def("DrawPolyFilled", &DXOverlay::DrawPolyFilled, py::arg("center"), py::arg("radius"), py::arg("color") = 0xFFFFFFFF, py::arg("segments") = 3)
+        .def("DrawCubeOutline", &DXOverlay::DrawCubeOutline, py::arg("center"), py::arg("size"), py::arg("color") = 0xFFFFFFFF, py::arg("use_occlusion") = true)
+        .def("DrawCubeFilled", &DXOverlay::DrawCubeFilled, py::arg("center"), py::arg("size"), py::arg("color") = 0xFFFFFFFF, py::arg("use_occlusion") = true)
+
+        .def("DrawLine3D", &DXOverlay::DrawLine3D, py::arg("from"), py::arg("to"), py::arg("color") = 0xFFFFFFFF, py::arg("use_occlusion") = true, py::arg("segments") = 16, py::arg("floor_offset") = 0.0f)
+        .def("DrawTriangle3D", &DXOverlay::DrawTriangle3D, py::arg("p1"), py::arg("p2"), py::arg("p3"), py::arg("color") = 0xFFFFFFFF, py::arg("use_occlusion") = true, py::arg("edge_segments") = 16, py::arg("floor_offset") = 0.0f)
+        .def("DrawTriangleFilled3D", &DXOverlay::DrawTriangleFilled3D, py::arg("p1"), py::arg("p2"), py::arg("p3"), py::arg("color") = 0xFFFFFFFF, py::arg("use_occlusion") = true, py::arg("edge_segments") = 16, py::arg("floor_offset") = 0.0f)
+        .def("DrawQuad3D", &DXOverlay::DrawQuad3D, py::arg("p1"), py::arg("p2"), py::arg("p3"), py::arg("p4"), py::arg("color") = 0xFFFFFFFF, py::arg("use_occlusion") = true, py::arg("edge_segments") = 16, py::arg("floor_offset") = 0.0f)
+        .def("DrawQuadFilled3D", &DXOverlay::DrawQuadFilled3D, py::arg("p1"), py::arg("p2"), py::arg("p3"), py::arg("p4"), py::arg("color") = 0xFFFFFFFF, py::arg("use_occlusion") = true, py::arg("segments") = 16, py::arg("floor_offset") = 0.0f)
+        .def("DrawPoly3D", &DXOverlay::DrawPoly3D, py::arg("center"), py::arg("radius"), py::arg("color") = 0xFFFFFFFF, py::arg("numSegments") = 3, py::arg("autoZ") = true, py::arg("use_occlusion") = true, py::arg("segments") = 16, py::arg("floor_offset") = 0.0f)
+        .def("DrawPolyFilled3D", &DXOverlay::DrawPolyFilled3D, py::arg("center"), py::arg("radius"), py::arg("color") = 0xFFFFFFFF, py::arg("numSegments") = 3, py::arg("autoZ") = true, py::arg("use_occlusion") = true, py::arg("segments") = 16, py::arg("floor_offset") = 0.0f)
+
+        .def("Setup3DView", &DXOverlay::Setup3DView)
+        .def("ApplyStencilMask", &DXOverlay::ApplyStencilMask)
+        .def("ResetStencilMask", &DXOverlay::ResetStencilMask)
+        .def("DrawTexture", &DXOverlay::DrawTexture, py::arg("file_path"), py::arg("screen_pos_x"), py::arg("screen_pos_y"), py::arg("width") = 100.0f, py::arg("height") = 100.0f, py::arg("int_tint") = 0xFFFFFFFF)
+        .def("DrawTexture3D", &DXOverlay::DrawTexture3D, py::arg("file_path"), py::arg("world_pos_x"), py::arg("world_pos_y"), py::arg("world_pos_z"), py::arg("width") = 100.0f, py::arg("height") = 100.0f, py::arg("use_occlusion") = true, py::arg("int_tint") = 0xFFFFFFFF)
+        .def("DrawQuadTextured3D", &DXOverlay::DrawQuadTextured3D, py::arg("file_path"),
+            py::arg("p1"), py::arg("p2"), py::arg("p3"), py::arg("p4"),
+            py::arg("use_occlusion") = true, py::arg("int_tint") = 0xFFFFFFFF)
+        .def("SaveGeometryToFile", &DXOverlay::SaveGeometryToFile, py::arg("filename"), py::arg("min_x"), py::arg("min_y"), py::arg("max_x"), py::arg("max_y"));
+}
+
+PYBIND11_EMBEDDED_MODULE(PyDXOverlay, m) {
+    bind_dx_overlay(m);
+}

@@ -24,6 +24,13 @@ namespace GW::Context {
     };
     static_assert(sizeof(PathingTrapezoid) == 0x30, "PathingTrapezoid size mismatch");
 
+    // Engine pathfinding waypoint (FindPath input/output element). Migrated
+    // from the legacy Headers.h PathPoint typedef.
+    struct PathPoint {
+        GamePos pos;
+        const PathingTrapezoid* t;
+    };
+
     struct Node {
         /* +h0000 */ uint32_t type;   //XNode = 0, YNode = 1, SinkNode = 2
         /* +h0004 */ uint32_t id;

@@ -11,7 +11,7 @@
       "displayName": "Visual Studio 2022 Win32",
       "generator": "Visual Studio 17 2022",
       "architecture": "Win32",
-      "binaryDir": "${sourceDir}/vs2022-win32",
+      "binaryDir": "${sourceDir}/build",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",

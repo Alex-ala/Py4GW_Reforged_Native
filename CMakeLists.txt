@@ -148,7 +148,12 @@ target_link_libraries(Py4GW
         minhook
         Python3::Python
         d3d9.lib
+        d3dcompiler.lib
         dbghelp.lib
         winmm.lib
+        windowscodecs.lib
+        ole32.lib
+        gdiplus.lib
+        comctl32.lib
 )
 

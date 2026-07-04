@@ -26,6 +26,11 @@ public:
     void Toggle();
     bool IsEnabled() const { return enabled_; }
 
+    // Whether Initialize() enables this listener at startup. Default true;
+    // override to false for opt-in listeners that should stay off until a
+    // consumer toggles them on (e.g. high-volume capture).
+    virtual bool EnabledByDefault() const { return true; }
+
 protected:
     virtual void Install() = 0;
     virtual void Uninstall() = 0;

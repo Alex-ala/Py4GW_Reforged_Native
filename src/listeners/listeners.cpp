@@ -2,6 +2,7 @@
 
 #include "listeners/listeners.h"
 
+#include "listeners/agent_events_listener.h"
 #include "GW/common/stoc.h"
 #include "GW/context/context.h"
 #include "GW/context/item.h"
@@ -134,7 +135,7 @@ namespace {
 
 // Every toggleable listener, in registration order.
 std::vector<Listener*>& Registry() {
-    static std::vector<Listener*> listeners = {&Merchant()};
+    static std::vector<Listener*> listeners = {&Merchant(), &AgentEvents()};
     return listeners;
 }
 
@@ -151,7 +152,9 @@ Listener* Find(const std::string& name) {
 
 bool Initialize() {
     for (Listener* listener : Registry()) {
-        listener->Enable();
+        if (listener->EnabledByDefault()) {
+            listener->Enable();
+        }
     }
     return true;
 }

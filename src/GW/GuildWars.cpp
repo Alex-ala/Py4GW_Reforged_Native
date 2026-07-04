@@ -11,6 +11,7 @@
 #include "GW/camera/camera.h"
 #include "GW/chat/chat.h"
 #include "GW/context/context.h"
+#include "GW/dialog/dialog.h"
 #include "GW/effects/effects.h"
 #include "GW/events/events.h"
 #include "GW/friend_list/friend_list.h"
@@ -19,6 +20,7 @@
 #include "GW/item/item.h"
 #include "GW/map/map.h"
 #include "GW/merchant/merchant.h"
+#include "GW/native_ui/native_ui.h"
 #include "GW/name_obfuscator/name_obfuscator.h"
 #include "GW/party/party.h"
 #include "GW/player/player.h"
@@ -26,6 +28,7 @@
 #include "GW/render/render.h"
 #include "GW/skillbar/skillbar.h"
 #include "GW/stoc/stoc.h"
+#include "GW/textures/gw_dat_reader.h"
 #include "GW/trade/trade.h"
 #include "GW/ui/ui.h"
 
@@ -47,7 +50,7 @@ bool ScanMemoryManager() {
 void ShutdownMemoryManager() {
 }
 
-constexpr std::array<InitStep, 23> kInitSteps = {{
+constexpr std::array<InitStep, 26> kInitSteps = {{
     {"game_thread", "initialize", &GW::game_thread::Initialize, &GW::game_thread::Shutdown},
     {"stoc", "initialize", &GW::StoC::Initialize, &GW::StoC::Shutdown},
     {"render", "initialize", &GW::render::Initialize, &GW::render::Shutdown},
@@ -71,6 +74,9 @@ constexpr std::array<InitStep, 23> kInitSteps = {{
     {"party", "initialize", &GW::party::Initialize, &GW::party::Shutdown},
     {"name_obfuscator", "initialize", &GW::name_obfuscator::Initialize, &GW::name_obfuscator::Shutdown},
     {"agent_recolor", "initialize", &GW::agent_recolor::Initialize, &GW::agent_recolor::Shutdown},
+    {"textures", "initialize", &GW::textures::Initialize, &GW::textures::Shutdown},
+    {"dialog", "initialize", &GW::dialog::Initialize, &GW::dialog::Shutdown},
+    {"native_ui", "initialize", &GW::native_ui::Initialize, &GW::native_ui::Shutdown},
 }};
 
 void ShutdownInitializedSteps(size_t count) {
