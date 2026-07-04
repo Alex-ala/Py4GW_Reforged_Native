@@ -56,9 +56,13 @@ target_include_directories(imgui
         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui
         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/backends
 )
+# Do NOT define IMGUI_DISABLE_OBSOLETE_FUNCTIONS for a subset of targets: it
+# changes sizeof(ImGuiIO), and any TU compiled with a different setting than
+# imgui.cpp fails IMGUI_CHECKVERSION ("Mismatched struct layout!") in Debug.
+# It stays off entirely because third_party addons (ImAnim) still use
+# obsolete ImGui APIs.
 target_compile_definitions(imgui
     PRIVATE
-        IMGUI_DISABLE_OBSOLETE_FUNCTIONS
         NOMINMAX
         WIN32_LEAN_AND_MEAN
 )

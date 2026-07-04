@@ -13,6 +13,9 @@
 #include <pybind11/eval.h>
 #include <pybind11/pybind11.h>
 
+#include <windows.h>
+
+#include <cstdlib>
 #include <fstream>
 #include <functional>
 #include <memory>
@@ -440,51 +443,124 @@ PYBIND11_EMBEDDED_MODULE(Py4GW, m) {
 }
 
 bool Initialize() {
+    auto& logger = Logger::Instance();
+    logger.LogInfo("[python] Initialize: begin.");
+
+    // Pre-init environment report: which python DLL is actually mapped into
+    // the game process, and what the interpreter will see for path config.
+    HMODULE python_dll = ::GetModuleHandleA("python313.dll");
+    char python_dll_path[MAX_PATH] = {};
+    if (python_dll != nullptr && ::GetModuleFileNameA(python_dll, python_dll_path, MAX_PATH) > 0) {
+        logger.LogInfo(std::string("[python] python313.dll mapped from: ") + python_dll_path);
+        const std::string mapped_path(python_dll_path);
+        if (mapped_path.find("_MEI") != std::string::npos ||
+            mapped_path.find("\\Temp\\") != std::string::npos) {
+            logger.LogError(
+                "[python] WRONG PYTHON RUNTIME: python313.dll came from a temporary "
+                "launcher extraction directory, not the default Windows 32-bit Python "
+                "install. Keep python313.dll/python3.dll beside Py4GW.dll (the build "
+                "copies them there) or inject with a tool that loads the DLL by full path.");
+        }
+    } else {
+        logger.LogWarning("[python] python313.dll module handle NOT found in process.");
+    }
+    logger.LogInfo(std::string("[python] Py_GetVersion: ") + Py_GetVersion());
+    const char* env_home = std::getenv("PYTHONHOME");
+    const char* env_pypath = std::getenv("PYTHONPATH");
+    logger.LogInfo(std::string("[python] PYTHONHOME=") + (env_home ? env_home : "<unset>"));
+    logger.LogInfo(std::string("[python] PYTHONPATH=") + (env_pypath ? env_pypath : "<unset>"));
+    logger.LogInfo(std::string("[python] Py_IsInitialized (pre): ") + std::to_string(Py_IsInitialized()));
+
     try {
-        g_python_runtime = new py::scoped_interpreter();
+        // Explicit PyConfig: on a path-configuration failure CPython returns a
+        // PyStatus that pybind11 converts into std::runtime_error with the real
+        // reason, instead of Py_Initialize() calling abort() (0xc0000409).
+        PyConfig config;
+        PyConfig_InitPythonConfig(&config);
+        config.parse_argv = 0;
+        config.install_signal_handlers = 0;
+        logger.LogInfo("[python] Step 1: creating interpreter (Py_InitializeFromConfig).");
+        g_python_runtime = new py::scoped_interpreter(&config);
+        logger.LogInfo("[python] Step 1 OK: interpreter created.");
+
+        // Scope every py:: object so it is destroyed while the GIL is still
+        // held. Anything alive past PyEval_SaveThread() below dec_refs
+        // without the GIL - pybind11 (Debug builds) turns that into a throw
+        // from a destructor, i.e. std::terminate/abort with no log output.
+        {
+        logger.LogInfo("[python] Step 2: importing sys.");
         py::module_ sys = py::module_::import("sys");
+        logger.LogInfo(std::string("[python] Step 2 OK. sys.prefix: ") + py::cast<std::string>(sys.attr("prefix")));
+
+        logger.LogInfo("[python] Step 3: configuring sys.path.");
         const auto root = process_manager::GetModuleDirectory();
+        logger.LogInfo(std::string("[python] module directory: ") + root.string());
         if (!root.empty()) {
             sys.attr("path").attr("insert")(0, root.string());
             sys.attr("path").attr("insert")(0, (root / "scripts").string());
         }
-        py::module_::import("Py4GW");
-        py::module_::import("PySystem");
-        py::module_::import("PySettings");
-        py::module_::import("PyProfiler");
-        py::module_::import("PyCallback");
-        py::module_::import("PyListeners");
-        py::module_::import("PyAgent");
-        py::module_::import("PyAgentRecolor");
-        py::module_::import("PyCamera");
-        py::module_::import("PyChat");
-        py::module_::import("PyEffects");
-        py::module_::import("PyFriendList");
-        py::module_::import("PyGameThread");
-        py::module_::import("PyGuild");
-        py::module_::import("PyItem");
-        py::module_::import("PyMap");
-        py::module_::import("PyMerchant");
-        py::module_::import("PyNameObfuscator");
-        py::module_::import("PyPacketSniffer");
-        py::module_::import("PyParty");
-        py::module_::import("PyPing");
-        py::module_::import("PyPlayer");
-        py::module_::import("PyQuest");
-        py::module_::import("PyRender");
-        py::module_::import("PySkillbar");
-        py::module_::import("PyKeystroke");
-        py::module_::import("PyMouse");
-        py::module_::import("PyImGui");
+        logger.LogInfo("[python] Step 3 OK: sys.path configured.");
+
+        static constexpr const char* kEmbeddedModules[] = {
+            "Py4GW",
+            "PySystem",
+            "PySettings",
+            "PyProfiler",
+            "PyCallback",
+            "PyListeners",
+            "PyAgent",
+            "PyAgentRecolor",
+            "PyCamera",
+            "PyChat",
+            "PyEffects",
+            "PyFriendList",
+            "PyGameThread",
+            "PyGuild",
+            "PyItem",
+            "PyMap",
+            "PyMerchant",
+            "PyNameObfuscator",
+            "PyPacketSniffer",
+            "PyParty",
+            "PyPing",
+            "PyPlayer",
+            "PyQuest",
+            "PyRender",
+            "PySkillbar",
+            "PyKeystroke",
+            "PyMouse",
+            "PyImGui",
+        };
+        logger.LogInfo("[python] Step 4: importing embedded modules.");
+        for (const char* module_name : kEmbeddedModules) {
+            logger.LogInfo(std::string("[python] importing ") + module_name);
+            py::module_::import(module_name);
+        }
+        logger.LogInfo("[python] Step 4 OK: all embedded modules imported.");
+
+        logger.LogInfo("[python] Step 5: importing __main__.");
         g_console_scope = py::module_::import("__main__");
+        logger.LogInfo("[python] Step 5 OK.");
+        }  // All local py:: objects released here, GIL still held.
+
+        logger.LogInfo("[python] Step 6: releasing GIL (PyEval_SaveThread).");
         g_python_thread_state = PyEval_SaveThread();
+        logger.LogInfo("[python] Step 6 OK: Python runtime initialized.");
         return true;
+    } catch (py::error_already_set& error) {
+        // Log while the interpreter is still alive; the exception object must
+        // be discarded before the interpreter is torn down below.
+        logger.LogError(std::string("Python initialization failed (python error): ") + error.what());
+        error.discard_as_unraisable("Py4GW python_runtime::Initialize");
     } catch (const std::exception& error) {
-        Logger::Instance().LogError(std::string("Python initialization failed: ") + error.what());
-        delete g_python_runtime;
-        g_python_runtime = nullptr;
-        return false;
+        logger.LogError(std::string("Python initialization failed: ") + error.what());
+    } catch (...) {
+        logger.LogError("Python initialization failed: unknown exception.");
     }
+
+    delete g_python_runtime;
+    g_python_runtime = nullptr;
+    return false;
 }
 
 void Shutdown() {

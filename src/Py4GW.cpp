@@ -344,6 +344,7 @@ bool Py4GW_Initialize() {
         return false;
     }
 
+
     CrashHandler::SetContext("startup", "gw", "initialize");
     Logger::Instance().LogInfo("Initializing Guild Wars modules.");
     if (!GW::Initialize()) {
