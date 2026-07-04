@@ -1,9 +1,37 @@
 #include <pybind11/embed.h>
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
 #include "GW/effects/effects.h"
 
+#include <cstdint>
+#include <vector>
+
 namespace py = pybind11;
+
+namespace {
+
+// Value snapshots of Context::Effect / Context::Buff. Names kept identical to the
+// legacy PyEffects EffectType / BuffType so `from PyEffects import BuffType,
+// EffectType` and the isinstance() checks in BuffStruct.py keep working.
+struct PyEffectType {
+    int skill_id = 0;
+    uint32_t attribute_level = 0;
+    uint32_t effect_id = 0;
+    uint32_t agent_id = 0;
+    float duration = 0.f;
+    uint32_t timestamp = 0;
+    uint32_t time_elapsed = 0;
+    uint32_t time_remaining = 0;
+};
+
+struct PyBuffType {
+    int skill_id = 0;
+    uint32_t buff_id = 0;
+    uint32_t target_agent_id = 0;
+};
+
+}  // namespace
 
 PYBIND11_EMBEDDED_MODULE(PyEffects, m) {
     m.doc() = "Py4GW Effects bindings";
@@ -49,4 +77,54 @@ PYBIND11_EMBEDDED_MODULE(PyEffects, m) {
         }
         return false;
     }, py::arg("agent_id"), py::arg("skill_id"));
+
+    py::class_<PyEffectType>(m, "EffectType")
+        .def_readonly("skill_id", &PyEffectType::skill_id)
+        .def_readonly("attribute_level", &PyEffectType::attribute_level)
+        .def_readonly("effect_id", &PyEffectType::effect_id)
+        .def_readonly("agent_id", &PyEffectType::agent_id)
+        .def_readonly("duration", &PyEffectType::duration)
+        .def_readonly("timestamp", &PyEffectType::timestamp)
+        .def_readonly("time_elapsed", &PyEffectType::time_elapsed)
+        .def_readonly("time_remaining", &PyEffectType::time_remaining);
+
+    py::class_<PyBuffType>(m, "BuffType")
+        .def_readonly("skill_id", &PyBuffType::skill_id)
+        .def_readonly("buff_id", &PyBuffType::buff_id)
+        .def_readonly("target_agent_id", &PyBuffType::target_agent_id);
+
+    m.def("get_effects", [](uint32_t agent_id) -> std::vector<PyEffectType> {
+        std::vector<PyEffectType> out;
+        auto* effects = GW::effects::GetAgentEffects(agent_id);
+        if (!effects || !effects->valid()) return out;
+        for (size_t i = 0; i < effects->size(); ++i) {
+            const auto& e = (*effects)[i];
+            PyEffectType pe;
+            pe.skill_id = static_cast<int>(e.skill_id);
+            pe.attribute_level = e.attribute_level;
+            pe.effect_id = e.effect_id;
+            pe.agent_id = e.agent_id;
+            pe.duration = e.duration;
+            pe.timestamp = e.timestamp;
+            pe.time_elapsed = e.GetTimeElapsed();
+            pe.time_remaining = e.GetTimeRemaining();
+            out.push_back(pe);
+        }
+        return out;
+    }, py::arg("agent_id"));
+
+    m.def("get_buffs", [](uint32_t agent_id) -> std::vector<PyBuffType> {
+        std::vector<PyBuffType> out;
+        auto* buffs = GW::effects::GetAgentBuffs(agent_id);
+        if (!buffs || !buffs->valid()) return out;
+        for (size_t i = 0; i < buffs->size(); ++i) {
+            const auto& b = (*buffs)[i];
+            PyBuffType pb;
+            pb.skill_id = static_cast<int>(b.skill_id);
+            pb.buff_id = b.buff_id;
+            pb.target_agent_id = b.target_agent_id;
+            out.push_back(pb);
+        }
+        return out;
+    }, py::arg("agent_id"));
 }

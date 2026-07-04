@@ -121,7 +121,18 @@ bool PyCallback::IsRegistered(CallbackId id) {
     return false;
 }
 
+// Debug gate (owner): true = callbacks fire normally; false = ExecutePhase
+// processes NO callbacks (they still register, they just never run). Flip to
+// false + rebuild to bring the Python surface up WITHOUT callbacks firing while
+// the injection crash is isolated, then set true to test callbacks. Plain
+// compile-time bool on purpose - no Python control, because reaching Python
+// requires the surface to already inject.
+static bool g_process_callbacks = false;
+
 void PyCallback::ExecutePhase(Phase phase, Context context) {
+    if (!g_process_callbacks) {
+        return;
+    }
     std::vector<Task*> phase_tasks;
     {
         std::lock_guard<std::mutex> lock(Mutex());

@@ -1,9 +1,12 @@
 #include <pybind11/embed.h>
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
 #include "GW/agent/agent.h"
 
+#include <cstring>
 #include <string>
+#include <vector>
 
 namespace py = pybind11;
 
@@ -78,8 +81,18 @@ PYBIND11_EMBEDDED_MODULE(PyAgent, m) {
         return GW::agent::GetHeroAgentID(hero_index);
     }, py::arg("hero_index"));
 
-    m.def("get_agent_enc_name", [](uint32_t agent_id) -> std::string {
-        return WideToStr(GW::agent::GetAgentEncName(agent_id));
+    m.def("get_agent_enc_name", [](uint32_t agent_id) -> std::vector<uint8_t> {
+        // Raw encoded-name bytes (UTF-16LE, incl. null terminator) so Python can
+        // decode the encoded string and read its control values. WideToStr is lossy
+        // (clamps values >= 128 to '?') and must NOT be used for encoded names.
+        const wchar_t* enc = GW::agent::GetAgentEncName(agent_id);
+        if (!enc) return {};
+        size_t n = 0;
+        while (enc[n] != 0) ++n;
+        const size_t byte_count = (n + 1) * sizeof(wchar_t);
+        std::vector<uint8_t> out(byte_count);
+        std::memcpy(out.data(), enc, byte_count);
+        return out;
     }, py::arg("agent_id"));
 
     m.def("get_agent_is_targettable", [](uint32_t agent_id) -> bool {

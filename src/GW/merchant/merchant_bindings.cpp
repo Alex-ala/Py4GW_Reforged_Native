@@ -1,8 +1,11 @@
 #include <pybind11/embed.h>
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
 #include "GW/merchant/merchant.h"
+#include "listeners/listeners.h"
 
+#include <cstdint>
 #include <vector>
 
 namespace py = pybind11;
@@ -88,4 +91,14 @@ PYBIND11_EMBEDDED_MODULE(PyMerchant, m) {
         GW::Context::MerchantQuoteInfo empty_info = {};
         return GW::merchant::RequestQuote(quote_type, quote_info, empty_info);
     }, py::arg("type"), py::arg("item_id"));
+
+    // State getters over the merchant listener (legacy PyMerchant getters).
+    m.def("is_transaction_complete", [] { return PY4GW::listeners::Merchant().IsTransactionComplete(); });
+    m.def("get_quoted_item_id", [] { return PY4GW::listeners::Merchant().GetQuotedItemId(); });
+    m.def("get_quoted_value", [] { return PY4GW::listeners::Merchant().GetQuotedValue(); });
+    // Naming inversion preserved from legacy semantics: "trader items" = the buy-tab
+    // merch_items_; "merchant items" = the merchant window items.
+    m.def("get_trader_item_list", [] { return PY4GW::listeners::Merchant().GetMerchantItems(); });
+    m.def("get_merchant_item_list", [] { return PY4GW::listeners::Merchant().GetMerchantWindowItems(); });
+    m.def("get_trader_item_list2", [] { return std::vector<uint32_t>{}; });  // legacy merch_items2 never populated
 }

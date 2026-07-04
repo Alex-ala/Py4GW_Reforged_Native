@@ -4,6 +4,11 @@
 #include "GW/skillbar/skillbar.h"
 #include "GW/context/skill.h"
 
+#include "GW/agent/agent.h"
+#include "GW/game_thread/game_thread.h"
+#include "GW/ui/ui.h"
+
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -119,4 +124,40 @@ PYBIND11_EMBEDDED_MODULE(PySkillbar, m) {
         }
         return result;
     }, py::arg("template"));
+
+    // --- ported from legacy PySkillbar.Skillbar (operations not covered by ctypes) ---
+
+    m.def("get_hovered_skill_id", []() -> uint32_t {
+        const GW::Context::Skill* skill = GW::skillbar::GetHoveredSkill();
+        return skill ? static_cast<uint32_t>(skill->skill_id) : 0u;
+    });
+
+    m.def("hero_use_skill", [](uint32_t target_agent_id, uint32_t skill_number, uint32_t hero_index) -> bool {
+        const uint32_t skill_idx = skill_number - 1;
+        const uint32_t hero_zero = hero_index - 1;
+        GW::ui::ControlAction hero_action;
+        switch (hero_zero) {
+        case 0: hero_action = GW::ui::ControlAction_Hero1Skill1; break;
+        case 1: hero_action = GW::ui::ControlAction_Hero2Skill1; break;
+        case 2: hero_action = GW::ui::ControlAction_Hero3Skill1; break;
+        case 3: hero_action = GW::ui::ControlAction_Hero4Skill1; break;
+        case 4: hero_action = GW::ui::ControlAction_Hero5Skill1; break;
+        case 5: hero_action = GW::ui::ControlAction_Hero6Skill1; break;
+        case 6: hero_action = GW::ui::ControlAction_Hero7Skill1; break;
+        default: return false;
+        }
+        const uint32_t curr_target_id = GW::agent::GetTargetId();
+        GW::game_thread::Enqueue([target_agent_id, skill_idx, hero_action, curr_target_id]() {
+            if (target_agent_id && target_agent_id != GW::agent::GetTargetId()) {
+                GW::agent::ChangeTarget(target_agent_id);
+            }
+            const auto keypress_id =
+                static_cast<GW::ui::ControlAction>(static_cast<uint32_t>(hero_action) + skill_idx);
+            GW::ui::Keypress(keypress_id);
+            if (curr_target_id && target_agent_id != curr_target_id) {
+                GW::agent::ChangeTarget(curr_target_id);
+            }
+        });
+        return true;
+    }, py::arg("target_agent_id"), py::arg("skill_number"), py::arg("hero_index"));
 }

@@ -2,12 +2,14 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include "GW/shared_memory/manager.h"
 #include "base/memory_manager.h"
 #include "base/process_manager.h"
 #include "base/python_runtime.h"
 #include "system/system.h"
 
 #include <cstdint>
+#include <string>
 
 namespace py = pybind11;
 
@@ -36,6 +38,9 @@ PYBIND11_EMBEDDED_MODULE(PySystem, m) {
         });
 
     m.def("get_tick_count64", &PY4GW::System::GetTickCount64, "Get the frame timestamp tick count as a 64-bit integer");
+    m.def("get_shared_memory_name", []() -> std::wstring {
+        return std::wstring(GW::shared_memory::RuntimeManager().Name());
+    }, "Get the current per-process runtime shared-memory name");
     m.def("get_credits", &PY4GW::System::GetCredits, "Get the credits for the Py4GW library");
     m.def("get_license", &PY4GW::System::GetLicense, "Get the license for the Py4GW library");
     m.def("change_working_directory", &PY4GW::System::ChangeWorkingDirectory, "Change the current working directory", py::arg("path"));
@@ -60,7 +65,18 @@ PYBIND11_EMBEDDED_MODULE(PySystem, m) {
         return PY4GW::System::Instance().GetSettingsDirectory().string();
     }, "Get the per-account settings directory (empty until the anchor is resolved)");
 
-    py::module_ console = m.def_submodule("console", "Console output, retrieval, and window control");
+    py::module_ console = m.def_submodule("Console", "Authoritative script-facing console: logging, retrieval, and window control");
+    // Legacy-shaped surface the Python library calls (Py4GW.Console is retired in favor of this).
+    console.attr("MessageType") = m.attr("MessageType");
+    console.def("Log", [](const std::string& sender, const std::string& message, MessageType message_type) {
+        PY4GW::System::Instance().WriteConsoleMessage(sender, message_type, message);
+    }, "Write a message to the console", py::arg("sender"), py::arg("message"), py::arg("message_type") = MessageType::Info);
+    console.def("get_projects_path", []() -> std::string {
+        return PY4GW::process_manager::GetModuleDirectory().string();
+    }, "Get the path where Py4GW.dll is located");
+    console.def("get_gw_window_handle", []() -> uintptr_t {
+        return reinterpret_cast<uintptr_t>(PY4GW::MemoryManager::GetGWWindowHandle());
+    }, "Get the Guild Wars window handle as an integer");
     console.def("write", [](const std::string& module_name, const std::string& message, const std::string& level) {
         PY4GW::System::Instance().WriteConsoleMessage(module_name, level, message);
     }, "Write a message to the console", py::arg("module_name"), py::arg("message"), py::arg("level") = "INFO");

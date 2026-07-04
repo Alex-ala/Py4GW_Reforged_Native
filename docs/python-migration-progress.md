@@ -40,6 +40,15 @@ Three Python-side data layers: bindings, shared memory, native contexts.
 Order: (1) bindings first, (2) pointer sourcing (pypointers -> shared memory),
 (3) contexts then load and validate.
 
+## TOP BLOCKER (2026-07-04): callback crash - see callback-crash-isolation-plan.md
+
+After the console/system consolidation fixed the import wall, `import Py4GWCoreLib`
+completes, callbacks register, and one fires with a NULL callable -> hard crash
+(c0000005, read 0x4) in PyCallback::ExecutePhase. Injection dies (no error_log
+producible). Mitigation in place: `src/callback/callback.cpp` `g_process_callbacks`
+bool, CURRENTLY set to `false` (callbacks OFF) so injection survives and the SURFACE
+(imports) can be tested. Full strategy + crash forensics: `callback-crash-isolation-plan.md`.
+
 ## Current status
 
 - Phase: IMPLEMENT (binding layer). Design spec complete + adversarially verified
@@ -52,6 +61,25 @@ Order: (1) bindings first, (2) pointer sourcing (pypointers -> shared memory),
   rebuild + inject): PySkill embedded module. Plus Python-only: removed dead
   `from PyAgent import AttributeClass` (Skillbar.py) - the next import-time blocker
   after PySkill.
+
+## PENDING NATIVE REBUILD (accumulated - no new .cpp files, so a plain build; PySkill
+## already built and loaded)
+
+BUILT 2026-07-04 (owner rebuilt + tested, no regressions): ExecuteDraw main/draw,
+font underscore, PyAgent get_agent_enc_name raw bytes, PyItem data class.
+
+Newly pending since that build (fold into next rebuild; no new .cpp):
+1. `GW/effects/effects_bindings.cpp` - EffectType/BuffType classes + get_effects/
+   get_buffs over Context::Effect/Buff.
+2. `GW/merchant/merchant_bindings.cpp` - 6 state getters over listeners::Merchant().
+3. `system/system_bindings.cpp` - PySystem reshape (Console submodule + Log/
+   MessageType/get_projects_path/get_gw_window_handle + get_shared_memory_name).
+   THIS ONE is the import unblocker - build + inject validates the whole consolidation
+   AND, because the Game wall is gone, exercises PyInventory/PyEffects/PyAgent/etc.
+   for the first time.
+Python-side changes since last build are live on re-inject without a rebuild
+(context PyPointers imports removed, PyInventory Inventory.py+InventoryCache.py,
+PyAgent call sites, the earlier PyKeystroke/PyOverlay/Py2DRenderer/PyCombatEvents).
 
 ## PySkill native build (owner action required)
 
@@ -110,6 +138,25 @@ Errors found and fixed this session:
 Next expected errors after these: call-time API-shape mismatches (PyAgent/PyItem/
 etc.) as code paths execute - the error-by-error phase.
 
+## PyInventory notes (for the pending InventoryCache.py pass)
+
+Native `get_bag(bag_id)` (inventory_bindings.cpp GetBagSnapshot) returns a dict:
+`id`, `items_count`, `container_item`, `size`, `is_inventory_bag`, `is_storage_bag`,
+`is_material_storage`, and `items` (list of dicts `{item_id, slot, model_id,
+quantity}`; empty slots are omitted). Migration mapping already applied in
+Inventory.py: `Bag(id,name).GetSize()`->`get_bag(id)["size"]`,
+`.GetItems()`->`["items"]`, item `.slot/.item_id/.model_id`->`["slot"]` etc.,
+`bag.id`->`bag["id"]`, drop `bag.GetContext()`. Instance methods ->
+`PyItem.*` free funcs (identify->PyItem.identify_item, salvage->PyInventory.salvage
+[validated], open_xunlai/gold/pickup/drop/equip/use/destroy/move->PyItem.*,
+GetHoveredItemID->PyInventory.get_hovered_item_id, GetIsStorageOpen->
+PyItem.get_is_storage_open). In InventoryCache.py the instance methods are passed
+as action-queue CALLBACKS (`AddAction("IDENTIFY", self._inventory_instance.Identify
+Item, ...)`) - replace the bound method with the free function
+(`AddAction("IDENTIFY", PyItem.identify_item, ...)`). Use the exact-block,
+match-count-asserted script method (NOT a blanket token sweep) since `item.`/`bag.`
+tokens are frequent.
+
 ## Binding-layer ledger (status per module)
 
 Status values: SPEC (spec drafted) / READY (verified, plan set) / IN-PROGRESS /
@@ -124,12 +171,12 @@ with Python edits + re-inject; "native" = needs C++ binding work + your rebuild.
 | PyOverlay | NAME_FIX | py-only | DONE-PENDING-INJECT | Point2D/3D->Vec2f/3f across Overlay/DXOverlay/Map/UIManager |
 | Py2DRenderer | RE_HOMED -> PyDXOverlay | py-only | DONE-PENDING-INJECT | DXOverlay.py + __init__ import/re-export |
 | PyCombatEvents | RE_HOMED -> PyAgentEvents | py-only | DONE-PENDING-INJECT | CombatEvents.py rewritten to free-fn API; tester deferred |
-| PyInventory | API_SHAPE_REWRITE | py-only | TODO | Inventory.py + caches; Item.py/ItemArray.py Bag calls deferred to PyItem |
+| PyInventory | API_SHAPE_REWRITE | py-only | DONE | Inventory.py (30 sites) + InventoryCache.py (25 sites) migrated, compile-clean. RawItemCache get_bags() loops correctly left untouched. Item.py/ItemArray.py Bag calls handled under PyItem (those files blocked on PyItem data class). |
 | PySkill | NEEDS_NATIVE_BINDING | native | DONE-PENDING-BUILD | module authored (3 new files + registration); names generated from reforged enums, NOT legacy table |
-| PyAgent | NEEDS_NATIVE_BINDING | native+py | PARTIAL | py: removed dead AttributeClass import (done). native: get_agent_enc_name must return raw bytes (C++, still TODO) |
-| PyItem | NEEDS_NATIVE_BINDING | native | BLOCKED | build PyItem data class over GW::Context::Item (~45 uses) |
-| PyEffects | NEEDS_NATIVE_BINDING | native | BLOCKED | get_effects/get_buffs/EffectType/BuffType unbound |
-| PyMerchant | NEEDS_NATIVE_BINDING | native | BLOCKED | |
+| PyAgent | NEEDS_NATIVE_BINDING | native+py | DONE-PENDING-BUILD | native: get_agent_enc_name now returns raw UTF-16LE bytes (vector<uint8_t>, +stl.h/vector/cstring) - needs rebuild. py: Agent.py(3)/selectors.py(1)/json_bt_compiler.py(2) call sites -> get_agent_enc_name; AttributeClass dead import already removed. |
+| PyItem | NEEDS_NATIVE_BINDING | native+py | DONE-PENDING-BUILD | native: PyItem data class authored in item_bindings.cpp (item_type/dye/rarity/modifiers/async-name/composite-model-ids over GW::Context::Item) - needs rebuild. py: Item.py PyItem.PyItem calls unchanged (surface reproduced); Item.py/ItemArray.py/AccountStruct.py PyInventory.Bag->get_bag dict migrated. |
+| PyEffects | NEEDS_NATIVE_BINDING | native+py | DONE-PENDING-BUILD | native: EffectType/BuffType classes + get_effects/get_buffs added to effects_bindings.cpp (over Context::Effect/Buff) - needs rebuild. py: Effect.py rewritten to free funcs; EffectCache.py DropBuff; Upkeepers.py/upkeepers.py/Yield.py NAME_FIX; BuffStruct.py unchanged (names match). |
+| PyMerchant | NEEDS_NATIVE_BINDING | native+py | PARTIAL | native DONE: 6 getters (is_transaction_complete/get_quoted_item_id/get_quoted_value/get_trader_item_list=GetMerchantItems/get_merchant_item_list=GetMerchantWindowItems/get_trader_item_list2=empty) added over PY4GW::listeners::Merchant() - needs rebuild. py PENDING: MerchantCache.py + Merchant.py facade rewrite (class->free funcs + transact_items arg marshaling per spec; botting_src/helpers_src/Merchant.py indirect, no edit). |
 | PyQuest | NEEDS_NATIVE_BINDING | native | BLOCKED | PyQuest class + 21 methods + QuestData + async cache |
 | PyCamera | NEEDS_NATIVE_BINDING | native | BLOCKED | set_yaw/pitch/pos/look_at + needs Camera field in shared memory + CameraContext reader |
 | PySkillbar | NEEDS_NATIVE_BINDING | native | BLOCKED | GetPlayerSkillbar/GetHeroSkillbar/GetHoveredSkill unbound; HeroUseSkill must be authored |
@@ -150,6 +197,46 @@ with Python edits + re-inject; "native" = needs C++ binding work + your rebuild.
   `PyPlayer` lines at top of context files must be removed (import-time crash risk).
 - Validate ctypes struct offsets against native struct layouts once bindings +
   pointer sourcing are correct.
+
+## System/Console consolidation onto PySystem (2026-07-04) - major, needs rebuild
+
+The real import wall after PyPointers was `ImportError: cannot import name 'Game'
+from 'Py4GW'` (native_src/context/MapContext.py:3) - so Py4GWCoreLib had NOT been
+importing at all; later migrations couldn't be runtime-exercised. Root cause: the
+core `Py4GW` module and `PySystem` DUPLICATED console + script-control over the same
+backend, and the `Game` namespace was dissolved. Owner decision: CONSOLIDATE onto
+PySystem (authoritative), reshape PySystem as needed.
+
+Done:
+- NATIVE (system_bindings.cpp, needs rebuild): PySystem reshaped. Renamed the
+  `console` submodule to `Console` and added the script-facing legacy surface:
+  `PySystem.Console.Log(sender,message,message_type=MessageType.Info)`,
+  `PySystem.Console.MessageType` (alias of the module enum),
+  `PySystem.Console.get_projects_path`, `PySystem.Console.get_gw_window_handle`
+  (the rich write/get_messages/filter/draw-control stay). Added flat
+  `PySystem.get_shared_memory_name()` (get_tick_count64 already existed).
+- PYTHON (58 files, done, compile-clean, all-or-nothing asserted sweep):
+  `Py4GW.Console.` -> `PySystem.Console.` (336); `Py4GW.Game.get_tick_count64` ->
+  `PySystem.get_tick_count64` (42); `Py4GW.Game.get_shared_memory_name` ->
+  `PySystem.get_shared_memory_name`; `Py4GW.Game.enqueue` / bare `Game.enqueue` ->
+  `PyGameThread.enqueue`; removed `from Py4GW import Game`; added import PySystem/
+  PyGameThread where needed.
+
+FOLLOW-UP (native dedup, not yet done - deferred for safety): remove the now-dead
+duplicate `Console` submodule + script-control defs from the core `Py4GW` module
+(python_runtime.cpp:328-383). Verify the injector bootstrap / native code does not
+call `Py4GW.Console.*` before removing. Py4GW.SharedMemory + ImGui submodules stay.
+
+## Known crashes to watch (unconfirmed)
+
+- 2026-07-04: single crash frame `#00 0x6A134030 <unknown>!DebugSetMute +0x70F0`.
+  Address is inside d3d9.dll (DebugSetMute is just the nearest-export anchor), so
+  it is a RENDER-PATH fault, not a Python-binding one. Provenance unknown (owner
+  unsure if this or a prior iteration). Most plausible recent link: the ExecuteDraw
+  change now runs a script's main() in the render path (for scripts defining BOTH
+  draw() and main()); a render-unsafe main() could surface in d3d9. Could also be a
+  pre-existing device-reset/overlay race. Not reproduced/confirmed - revisit
+  error-by-error if it recurs and correlates.
 
 ## Quality bar (owner-stated)
 
