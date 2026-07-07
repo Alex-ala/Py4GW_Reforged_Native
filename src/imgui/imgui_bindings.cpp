@@ -540,16 +540,16 @@ PYBIND11_EMBEDDED_MODULE(PyImGui, m) {
     m.def("set_keyboard_focus_here", &ImGui::SetKeyboardFocusHere, py::arg("offset") = 0);
 
     // ═══════════════ KEYBOARD ═══════════════════════════════════
-    m.def("is_key_down", &ImGui::IsKeyDown, py::arg("key"));
-    m.def("is_key_pressed", &ImGui::IsKeyPressed, py::arg("key"), py::arg("repeat") = true);
-    m.def("is_key_released", &ImGui::IsKeyReleased, py::arg("key"));
+    m.def("is_key_down", [](int key) { return ImGui::IsKeyDown(static_cast<ImGuiKey>(key)); }, py::arg("key"));
+    m.def("is_key_pressed", [](int key, bool repeat = true) { return ImGui::IsKeyPressed(static_cast<ImGuiKey>(key), repeat); }, py::arg("key"), py::arg("repeat") = true);
+    m.def("is_key_released", [](int key) { return ImGui::IsKeyReleased(static_cast<ImGuiKey>(key)); }, py::arg("key"));
     m.def("is_key_chord_pressed", &ImGui::IsKeyChordPressed, py::arg("key_chord"));
-    m.def("get_key_name", [](ImGuiKey key) -> const char* { return ImGui::GetKeyName(key); }, py::arg("key"));
-    m.def("get_key_pressed_amount", &ImGui::GetKeyPressedAmount, py::arg("key"), py::arg("repeat_delay"), py::arg("rate"));
+    m.def("get_key_name", [](int key) -> const char* { return ImGui::GetKeyName(static_cast<ImGuiKey>(key)); }, py::arg("key"));
+    m.def("get_key_pressed_amount", [](int key, float repeat_delay, float rate) { return ImGui::GetKeyPressedAmount(static_cast<ImGuiKey>(key), repeat_delay, rate); }, py::arg("key"), py::arg("repeat_delay"), py::arg("rate"));
     m.def("set_next_frame_want_capture_keyboard", &ImGui::SetNextFrameWantCaptureKeyboard, py::arg("want_capture_keyboard"));
     m.def("shortcut", &ImGui::Shortcut, py::arg("key_chord"), py::arg("flags") = 0);
     m.def("set_next_item_shortcut", &ImGui::SetNextItemShortcut, py::arg("key_chord"), py::arg("flags") = 0);
-    m.def("set_item_key_owner", &ImGui::SetItemKeyOwner, py::arg("key"));
+    m.def("set_item_key_owner", [](int key) { ImGui::SetItemKeyOwner(static_cast<ImGuiKey>(key)); }, py::arg("key"));
 
     // ═══════════════ MOUSE ══════════════════════════════════════
     m.def("set_mouse_cursor", &ImGui::SetMouseCursor, py::arg("cursor_type"));
