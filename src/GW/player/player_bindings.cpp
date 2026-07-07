@@ -14,13 +14,32 @@
 #include "GW/chat/chat.h"
 #include "GW/friend_list/friend_list.h"
 #include "GW/game_thread/game_thread.h"
+#include "GW/map/map.h"
+#include "GW/party/party.h"
+#include "GW/ui/ui.h"
 
+#include <chrono>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace py = pybind11;
 
 namespace {
+
+// Parity with legacy GW::PartyMgr::GetIsPlayerLoaded(-1):
+// returns true if the current player is connected in the party.
+static bool GetIsPlayerLoaded() {
+    auto* party_ctx = GW::Context::GetPartyContext();
+    if (!(party_ctx && party_ctx->player_party && party_ctx->player_party->players.valid()))
+        return false;
+    uint32_t player_id = GW::player::GetPlayerNumber();
+    for (const auto& player : party_ctx->player_party->players) {
+        if (player.login_number == player_id)
+            return player.connected();
+    }
+    return false;
+}
 
 std::wstring StrToWide(const std::string& str) {
     return std::wstring(str.begin(), str.end());
@@ -122,88 +141,137 @@ void PyPlayer::ResetContext() {
 }
 
 void PyPlayer::GetContext() {
+    auto instance_type = GW::map::GetInstanceType();
+    bool is_map_ready = GW::map::GetIsMapLoaded() && !GW::map::GetIsObserving()
+        && instance_type != GW::Constants::InstanceType::Loading;
+
+    if (!is_map_ready) {
+        ResetContext();
+        return;
+    }
+
+    auto player_loaded = GetIsPlayerLoaded();
+    if (!player_loaded) {
+        ResetContext();
+        return;
+    }
+
     id = static_cast<int>(GW::agent::GetControlledCharacterId());
     agent = id;
     target_id = static_cast<int>(GW::agent::GetTargetId());
     observing_id = static_cast<int>(GW::agent::GetObservingId());
 
-    auto* game_ctx = GW::Context::GetGameContext();
-    if (!game_ctx) { ResetContext(); return; }
-    auto* world = game_ctx->world;
-    if (!world) { ResetContext(); return; }
+    if (GW::map::GetIsMapLoaded()) {
+        auto* world = GW::Context::GetWorldContext();
+        if (world) {
+            auto* char_ctx = GW::Context::GetCharContext();
+            if (char_ctx) {
+                account_email = WideToStr(char_ctx->player_email);
+                for (int i = 0; i < 4; ++i) player_uuid[i] = char_ctx->player_uuid[i];
+            }
 
-    auto* char_ctx = GW::Context::GetCharContext();
-    if (char_ctx) {
-        account_email = WideToStr(char_ctx->player_email);
-        for (int i = 0; i < 4; ++i) player_uuid[i] = char_ctx->player_uuid[i];
+            auto* account = world->accountInfo;
+            if (account) {
+                account_name = WideToStr(account->account_name);
+                wins = account->wins;
+                losses = account->losses;
+                rating = account->rating;
+                qualifier_points = account->qualifier_points;
+                rank = account->rank;
+                tournament_reward_points = account->tournament_reward_points;
+            }
+
+            morale = static_cast<int>(PickHighest(world->morale, world->morale_dupe));
+
+            party_morale.clear();
+            auto* party_morale_info = world->player_morale_info;
+            constexpr size_t MAX_PARTY_SIZE = 16;
+            const uint32_t UINT_MAX_VALUE = std::numeric_limits<uint32_t>::max();
+            for (size_t i = 0; i < MAX_PARTY_SIZE && party_morale_info; ++i) {
+                uint32_t pm_agent_id = party_morale_info->agent_id;
+                uint32_t pm_morale = party_morale_info->morale;
+                if (pm_agent_id == 0 || pm_agent_id == UINT_MAX_VALUE)
+                    break;
+                party_morale.emplace_back(static_cast<int>(pm_agent_id), static_cast<int>(pm_morale));
+                ++party_morale_info;
+            }
+
+            experience = static_cast<int>(PickHighest(world->experience, world->experience_dupe));
+            level = static_cast<int>(PickHighest(world->level, world->level_dupe));
+            current_kurzick = static_cast<int>(PickHighest(world->current_kurzick, world->current_kurzick_dupe));
+            total_earned_kurzick = static_cast<int>(PickHighest(world->total_earned_kurzick, world->total_earned_kurzick_dupe));
+            max_kurzick = world->max_kurzick;
+            current_luxon = static_cast<int>(PickHighest(world->current_luxon, world->current_luxon_dupe));
+            total_earned_luxon = static_cast<int>(PickHighest(world->total_earned_luxon, world->total_earned_luxon_dupe));
+            max_luxon = world->max_luxon;
+            current_imperial = static_cast<int>(PickHighest(world->current_imperial, world->current_imperial_dupe));
+            total_earned_imperial = static_cast<int>(PickHighest(world->total_earned_imperial, world->total_earned_imperial_dupe));
+            max_imperial = world->max_imperial;
+            current_balth = static_cast<int>(PickHighest(world->current_balth, world->current_balth_dupe));
+            total_earned_balth = static_cast<int>(PickHighest(world->total_earned_balth, world->total_earned_balth_dupe));
+            max_balth = world->max_balth;
+            current_skill_points = static_cast<int>(PickHighest(world->current_skill_points, world->current_skill_points_dupe));
+            total_earned_skill_points = static_cast<int>(PickHighest(world->total_earned_skill_points, world->total_earned_skill_points_dupe));
+
+            auto copy_uint_array = [](const auto& arr, std::vector<uint32_t>& out) {
+                out.assign(arr.begin(), arr.end());
+            };
+            copy_uint_array(world->missions_completed, missions_completed);
+            copy_uint_array(world->missions_bonus, missions_bonus);
+            copy_uint_array(world->missions_completed_hm, missions_completed_hm);
+            copy_uint_array(world->missions_bonus_hm, missions_bonus_hm);
+
+            for (size_t i = 0; i < world->controlled_minion_count.size(); ++i) {
+                const auto& cm = world->controlled_minion_count[i];
+                controlled_minions.emplace_back(static_cast<int>(cm.agent_id), static_cast<int>(cm.minion_count));
+            }
+
+            copy_uint_array(world->unlocked_map, unlocked_map);
+            copy_uint_array(world->learnable_character_skills, learnable_character_skills);
+            copy_uint_array(world->unlocked_character_skills, unlocked_character_skills);
+        }
     }
-
-    auto* account = world->accountInfo;
-    if (account) {
-        account_name = WideToStr(account->account_name);
-        wins = account->wins;
-        losses = account->losses;
-        rating = account->rating;
-        qualifier_points = account->qualifier_points;
-        rank = account->rank;
-        tournament_reward_points = account->tournament_reward_points;
-    }
-
-    morale = static_cast<int>(PickHighest(world->morale, world->morale_dupe));
-    experience = static_cast<int>(PickHighest(world->experience, world->experience_dupe));
-    level = static_cast<int>(PickHighest(world->level, world->level_dupe));
-    current_kurzick = static_cast<int>(PickHighest(world->current_kurzick, world->current_kurzick_dupe));
-    total_earned_kurzick = static_cast<int>(PickHighest(world->total_earned_kurzick, world->total_earned_kurzick_dupe));
-    max_kurzick = world->max_kurzick;
-    current_luxon = static_cast<int>(PickHighest(world->current_luxon, world->current_luxon_dupe));
-    total_earned_luxon = static_cast<int>(PickHighest(world->total_earned_luxon, world->total_earned_luxon_dupe));
-    max_luxon = world->max_luxon;
-    current_imperial = static_cast<int>(PickHighest(world->current_imperial, world->current_imperial_dupe));
-    total_earned_imperial = static_cast<int>(PickHighest(world->total_earned_imperial, world->total_earned_imperial_dupe));
-    max_imperial = world->max_imperial;
-    current_balth = static_cast<int>(PickHighest(world->current_balth, world->current_balth_dupe));
-    total_earned_balth = static_cast<int>(PickHighest(world->total_earned_balth, world->total_earned_balth_dupe));
-    max_balth = world->max_balth;
-    current_skill_points = static_cast<int>(PickHighest(world->current_skill_points, world->current_skill_points_dupe));
-    total_earned_skill_points = static_cast<int>(PickHighest(world->total_earned_skill_points, world->total_earned_skill_points_dupe));
-
-    for (const auto& cm : world->controlled_minion_count) {
-        controlled_minions.emplace_back(static_cast<int>(cm.agent_id), static_cast<int>(cm.minion_count));
-    }
-    for (auto v : world->missions_completed)       missions_completed.push_back(v);
-    for (auto v : world->missions_bonus)            missions_bonus.push_back(v);
-    for (auto v : world->missions_completed_hm)     missions_completed_hm.push_back(v);
-    for (auto v : world->missions_bonus_hm)         missions_bonus_hm.push_back(v);
-    for (auto v : world->unlocked_map)              unlocked_map.push_back(v);
-    for (auto v : world->learnable_character_skills) learnable_character_skills.push_back(v);
-    for (auto v : world->unlocked_character_skills)  unlocked_character_skills.push_back(v);
 }
 
 void PyPlayer::SendDialog(uint32_t dialog_id) {
     GW::agent::SendDialog(dialog_id);
 }
-bool PyPlayer::ChangeTarget(uint32_t target_id) {
-    if (!target_id) return false;
-    GW::agent::ChangeTarget(static_cast<GW::agent::AgentID>(target_id));
+bool PyPlayer::ChangeTarget(uint32_t new_target_id) {
+    if (new_target_id == 0) return false;
+    if (!GW::agent::GetAgentByID(new_target_id)) return false;
+    GW::game_thread::Enqueue([new_target_id] {
+        if (GW::agent::Agent* a = GW::agent::GetAgentByID(new_target_id)) {
+            GW::agent::ChangeTarget(a);
+        }
+    });
     return true;
 }
 bool PyPlayer::InteractAgent(int agent_id, bool call_target) {
-    if (!agent_id) return false;
-    auto* a = GW::agent::GetAgentByID(static_cast<uint32_t>(agent_id));
-    if (!a) return false;
-    GW::agent::InteractAgent(a, call_target);
+    if (agent_id == 0) return false;
+    GW::game_thread::Enqueue([agent_id, call_target] {
+        if (GW::agent::Agent* a = GW::agent::GetAgentByID(agent_id)) {
+            GW::agent::InteractAgent(a, call_target);
+        }
+    });
     return true;
 }
 bool PyPlayer::CallTarget(int agent_id) {
-    if (!agent_id) return false;
-    GW::agent::CallTarget(static_cast<uint32_t>(agent_id));
+    if (agent_id == 0) return false;
+    GW::game_thread::Enqueue([agent_id] {
+        const auto id = static_cast<uint32_t>(agent_id);
+        GW::agent::Agent* agent = GW::agent::GetAgentByID(id);
+        if (!agent || !agent->GetAsAgentLiving()) {
+            return;
+        }
+        GW::agent::CallTarget(id);
+    });
     return true;
 }
 bool PyPlayer::IsAgentIDValid(int agent_id) {
     return GW::agent::GetAgentByID(static_cast<uint32_t>(agent_id)) != nullptr;
 }
 
-// Chat history — reads from GW::chat::GetChatLog()
+// Chat history — reads from GW::chat::GetChatLog(), async-decode via game thread.
 static std::vector<std::string> g_chat_history;
 static bool g_chat_ready = false;
 
@@ -214,17 +282,44 @@ void PyPlayer::RequestChatHistory() {
     std::thread([]() {
         auto* log = GW::chat::GetChatLog();
         if (!log) { g_chat_ready = true; return; }
-        std::vector<std::string> messages;
+
+        std::vector<std::wstring> temp_chat_log;
         for (size_t i = 0; i < GW::Context::CHAT_LOG_LENGTH; ++i) {
-            auto* entry = log->messages[i];
-            if (entry && entry->message) {
-                std::string msg;
-                for (const wchar_t* p = entry->message; *p; ++p)
-                    msg.push_back(static_cast<char>(*p < 128 ? *p : '?'));
-                messages.push_back(msg);
+            if (log->messages[i]) {
+                temp_chat_log.push_back(log->messages[i]->message);
             }
         }
-        g_chat_history = std::move(messages);
+
+        std::vector<std::wstring> decoded_chat(temp_chat_log.size());
+        auto start_time = std::chrono::steady_clock::now();
+
+        GW::game_thread::Enqueue([temp_chat_log, &decoded_chat]() {
+            for (size_t i = 0; i < temp_chat_log.size(); ++i) {
+                GW::ui::AsyncDecodeStr(temp_chat_log[i].c_str(), &decoded_chat[i]);
+            }
+        });
+
+        // Wait for all messages to be decoded (max 500ms timeout per entry)
+        for (size_t i = 0; i < temp_chat_log.size(); ++i) {
+            while (decoded_chat[i].empty()) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                auto now = std::chrono::steady_clock::now();
+                if (std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time).count() >= 500) {
+                    decoded_chat[i] = L"[ERROR: Timeout]";
+                    break;
+                }
+            }
+        }
+
+        std::vector<std::string> converted_chat;
+        for (const auto& decoded_msg : decoded_chat) {
+            std::string msg;
+            for (const wchar_t* p = decoded_msg.c_str(); *p; ++p)
+                msg.push_back(static_cast<char>(*p < 128 ? *p : '?'));
+            converted_chat.push_back(msg);
+        }
+
+        g_chat_history = std::move(converted_chat);
         g_chat_ready = true;
     }).detach();
 }
@@ -245,7 +340,10 @@ uint32_t PyPlayer::GetPlayerStatus() {
 bool PyPlayer::SetPlayerStatus(uint32_t status) {
     constexpr auto max_status = static_cast<uint32_t>(GW::Constants::FriendStatus::Away);
     if (status > max_status) return false;
-    GW::friend_list::SetFriendListStatus(static_cast<GW::Constants::FriendStatus>(status));
+    const auto friend_status = static_cast<GW::Constants::FriendStatus>(status);
+    GW::game_thread::Enqueue([friend_status] {
+        GW::friend_list::SetFriendListStatus(friend_status);
+    });
     return true;
 }
 

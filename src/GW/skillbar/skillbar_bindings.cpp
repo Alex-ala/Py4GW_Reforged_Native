@@ -6,6 +6,7 @@
 
 #include "GW/agent/agent.h"
 #include "GW/game_thread/game_thread.h"
+#include "GW/map/map.h"
 #include "GW/ui/ui.h"
 
 #include <cstdint>
@@ -28,6 +29,13 @@ struct PySkillbarObject {
     PySkillbarObject() { GetContext(); }
 
     void GetContext() {
+        auto instance_type = GW::map::GetInstanceType();
+        bool is_map_ready = GW::map::GetIsMapLoaded() && !GW::map::GetIsObserving()
+            && instance_type != GW::Constants::InstanceType::Loading;
+        if (!is_map_ready) {
+            data = GW::Context::Skillbar{};
+            return;
+        }
         data = GW::Context::Skillbar{};
         if (const GW::Context::Skillbar* sb = GW::skillbar::GetPlayerSkillbar()) {
             data = *sb;
@@ -62,12 +70,20 @@ struct PySkillbarObject {
 
     bool UseSkill(uint32_t slot, uint32_t target) const {
         ValidateSlot(slot);
-        return GW::skillbar::UseSkill(slot - 1, target);
+        uint32_t zeroslot = slot - 1;
+        GW::game_thread::Enqueue([zeroslot, target] {
+            GW::skillbar::UseSkill(zeroslot, target);
+        });
+        return true;
     }
 
     bool UseSkillTargetless(uint32_t slot) const {
         ValidateSlot(slot);
-        return GW::skillbar::PointBlankUseSkill(slot - 1);
+        uint32_t zeroslot = slot - 1;
+        GW::game_thread::Enqueue([zeroslot] {
+            GW::skillbar::PointBlankUseSkill(zeroslot);
+        });
+        return true;
     }
 
     bool HeroUseSkill(uint32_t target_agent_id, uint32_t skill_number, uint32_t hero_index) const {
@@ -181,11 +197,17 @@ PYBIND11_EMBEDDED_MODULE(PySkillbar, m) {
     }, py::arg("skill_id"));
 
     m.def("use_skill", [](uint32_t slot, uint32_t target) -> bool {
-        return GW::skillbar::UseSkill(slot, target);
+        GW::game_thread::Enqueue([slot, target] {
+            GW::skillbar::UseSkill(slot, target);
+        });
+        return true;
     }, py::arg("slot"), py::arg("target") = 0);
 
     m.def("point_blank_use_skill", [](uint32_t slot) -> bool {
-        return GW::skillbar::PointBlankUseSkill(slot);
+        GW::game_thread::Enqueue([slot] {
+            GW::skillbar::PointBlankUseSkill(slot);
+        });
+        return true;
     }, py::arg("slot"));
 
     m.def("use_skill_by_id", [](uint32_t skill_id, uint32_t target) -> bool {

@@ -2,6 +2,7 @@
 #include <pybind11/pybind11.h>
 
 #include "GW/guild/guild.h"
+#include "GW/game_thread/game_thread.h"
 
 #include <string>
 
@@ -37,10 +38,16 @@ PYBIND11_EMBEDDED_MODULE(PyGuild, m) {
     });
 
     m.def("travel_gh", []() -> bool {
-        return GW::guild::TravelGH();
+        GW::game_thread::Enqueue([]() {
+            GW::guild::TravelGH();
+        });
+        return true;
     });
 
     m.def("leave_gh", []() -> bool {
-        return GW::guild::LeaveGH();
+        GW::game_thread::Enqueue([]() {
+            GW::guild::LeaveGH();
+        });
+        return true;
     });
 }

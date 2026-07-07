@@ -183,10 +183,35 @@ PYBIND11_EMBEDDED_MODULE(PyAgent, m) {
     m.def("get_target_id", []() -> uint32_t { return GW::agent::GetTargetId(); });
     m.def("get_amount_of_players_in_instance", []() -> uint32_t { return GW::agent::GetAmountOfPlayersInInstance(); });
     m.def("is_observing", []() -> bool { return GW::agent::IsObserving(); });
-    m.def("change_target", [](uint32_t id) { return GW::agent::ChangeTarget(static_cast<GW::agent::AgentID>(id)); }, py::arg("agent_id"));
+    m.def("change_target", [](uint32_t id) {
+        if (!id) return false;
+        if (!GW::agent::GetAgentByID(id)) return false;
+        GW::game_thread::Enqueue([id] {
+            if (GW::agent::Agent* a = GW::agent::GetAgentByID(id)) {
+                GW::agent::ChangeTarget(a);
+            }
+        });
+        return true;
+    }, py::arg("agent_id"));
     m.def("move", [](float x, float y, uint32_t z) { return GW::agent::Move(x, y, z); }, py::arg("x"), py::arg("y"), py::arg("zplane") = 0);
-    m.def("interact_agent", [](uint32_t id, bool call) { auto* a = GW::agent::GetAgentByID(id); return a ? GW::agent::InteractAgent(a, call) : false; }, py::arg("agent_id"), py::arg("call_target") = false);
-    m.def("call_target", [](uint32_t id) { return GW::agent::CallTarget(id); }, py::arg("agent_id"));
+    m.def("interact_agent", [](uint32_t id, bool call) {
+        if (!id) return false;
+        GW::game_thread::Enqueue([id, call] {
+            if (GW::agent::Agent* a = GW::agent::GetAgentByID(id)) {
+                GW::agent::InteractAgent(a, call);
+            }
+        });
+        return true;
+    }, py::arg("agent_id"), py::arg("call_target") = false);
+    m.def("call_target", [](uint32_t id) {
+        if (!id) return false;
+        GW::game_thread::Enqueue([id] {
+            GW::agent::Agent* agent = GW::agent::GetAgentByID(id);
+            if (!agent || !agent->GetAsAgentLiving()) return;
+            GW::agent::CallTarget(id);
+        });
+        return true;
+    }, py::arg("agent_id"));
     m.def("get_player_name_by_login_number", [](uint32_t n) -> std::string { return WideToStr(GW::agent::GetPlayerNameByLoginNumber(n)); }, py::arg("login_number"));
     m.def("get_agent_id_by_login_number", [](uint32_t n) -> uint32_t { return GW::agent::GetAgentIdByLoginNumber(n); }, py::arg("login_number"));
     m.def("get_hero_agent_id", [](uint32_t h) -> uint32_t { return GW::agent::GetHeroAgentID(h); }, py::arg("hero_index"));

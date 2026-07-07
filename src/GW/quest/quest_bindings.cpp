@@ -293,14 +293,22 @@ struct QuestData {
 // ── PyQuest static class (parity with legacy py_quest.h Quest) ──
 struct PyQuest {
     static bool SetActiveQuestId(uint32_t quest_id) {
-        return GW::quest::SetActiveQuestId(static_cast<GW::Constants::QuestID>(quest_id));
+        if (static_cast<int32_t>(quest_id) < 0) return false;
+        GW::game_thread::Enqueue([quest_id]() {
+            GW::quest::SetActiveQuestId(static_cast<GW::Constants::QuestID>(quest_id));
+        });
+        return true;
     }
     static uint32_t GetActiveQuestId() {
         using T = std::underlying_type_t<GW::Constants::QuestID>;
         return static_cast<uint32_t>(static_cast<T>(GW::Context::GetActiveQuestId()));
     }
     static bool AbandonQuestId(uint32_t quest_id) {
-        return GW::quest::AbandonQuestId(static_cast<GW::Constants::QuestID>(quest_id));
+        if (static_cast<int32_t>(quest_id) < 0) return false;
+        GW::game_thread::Enqueue([quest_id]() {
+            GW::quest::AbandonQuestId(static_cast<GW::Constants::QuestID>(quest_id));
+        });
+        return true;
     }
     static bool IsQuestCompleted(int32_t quest_id) {
         if (quest_id < 0) return false;
@@ -408,11 +416,19 @@ PYBIND11_EMBEDDED_MODULE(PyQuest, m) {
     // ── Free-function surface (also callable directly) ──
 
     m.def("set_active_quest_id", [](uint32_t quest_id) -> bool {
-        return GW::quest::SetActiveQuestId(static_cast<GW::Constants::QuestID>(quest_id));
+        if (static_cast<int32_t>(quest_id) < 0) return false;
+        GW::game_thread::Enqueue([quest_id]() {
+            GW::quest::SetActiveQuestId(static_cast<GW::Constants::QuestID>(quest_id));
+        });
+        return true;
     }, py::arg("quest_id"));
 
     m.def("abandon_quest_id", [](uint32_t quest_id) -> bool {
-        return GW::quest::AbandonQuestId(static_cast<GW::Constants::QuestID>(quest_id));
+        if (static_cast<int32_t>(quest_id) < 0) return false;
+        GW::game_thread::Enqueue([quest_id]() {
+            GW::quest::AbandonQuestId(static_cast<GW::Constants::QuestID>(quest_id));
+        });
+        return true;
     }, py::arg("quest_id"));
 
     m.def("get_active_quest_id", []() -> uint32_t {

@@ -70,7 +70,11 @@ struct Bag {
 
 // ── PyInventory class (parity with legacy py_Inventory.h Inventory) ──
 struct PyInventory {
-    void OpenXunlaiWindow() { GW::item::OpenXunlaiWindow(); }
+    void OpenXunlaiWindow() {
+        GW::game_thread::Enqueue([] {
+            GW::item::OpenXunlaiWindow();
+        });
+    }
     bool GetIsStorageOpen() { return GW::item::GetIsStorageOpen(); }
 
     void PickUpItem(uint32_t item_id, bool call_target) {

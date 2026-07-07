@@ -4,6 +4,8 @@
 
 #include "GW/ui/ui.h"
 
+#include "GW/game_thread/game_thread.h"
+
 #include <string>
 #include <vector>
 
@@ -674,11 +676,20 @@ PYBIND11_EMBEDDED_MODULE(PyUIManager, m) {
             return py::make_tuple(pos->p1.x, pos->p1.y, pos->p2.x, pos->p2.y);
         }, py::arg("window_id"), "Get a built-in window rect as (left, top, right, bottom), or None.")
         .def_static("set_window_visible", [](uint32_t window_id, bool is_visible) {
-            return GW::ui::SetWindowVisible(static_cast<GW::ui::WindowID>(window_id), is_visible);
+            GW::game_thread::Enqueue([window_id, is_visible]() {
+                GW::ui::SetWindowVisible(static_cast<GW::ui::WindowID>(window_id), is_visible);
+            });
+            return true;
         }, py::arg("window_id"), py::arg("is_visible"))
-        .def_static("set_open_links", [](bool toggle) { GW::ui::SetOpenLinks(toggle); }, py::arg("toggle"))
+        .def_static("set_open_links", [](bool toggle) {
+            GW::game_thread::Enqueue([toggle]() { GW::ui::SetOpenLinks(toggle); });
+            return true;
+        }, py::arg("toggle"))
         .def_static("get_frame_limit", []() { return GW::ui::GetFrameLimit(); })
-        .def_static("set_frame_limit", [](uint32_t value) { return GW::ui::SetFrameLimit(value); }, py::arg("value"))
+        .def_static("set_frame_limit", [](uint32_t value) {
+            GW::game_thread::Enqueue([value]() { GW::ui::SetFrameLimit(value); });
+            return true;
+        }, py::arg("value"))
 
         // ---- Frame tree traversal / discovery ----
         .def_static("get_root_frame_id", []() -> uint32_t {
@@ -768,7 +779,10 @@ PYBIND11_EMBEDDED_MODULE(PyUIManager, m) {
             return GW::ui::GetFrameLayer(GW::ui::GetFrameById(frame_id));
         }, py::arg("frame_id"))
         .def_static("set_frame_layer_by_frame_id", [](uint32_t frame_id, uint32_t layer) {
-            return GW::ui::SetFrameLayer(GW::ui::GetFrameById(frame_id), layer);
+            GW::game_thread::Enqueue([frame_id, layer]() {
+                GW::ui::SetFrameLayer(GW::ui::GetFrameById(frame_id), layer);
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("layer"))
         .def_static("get_frame_code_by_frame_id", [](uint32_t frame_id) {
             return GW::ui::GetFrameCode(GW::ui::GetFrameById(frame_id));
@@ -817,28 +831,49 @@ PYBIND11_EMBEDDED_MODULE(PyUIManager, m) {
 
         // ---- Frame state setters ----
         .def_static("set_frame_visible_by_frame_id", [](uint32_t frame_id, bool is_visible) {
-            return GW::ui::SetFrameVisible(GW::ui::GetFrameById(frame_id), is_visible);
+            GW::game_thread::Enqueue([frame_id, is_visible]() {
+                GW::ui::SetFrameVisible(GW::ui::GetFrameById(frame_id), is_visible);
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("is_visible"))
         .def_static("set_frame_disabled_by_frame_id", [](uint32_t frame_id, bool is_disabled) {
-            return GW::ui::SetFrameDisabled(GW::ui::GetFrameById(frame_id), is_disabled);
+            GW::game_thread::Enqueue([frame_id, is_disabled]() {
+                GW::ui::SetFrameDisabled(GW::ui::GetFrameById(frame_id), is_disabled);
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("is_disabled"))
         .def_static("set_frame_opacity_by_frame_id", [](uint32_t frame_id, float opacity, float fade_time) {
-            return GW::ui::SetFrameOpacity(GW::ui::GetFrameById(frame_id), opacity, fade_time);
+            GW::game_thread::Enqueue([frame_id, opacity, fade_time]() {
+                GW::ui::SetFrameOpacity(GW::ui::GetFrameById(frame_id), opacity, fade_time);
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("opacity"), py::arg("fade_time") = 0.0f)
         .def_static("show_frame_by_frame_id", [](uint32_t frame_id, bool show) {
-            return GW::ui::ShowFrame(GW::ui::GetFrameById(frame_id), show);
+            GW::game_thread::Enqueue([frame_id, show]() {
+                GW::ui::ShowFrame(GW::ui::GetFrameById(frame_id), show);
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("show"))
         .def_static("trigger_frame_redraw_by_frame_id", [](uint32_t frame_id) {
-            return GW::ui::TriggerFrameRedraw(GW::ui::GetFrameById(frame_id));
+            GW::game_thread::Enqueue([frame_id]() {
+                GW::ui::TriggerFrameRedraw(GW::ui::GetFrameById(frame_id));
+            });
+            return true;
         }, py::arg("frame_id"))
         .def_static("add_frame_ui_interaction_callback_by_frame_id", [](uint32_t frame_id, uintptr_t callback_address, uintptr_t wparam) {
-            return GW::ui::AddFrameUIInteractionCallback(
-                GW::ui::GetFrameById(frame_id),
-                reinterpret_cast<GW::ui::UIInteractionCallback>(callback_address),
-                reinterpret_cast<void*>(wparam));
+            GW::game_thread::Enqueue([frame_id, callback_address, wparam]() {
+                GW::ui::AddFrameUIInteractionCallback(
+                    GW::ui::GetFrameById(frame_id),
+                    reinterpret_cast<GW::ui::UIInteractionCallback>(callback_address),
+                    reinterpret_cast<void*>(wparam));
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("callback_address"), py::arg("wparam") = 0)
         .def_static("destroy_ui_component_by_frame_id", [](uint32_t frame_id) {
-            return GW::ui::DestroyUIComponent(GW::ui::GetFrameById(frame_id));
+            GW::game_thread::Enqueue([frame_id]() {
+                GW::ui::DestroyUIComponent(GW::ui::GetFrameById(frame_id));
+            });
+            return true;
         }, py::arg("frame_id"))
 
         // ---- Preferences ----
@@ -884,34 +919,67 @@ PYBIND11_EMBEDDED_MODULE(PyUIManager, m) {
                 reinterpret_cast<void*>(wparam), reinterpret_cast<void*>(lparam), skip_hooks);
         }, py::arg("msgid"), py::arg("wparam"), py::arg("lparam") = 0, py::arg("skip_hooks") = false)
         .def_static("SendFrameUIMessage", [](uint32_t frame_id, uint32_t message_id, uintptr_t wparam, uintptr_t lparam) {
-            return GW::ui::SendFrameUIMessage(GW::ui::GetFrameById(frame_id), static_cast<UIMessage>(message_id),
-                reinterpret_cast<void*>(wparam), reinterpret_cast<void*>(lparam));
+            GW::game_thread::Enqueue([frame_id, message_id, wparam, lparam]() {
+                GW::ui::SendFrameUIMessage(GW::ui::GetFrameById(frame_id), static_cast<UIMessage>(message_id),
+                    reinterpret_cast<void*>(wparam), reinterpret_cast<void*>(lparam));
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("message_id"), py::arg("wparam"), py::arg("lparam") = 0)
         .def_static("SendFrameUIMessageWString", [](uint32_t frame_id, uint32_t message_id, std::wstring text) {
-            return GW::ui::SendFrameUIMessage(GW::ui::GetFrameById(frame_id), static_cast<UIMessage>(message_id),
-                static_cast<void*>(text.data()), nullptr);
+            GW::game_thread::Enqueue([frame_id, message_id, text]() {
+                GW::ui::SendFrameUIMessage(GW::ui::GetFrameById(frame_id), static_cast<UIMessage>(message_id),
+                    static_cast<void*>(const_cast<wchar_t*>(text.data())), nullptr);
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("message_id"), py::arg("text"))
         .def_static("button_click", [](uint32_t frame_id) {
-            return GW::ui::ButtonClick(GW::ui::GetFrameById(frame_id));
+            GW::game_thread::Enqueue([frame_id]() {
+                GW::ui::ButtonClick(GW::ui::GetFrameById(frame_id));
+            });
+            return true;
         }, py::arg("frame_id"))
         .def_static("button_double_click", [](uint32_t frame_id) {
-            auto* button = FrameAs<GW::ui::ButtonFrame>(frame_id);
-            return button && button->DoubleClick();
+            GW::game_thread::Enqueue([frame_id]() {
+                auto* button = FrameAs<GW::ui::ButtonFrame>(frame_id);
+                if (button) button->DoubleClick();
+            });
+            return true;
         }, py::arg("frame_id"))
         .def_static("test_mouse_action", [](uint32_t frame_id, uint32_t current_state, uint32_t wparam, uint32_t lparam) {
-            return GW::ui::TestMouseAction(frame_id, current_state, wparam, lparam);
+            GW::game_thread::Enqueue([frame_id, current_state, wparam, lparam]() {
+                GW::ui::TestMouseAction(frame_id, current_state, wparam, lparam);
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("current_state"), py::arg("wparam") = 0, py::arg("lparam") = 0)
         .def_static("test_mouse_click_action", [](uint32_t frame_id, uint32_t current_state, uint32_t wparam, uint32_t lparam) {
-            return GW::ui::TestMouseClickAction(frame_id, current_state, wparam, lparam);
+            GW::game_thread::Enqueue([frame_id, current_state, wparam, lparam]() {
+                GW::ui::TestMouseClickAction(frame_id, current_state, wparam, lparam);
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("current_state"), py::arg("wparam") = 0, py::arg("lparam") = 0)
         .def_static("key_down", [](uint32_t key, uint32_t frame_id) {
-            return GW::ui::Keydown(static_cast<GW::ui::ControlAction>(key), GW::ui::GetFrameById(frame_id));
+            GW::game_thread::Enqueue([key, frame_id]() {
+                GW::ui::ControlAction key_action = static_cast<GW::ui::ControlAction>(key);
+                GW::ui::Frame* frame = frame_id ? GW::ui::GetFrameById(frame_id) : nullptr;
+                GW::ui::Keydown(key_action, frame);
+            });
+            return true;
         }, py::arg("key"), py::arg("frame_id") = 0)
         .def_static("key_up", [](uint32_t key, uint32_t frame_id) {
-            return GW::ui::Keyup(static_cast<GW::ui::ControlAction>(key), GW::ui::GetFrameById(frame_id));
+            GW::game_thread::Enqueue([key, frame_id]() {
+                GW::ui::ControlAction key_action = static_cast<GW::ui::ControlAction>(key);
+                GW::ui::Frame* frame = frame_id ? GW::ui::GetFrameById(frame_id) : nullptr;
+                GW::ui::Keyup(key_action, frame);
+            });
+            return true;
         }, py::arg("key"), py::arg("frame_id") = 0)
         .def_static("key_press", [](uint32_t key, uint32_t frame_id) {
-            return GW::ui::Keypress(static_cast<GW::ui::ControlAction>(key), GW::ui::GetFrameById(frame_id));
+            GW::game_thread::Enqueue([key, frame_id]() {
+                GW::ui::ControlAction key_action = static_cast<GW::ui::ControlAction>(key);
+                GW::ui::Frame* frame = frame_id ? GW::ui::GetFrameById(frame_id) : nullptr;
+                GW::ui::Keypress(key_action, frame);
+            });
+            return true;
         }, py::arg("key"), py::arg("frame_id") = 0)
 
         // ---- Enc-string helpers ----
@@ -925,22 +993,33 @@ PYBIND11_EMBEDDED_MODULE(PyUIManager, m) {
 
         // ---- Windows ----
         .def_static("set_window_visible", [](uint32_t window_id, bool is_visible) {
-            return GW::ui::SetWindowVisible(static_cast<GW::ui::WindowID>(window_id), is_visible);
+            GW::game_thread::Enqueue([window_id, is_visible]() {
+                GW::ui::SetWindowVisible(static_cast<GW::ui::WindowID>(window_id), is_visible);
+            });
+            return true;
         }, py::arg("window_id"), py::arg("is_visible"))
 
         // ---- Widget creation (native component factories) ----
         .def_static("create_ui_component_by_frame_id", [](uint32_t parent_frame_id, uint32_t component_flags, uint32_t child_index, uintptr_t event_callback, std::wstring name_enc, std::wstring component_label) {
-            return GW::ui::CreateUIComponent(parent_frame_id, component_flags, child_index,
-                reinterpret_cast<GW::ui::UIInteractionCallback>(event_callback),
-                name_enc.empty() ? nullptr : name_enc.data(),
-                component_label.empty() ? nullptr : component_label.data());
+            uint32_t result = 0;
+            GW::game_thread::Enqueue([parent_frame_id, component_flags, child_index, event_callback, name_enc, component_label, &result]() mutable {
+                result = GW::ui::CreateUIComponent(parent_frame_id, component_flags, child_index,
+                    reinterpret_cast<GW::ui::UIInteractionCallback>(event_callback),
+                    name_enc.empty() ? nullptr : name_enc.data(),
+                    component_label.empty() ? nullptr : component_label.data());
+            });
+            return result;
         }, py::arg("parent_frame_id"), py::arg("component_flags"), py::arg("child_index"), py::arg("event_callback"),
             py::arg("name_enc") = std::wstring(), py::arg("component_label") = std::wstring())
         .def_static("create_ui_component_raw_by_frame_id", [](uint32_t parent_frame_id, uint32_t component_flags, uint32_t child_index, uintptr_t event_callback, uintptr_t wparam, std::wstring component_label) {
-            return GW::ui::CreateUIComponent(parent_frame_id, component_flags, child_index,
-                reinterpret_cast<GW::ui::UIInteractionCallback>(event_callback),
-                reinterpret_cast<void*>(wparam),
-                component_label.empty() ? nullptr : component_label.c_str());
+            uint32_t result = 0;
+            GW::game_thread::Enqueue([parent_frame_id, component_flags, child_index, event_callback, wparam, component_label, &result]() {
+                result = GW::ui::CreateUIComponent(parent_frame_id, component_flags, child_index,
+                    reinterpret_cast<GW::ui::UIInteractionCallback>(event_callback),
+                    reinterpret_cast<void*>(wparam),
+                    component_label.empty() ? nullptr : component_label.c_str());
+            });
+            return result;
         }, py::arg("parent_frame_id"), py::arg("component_flags"), py::arg("child_index"), py::arg("event_callback"),
             py::arg("wparam") = static_cast<uintptr_t>(0), py::arg("component_label") = std::wstring())
         .def_static("create_button_frame_by_frame_id", [](uint32_t parent_frame_id, uint32_t component_flags, uint32_t child_index, std::wstring name_enc, std::wstring component_label) -> uint32_t {
@@ -1063,16 +1142,25 @@ PYBIND11_EMBEDDED_MODULE(PyUIManager, m) {
             return dropdown ? dropdown->GetOptions() : std::vector<uint32_t>();
         }, py::arg("frame_id"))
         .def_static("select_dropdown_option_by_frame_id", [](uint32_t frame_id, uint32_t value) {
-            auto* dropdown = FrameAs<GW::ui::DropdownFrame>(frame_id);
-            return dropdown && dropdown->SelectOption(value);
+            GW::game_thread::Enqueue([frame_id, value]() {
+                auto* dropdown = FrameAs<GW::ui::DropdownFrame>(frame_id);
+                if (dropdown) dropdown->SelectOption(value);
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("value"))
         .def_static("select_dropdown_index_by_frame_id", [](uint32_t frame_id, uint32_t index) {
-            auto* dropdown = FrameAs<GW::ui::DropdownFrame>(frame_id);
-            return dropdown && dropdown->SelectIndex(index);
+            GW::game_thread::Enqueue([frame_id, index]() {
+                auto* dropdown = FrameAs<GW::ui::DropdownFrame>(frame_id);
+                if (dropdown) dropdown->SelectIndex(index);
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("index"))
         .def_static("add_dropdown_option_by_frame_id", [](uint32_t frame_id, std::wstring label_enc, uint32_t value) {
-            auto* dropdown = FrameAs<GW::ui::DropdownFrame>(frame_id);
-            return dropdown && dropdown->AddOption(label_enc.c_str(), value);
+            GW::game_thread::Enqueue([frame_id, label_enc, value]() {
+                auto* dropdown = FrameAs<GW::ui::DropdownFrame>(frame_id);
+                if (dropdown) dropdown->AddOption(label_enc.c_str(), value);
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("label_enc"), py::arg("value"))
         .def_static("get_dropdown_count_by_frame_id", [](uint32_t frame_id) -> uint32_t {
             auto* dropdown = FrameAs<GW::ui::DropdownFrame>(frame_id);
@@ -1119,8 +1207,11 @@ PYBIND11_EMBEDDED_MODULE(PyUIManager, m) {
             return value;
         }, py::arg("frame_id"))
         .def_static("set_slider_value_by_frame_id", [](uint32_t frame_id, uint32_t value) {
-            auto* slider = FrameAs<GW::ui::SliderFrame>(frame_id);
-            return slider && slider->SetValue(value);
+            GW::game_thread::Enqueue([frame_id, value]() {
+                auto* slider = FrameAs<GW::ui::SliderFrame>(frame_id);
+                if (slider) slider->SetValue(value);
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("value"))
 
         // ---- Editable text ----
@@ -1129,24 +1220,36 @@ PYBIND11_EMBEDDED_MODULE(PyUIManager, m) {
             return edit ? SafeWide(edit->GetValue()) : std::wstring();
         }, py::arg("frame_id"))
         .def_static("set_editable_text_value_by_frame_id", [](uint32_t frame_id, std::wstring value) {
-            auto* edit = FrameAs<GW::ui::EditableTextFrame>(frame_id);
-            return edit && edit->SetValue(value.c_str());
+            GW::game_thread::Enqueue([frame_id, value]() {
+                auto* edit = FrameAs<GW::ui::EditableTextFrame>(frame_id);
+                if (edit) edit->SetValue(value.c_str());
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("value"))
         .def_static("set_editable_text_max_length_by_frame_id", [](uint32_t frame_id, uint32_t max_length) {
-            auto* edit = FrameAs<GW::ui::EditableTextFrame>(frame_id);
-            return edit && edit->SetMaxLength(max_length);
+            GW::game_thread::Enqueue([frame_id, max_length]() {
+                auto* edit = FrameAs<GW::ui::EditableTextFrame>(frame_id);
+                if (edit) edit->SetMaxLength(max_length);
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("max_length"))
         .def_static("is_editable_text_read_only_by_frame_id", [](uint32_t frame_id) {
             auto* edit = FrameAs<GW::ui::EditableTextFrame>(frame_id);
             return edit && edit->IsReadOnly();
         }, py::arg("frame_id"))
         .def_static("set_editable_text_read_only_by_frame_id", [](uint32_t frame_id, bool read_only) {
-            auto* edit = FrameAs<GW::ui::EditableTextFrame>(frame_id);
-            return edit && edit->SetReadOnly(read_only);
+            GW::game_thread::Enqueue([frame_id, read_only]() {
+                auto* edit = FrameAs<GW::ui::EditableTextFrame>(frame_id);
+                if (edit) edit->SetReadOnly(read_only);
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("read_only"))
         .def_static("set_read_only_by_frame_id", [](uint32_t frame_id, bool read_only) {
-            auto* edit = FrameAs<GW::ui::EditableTextFrame>(frame_id);
-            return edit && edit->SetReadOnly(read_only);
+            GW::game_thread::Enqueue([frame_id, read_only]() {
+                auto* edit = FrameAs<GW::ui::EditableTextFrame>(frame_id);
+                if (edit) edit->SetReadOnly(read_only);
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("is_read_only"))
         .def_static("is_read_only_by_frame_id", [](uint32_t frame_id) {
             auto* edit = FrameAs<GW::ui::EditableTextFrame>(frame_id);
@@ -1159,20 +1262,32 @@ PYBIND11_EMBEDDED_MODULE(PyUIManager, m) {
             return bar ? bar->GetValue() : 0;
         }, py::arg("frame_id"))
         .def_static("set_progress_bar_value_by_frame_id", [](uint32_t frame_id, uint32_t value) {
-            auto* bar = FrameAs<GW::ui::ProgressBar>(frame_id);
-            return bar && bar->SetValue(value);
+            GW::game_thread::Enqueue([frame_id, value]() {
+                auto* bar = FrameAs<GW::ui::ProgressBar>(frame_id);
+                if (bar) bar->SetValue(value);
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("value"))
         .def_static("set_progress_bar_max_by_frame_id", [](uint32_t frame_id, uint32_t value) {
-            auto* bar = FrameAs<GW::ui::ProgressBar>(frame_id);
-            return bar && bar->SetMax(value);
+            GW::game_thread::Enqueue([frame_id, value]() {
+                auto* bar = FrameAs<GW::ui::ProgressBar>(frame_id);
+                if (bar) bar->SetMax(value);
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("value"))
         .def_static("set_progress_bar_color_id_by_frame_id", [](uint32_t frame_id, uint32_t color_id) {
-            auto* bar = FrameAs<GW::ui::ProgressBar>(frame_id);
-            return bar && bar->SetColorId(color_id);
+            GW::game_thread::Enqueue([frame_id, color_id]() {
+                auto* bar = FrameAs<GW::ui::ProgressBar>(frame_id);
+                if (bar) bar->SetColorId(color_id);
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("color_id"))
         .def_static("set_progress_bar_style_by_frame_id", [](uint32_t frame_id, uint32_t style) {
-            auto* bar = FrameAs<GW::ui::ProgressBar>(frame_id);
-            return bar && bar->SetStyle(static_cast<GW::Constants::ProgressBarStyle>(style));
+            GW::game_thread::Enqueue([frame_id, style]() {
+                auto* bar = FrameAs<GW::ui::ProgressBar>(frame_id);
+                if (bar) bar->SetStyle(static_cast<GW::Constants::ProgressBarStyle>(style));
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("style"))
 
         // ---- Text labels ----
@@ -1185,43 +1300,68 @@ PYBIND11_EMBEDDED_MODULE(PyUIManager, m) {
             return label ? SafeWide(label->GetDecodedLabel()) : std::wstring();
         }, py::arg("frame_id"))
         .def_static("set_text_label_by_frame_id", [](uint32_t frame_id, std::wstring enc_label) {
-            auto* label = FrameAs<GW::ui::TextLabelFrame>(frame_id);
-            return label && label->SetLabel(enc_label.c_str());
+            GW::game_thread::Enqueue([frame_id, enc_label]() {
+                auto* label = FrameAs<GW::ui::TextLabelFrame>(frame_id);
+                if (label) label->SetLabel(enc_label.c_str());
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("label"))
         .def_static("set_label_by_frame_id", [](uint32_t frame_id, std::wstring enc_label) {
-            auto* button = FrameAs<GW::ui::ButtonFrame>(frame_id);
-            return button && button->SetLabel(enc_label.c_str());
+            GW::game_thread::Enqueue([frame_id, enc_label]() {
+                auto* button = FrameAs<GW::ui::ButtonFrame>(frame_id);
+                if (button) button->SetLabel(enc_label.c_str());
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("label"))
         .def_static("set_multiline_label_by_frame_id", [](uint32_t frame_id, std::wstring enc_label) {
-            auto* label = FrameAs<GW::ui::MultiLineTextLabelFrame>(frame_id);
-            return label && label->SetLabel(enc_label.c_str());
+            GW::game_thread::Enqueue([frame_id, enc_label]() {
+                auto* label = FrameAs<GW::ui::MultiLineTextLabelFrame>(frame_id);
+                if (label) label->SetLabel(enc_label.c_str());
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("label"))
         .def_static("set_text_label_font_by_frame_id", [](uint32_t frame_id, uint32_t font_id) {
-            auto* label = FrameAs<GW::ui::TextLabelFrame>(frame_id);
-            return label && label->SetFont(font_id);
+            GW::game_thread::Enqueue([frame_id, font_id]() {
+                auto* label = FrameAs<GW::ui::TextLabelFrame>(frame_id);
+                if (label) label->SetFont(font_id);
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("font_id"))
 
         // ---- Tabs ----
         .def_static("add_tab_by_frame_id", [](uint32_t frame_id, std::wstring tab_name_enc, uint32_t flags, uint32_t child_offset_id, uintptr_t callback_address, uintptr_t wparam) -> uint32_t {
-            auto* tabs = FrameAs<GW::ui::TabsFrame>(frame_id);
-            if (!tabs) return 0;
-            Frame* tab = tabs->AddTab(tab_name_enc.c_str(), flags, child_offset_id,
-                reinterpret_cast<GW::ui::UIInteractionCallback>(callback_address),
-                reinterpret_cast<void*>(wparam));
-            return tab ? tab->frame_id : 0;
+            uint32_t result = 0;
+            GW::game_thread::Enqueue([frame_id, tab_name_enc, flags, child_offset_id, callback_address, wparam, &result]() {
+                auto* tabs = FrameAs<GW::ui::TabsFrame>(frame_id);
+                if (!tabs) return;
+                Frame* tab = tabs->AddTab(tab_name_enc.c_str(), flags, child_offset_id,
+                    reinterpret_cast<GW::ui::UIInteractionCallback>(callback_address),
+                    reinterpret_cast<void*>(wparam));
+                result = tab ? tab->frame_id : 0;
+            });
+            return result;
         }, py::arg("frame_id"), py::arg("tab_name_enc"), py::arg("flags"), py::arg("child_offset_id"),
             py::arg("callback_address") = 0, py::arg("wparam") = 0)
         .def_static("disable_tab_by_frame_id", [](uint32_t frame_id, uint32_t tab_id) {
-            auto* tabs = FrameAs<GW::ui::TabsFrame>(frame_id);
-            return tabs && tabs->DisableTab(tab_id);
+            GW::game_thread::Enqueue([frame_id, tab_id]() {
+                auto* tabs = FrameAs<GW::ui::TabsFrame>(frame_id);
+                if (tabs) tabs->DisableTab(tab_id);
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("tab_id"))
         .def_static("enable_tab_by_frame_id", [](uint32_t frame_id, uint32_t tab_id) {
-            auto* tabs = FrameAs<GW::ui::TabsFrame>(frame_id);
-            return tabs && tabs->EnableTab(tab_id);
+            GW::game_thread::Enqueue([frame_id, tab_id]() {
+                auto* tabs = FrameAs<GW::ui::TabsFrame>(frame_id);
+                if (tabs) tabs->EnableTab(tab_id);
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("tab_id"))
         .def_static("remove_tab_by_frame_id", [](uint32_t frame_id, uint32_t tab_id) {
-            auto* tabs = FrameAs<GW::ui::TabsFrame>(frame_id);
-            return tabs && tabs->RemoveTab(tab_id);
+            GW::game_thread::Enqueue([frame_id, tab_id]() {
+                auto* tabs = FrameAs<GW::ui::TabsFrame>(frame_id);
+                if (tabs) tabs->RemoveTab(tab_id);
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("tab_id"))
         .def_static("get_current_tab_index_by_frame_id", [](uint32_t frame_id) -> uint32_t {
             auto* tabs = FrameAs<GW::ui::TabsFrame>(frame_id);
@@ -1258,12 +1398,18 @@ PYBIND11_EMBEDDED_MODULE(PyUIManager, m) {
             return tab ? tab->frame_id : 0;
         }, py::arg("frame_id"))
         .def_static("choose_tab_by_tab_frame_id", [](uint32_t frame_id, uint32_t tab_frame_id) {
-            auto* tabs = FrameAs<GW::ui::TabsFrame>(frame_id);
-            return tabs && tabs->ChooseTab(GW::ui::GetFrameById(tab_frame_id));
+            GW::game_thread::Enqueue([frame_id, tab_frame_id]() {
+                auto* tabs = FrameAs<GW::ui::TabsFrame>(frame_id);
+                if (tabs) tabs->ChooseTab(GW::ui::GetFrameById(tab_frame_id));
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("tab_frame_id"))
         .def_static("choose_tab_by_index_by_frame_id", [](uint32_t frame_id, uint32_t tab_index) {
-            auto* tabs = FrameAs<GW::ui::TabsFrame>(frame_id);
-            return tabs && tabs->ChooseTab(tab_index);
+            GW::game_thread::Enqueue([frame_id, tab_index]() {
+                auto* tabs = FrameAs<GW::ui::TabsFrame>(frame_id);
+                if (tabs) tabs->ChooseTab(tab_index);
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("tab_index"))
         .def_static("get_tab_button_by_frame_id", [](uint32_t frame_id, uint32_t tab_frame_id) -> uint32_t {
             auto* tabs = FrameAs<GW::ui::TabsFrame>(frame_id);
@@ -1277,13 +1423,19 @@ PYBIND11_EMBEDDED_MODULE(PyUIManager, m) {
             return scrollable && scrollable->ClearItems();
         }, py::arg("frame_id"))
         .def_static("remove_scrollable_item_by_frame_id", [](uint32_t frame_id, uint32_t child_offset_id) {
-            auto* scrollable = FrameAs<GW::ui::ScrollableFrame>(frame_id);
-            return scrollable && scrollable->RemoveItem(child_offset_id);
+            GW::game_thread::Enqueue([frame_id, child_offset_id]() {
+                auto* scrollable = FrameAs<GW::ui::ScrollableFrame>(frame_id);
+                if (scrollable) scrollable->RemoveItem(child_offset_id);
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("child_offset_id"))
         .def_static("add_scrollable_item_by_frame_id", [](uint32_t frame_id, uint32_t flags, uint32_t child_offset_id, uintptr_t callback_address) {
-            auto* scrollable = FrameAs<GW::ui::ScrollableFrame>(frame_id);
-            return scrollable && scrollable->AddItem(flags, child_offset_id,
-                reinterpret_cast<GW::ui::UIInteractionCallback>(callback_address));
+            GW::game_thread::Enqueue([frame_id, flags, child_offset_id, callback_address]() {
+                auto* scrollable = FrameAs<GW::ui::ScrollableFrame>(frame_id);
+                if (scrollable) scrollable->AddItem(flags, child_offset_id,
+                    reinterpret_cast<GW::ui::UIInteractionCallback>(callback_address));
+            });
+            return true;
         }, py::arg("frame_id"), py::arg("flags"), py::arg("child_offset_id"), py::arg("callback_address") = 0)
         .def_static("get_scrollable_item_frame_id_by_frame_id", [](uint32_t frame_id, uint32_t child_offset_id) -> uint32_t {
             auto* scrollable = FrameAs<GW::ui::ScrollableFrame>(frame_id);

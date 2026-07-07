@@ -3,6 +3,8 @@
 #include <pybind11/stl.h>
 
 #include "GW/merchant/merchant.h"
+#include "GW/game_thread/game_thread.h"
+#include "GW/item/item.h"
 #include "listeners/listeners.h"
 
 #include <cstdint>
@@ -18,42 +20,66 @@ namespace {
 struct PyMerchant {
     // --- Trader (buy tab) ---
     static bool TraderBuyItem(uint32_t item_id, uint32_t cost) {
+        if (!GW::item::GetItemById(item_id)) return false;
         uint32_t id = item_id, qty = 1;
-        GW::Context::MerchantTransactionInfo give{1, &id, &qty};
-        GW::Context::MerchantTransactionInfo recv{};
-        return GW::merchant::TransactItems(GW::Constants::TransactionType::TraderBuy, cost, give, 0, recv);
+        GW::game_thread::Enqueue([id, qty, cost]() {
+            GW::Context::MerchantTransactionInfo give{1, const_cast<uint32_t*>(&id), const_cast<uint32_t*>(&qty)};
+            GW::Context::MerchantTransactionInfo recv{};
+            GW::merchant::TransactItems(GW::Constants::TransactionType::TraderBuy, cost, give, 0, recv);
+        });
+        return true;
     }
     static bool TraderSellItem(uint32_t item_id, uint32_t price) {
+        if (!GW::item::GetItemById(item_id)) return false;
         uint32_t id = item_id, qty = 1;
-        GW::Context::MerchantTransactionInfo recv{1, &id, &qty};
-        GW::Context::MerchantTransactionInfo give{};
-        return GW::merchant::TransactItems(GW::Constants::TransactionType::TraderSell, 0, give, price, recv);
+        GW::game_thread::Enqueue([id, qty, price]() {
+            GW::Context::MerchantTransactionInfo recv{1, const_cast<uint32_t*>(&id), const_cast<uint32_t*>(&qty)};
+            GW::Context::MerchantTransactionInfo give{};
+            GW::merchant::TransactItems(GW::Constants::TransactionType::TraderSell, 0, give, price, recv);
+        });
+        return true;
     }
     static bool TraderRequestQuote(uint32_t item_id) {
+        if (!GW::item::GetItemById(item_id)) return false;
         uint32_t id = item_id;
-        GW::Context::MerchantQuoteInfo give{0, 1, &id};
-        GW::Context::MerchantQuoteInfo recv{0, 0, nullptr};
-        return GW::merchant::RequestQuote(GW::Constants::TransactionType::TraderBuy, give, recv);
+        GW::game_thread::Enqueue([id]() {
+            GW::Context::MerchantQuoteInfo give{0, 1, const_cast<uint32_t*>(&id)};
+            GW::Context::MerchantQuoteInfo recv{0, 0, nullptr};
+            GW::merchant::RequestQuote(GW::Constants::TransactionType::TraderBuy, give, recv);
+        });
+        return true;
     }
     static bool TraderRequestSellQuote(uint32_t item_id) {
+        if (!GW::item::GetItemById(item_id)) return false;
         uint32_t id = item_id;
-        GW::Context::MerchantQuoteInfo recv{0, 1, &id};
-        GW::Context::MerchantQuoteInfo give{0, 0, nullptr};
-        return GW::merchant::RequestQuote(GW::Constants::TransactionType::TraderSell, give, recv);
+        GW::game_thread::Enqueue([id]() {
+            GW::Context::MerchantQuoteInfo recv{0, 1, const_cast<uint32_t*>(&id)};
+            GW::Context::MerchantQuoteInfo give{0, 0, nullptr};
+            GW::merchant::RequestQuote(GW::Constants::TransactionType::TraderSell, give, recv);
+        });
+        return true;
     }
 
     // --- Merchant (materials / rune trader) ---
     static bool MerchantBuyItem(uint32_t item_id, uint32_t cost) {
+        if (!GW::item::GetItemById(item_id)) return false;
         uint32_t id = item_id, qty = 1;
-        GW::Context::MerchantTransactionInfo give{1, &id, &qty};
-        GW::Context::MerchantTransactionInfo recv{};
-        return GW::merchant::TransactItems(GW::Constants::TransactionType::MerchantBuy, cost, give, 0, recv);
+        GW::game_thread::Enqueue([id, qty, cost]() {
+            GW::Context::MerchantTransactionInfo give{1, const_cast<uint32_t*>(&id), const_cast<uint32_t*>(&qty)};
+            GW::Context::MerchantTransactionInfo recv{};
+            GW::merchant::TransactItems(GW::Constants::TransactionType::MerchantBuy, cost, give, 0, recv);
+        });
+        return true;
     }
     static bool MerchantSellItem(uint32_t item_id, uint32_t price) {
+        if (!GW::item::GetItemById(item_id)) return false;
         uint32_t id = item_id, qty = 1;
-        GW::Context::MerchantTransactionInfo recv{1, &id, &qty};
-        GW::Context::MerchantTransactionInfo give{};
-        return GW::merchant::TransactItems(GW::Constants::TransactionType::MerchantSell, 0, give, price, recv);
+        GW::game_thread::Enqueue([id, qty, price]() {
+            GW::Context::MerchantTransactionInfo recv{1, const_cast<uint32_t*>(&id), const_cast<uint32_t*>(&qty)};
+            GW::Context::MerchantTransactionInfo give{};
+            GW::merchant::TransactItems(GW::Constants::TransactionType::MerchantSell, 0, give, price, recv);
+        });
+        return true;
     }
 
     // --- Crafter ---

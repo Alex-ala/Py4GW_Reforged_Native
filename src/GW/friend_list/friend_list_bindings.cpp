@@ -2,6 +2,7 @@
 #include <pybind11/pybind11.h>
 
 #include "GW/friend_list/friend_list.h"
+#include "GW/game_thread/game_thread.h"
 
 #include <string>
 
@@ -40,19 +41,28 @@ PYBIND11_EMBEDDED_MODULE(PyFriendList, m) {
     });
 
     m.def("set_friend_list_status", [](uint32_t status) -> bool {
-        return GW::friend_list::SetFriendListStatus(
-            static_cast<GW::Constants::FriendStatus>(status));
+        GW::game_thread::Enqueue([status]() {
+            GW::friend_list::SetFriendListStatus(
+                static_cast<GW::Constants::FriendStatus>(status));
+        });
+        return true;
     }, py::arg("status"));
 
     m.def("add_friend", [](const std::string& name, const std::string& alias) -> bool {
         auto wname = StrToWide(name);
         auto walias = StrToWide(alias);
-        return GW::friend_list::AddFriend(wname.c_str(), alias.empty() ? nullptr : walias.c_str());
+        GW::game_thread::Enqueue([wname, walias, alias]() {
+            GW::friend_list::AddFriend(wname.c_str(), alias.empty() ? nullptr : walias.c_str());
+        });
+        return true;
     }, py::arg("name"), py::arg("alias") = "");
 
     m.def("add_ignore", [](const std::string& name, const std::string& alias) -> bool {
         auto wname = StrToWide(name);
         auto walias = StrToWide(alias);
-        return GW::friend_list::AddIgnore(wname.c_str(), alias.empty() ? nullptr : walias.c_str());
+        GW::game_thread::Enqueue([wname, walias, alias]() {
+            GW::friend_list::AddIgnore(wname.c_str(), alias.empty() ? nullptr : walias.c_str());
+        });
+        return true;
     }, py::arg("name"), py::arg("alias") = "");
 }

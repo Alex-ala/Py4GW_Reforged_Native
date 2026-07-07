@@ -2,6 +2,7 @@
 #include <pybind11/pybind11.h>
 
 #include "GW/trade/trade.h"
+#include "GW/game_thread/game_thread.h"
 
 namespace py = pybind11;
 
@@ -9,7 +10,10 @@ PYBIND11_EMBEDDED_MODULE(PyTrade, m) {
     m.doc() = "Py4GW Trade bindings";
 
     m.def("open_trade_window", [](uint32_t agent_id) -> bool {
-        return GW::trade::OpenTradeWindow(agent_id);
+        GW::game_thread::Enqueue([agent_id]() {
+            GW::trade::OpenTradeWindow(agent_id);
+        });
+        return true;
     }, py::arg("agent_id"));
 
     m.def("accept_trade", []() -> bool {
