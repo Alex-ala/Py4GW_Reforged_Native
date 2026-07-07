@@ -8,6 +8,7 @@
 #include "GW/context/context.h"
 #include "GW/context/game.h"
 #include "GW/context/world.h"
+#include "GW/context/party.h"
 #include "GW/agent/agent.h"
 #include "GW/skillbar/skillbar.h"
 #include "GW/game_thread/game_thread.h"
@@ -281,8 +282,13 @@ void PyParty::ResetContext() {
 }
 
 void PyParty::GetContext() {
+    ResetContext();
     is_party_loaded = GW::party::get_is_party_loaded();
-    if (!is_party_loaded) { ResetContext(); return; }
+    if (!is_party_loaded) return;
+
+    auto* info = GW::party::get_party_info();
+    if (!info) return;
+
     tick = GW::party::get_is_party_ticked();
     is_in_hard_mode = GW::party::get_is_party_in_hard_mode();
     is_hard_mode_unlocked = GW::party::get_is_hard_mode_unlocked();
@@ -292,6 +298,42 @@ void PyParty::GetContext() {
     party_henchman_count = static_cast<int>(GW::party::get_party_henchman_count());
     is_party_defeated = GW::party::get_is_party_defeated();
     is_party_leader = GW::party::get_is_leader();
+    party_id = static_cast<int>(info->party_id);
+
+    // Populate players from the game's party context
+    if (info->players.valid()) {
+        for (const auto& p : info->players) {
+            players.push_back(PlayerPartyMember(
+                static_cast<int>(p.login_number),
+                static_cast<int>(p.calledTargetId),
+                p.connected(),
+                p.ticked()
+            ));
+        }
+    }
+
+    // Populate heroes
+    if (info->heroes.valid()) {
+        for (const auto& h : info->heroes) {
+            heroes.push_back(HeroPartyMember(
+                static_cast<int>(h.agent_id),
+                static_cast<int>(h.owner_player_id),
+                static_cast<int>(h.hero_id),
+                static_cast<int>(h.level)
+            ));
+        }
+    }
+
+    // Populate henchmen
+    if (info->henchmen.valid()) {
+        for (const auto& h : info->henchmen) {
+            henchmen.push_back(HenchmanPartyMember(
+                static_cast<int>(h.agent_id),
+                static_cast<int>(h.profession),
+                static_cast<int>(h.level)
+            ));
+        }
+    }
 }
 
 bool PyParty::ReturnToOutpost()           { return GW::party::return_to_outpost(); }

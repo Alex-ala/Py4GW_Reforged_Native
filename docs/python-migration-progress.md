@@ -159,29 +159,39 @@ tokens are frequent.
 
 ## Binding-layer ledger (status per module)
 
+**CORRECTED 2026-07-06:** The original ledger was written before the reforged C++
+bindings were completed. ALL major modules now preserve the legacy class API —
+PyAgent.PyAgent, PyPlayer.PyPlayer, PyParty.PyParty, etc. The "API-SHAPE" and
+"free-fn rewrite" classifications below were incorrect. Each module's `*_bindings.cpp`
+is the authoritative surface.
+
 Status values: SPEC (spec drafted) / READY (verified, plan set) / IN-PROGRESS /
 DONE-PENDING-INJECT (edited, awaiting user build+inject confirm) / DONE / BLOCKED.
 
-Verified classification (all confirmed by adversarial pass). "py-only" = fixable
-with Python edits + re-inject; "native" = needs C++ binding work + your rebuild.
+The native binding work IS COMPLETE. The remaining Python-side work is:
+- Console/Game repoints (`Py4GW.Console.*` → `PySystem.Console.*`, etc.)
+- Dead module removal (`PyPointers`, `Py2DRenderer`→`PyDXOverlay`, `PyCombatEvents`→`PyAgentEvents`)
+- Shared memory struct update (add `Camera` field)
 
 | Module | Verified class | Kind | Status | Notes |
 |---|---|---|---|---|
-| PyKeystroke | NAME_FIX | py-only | DONE-PENDING-INJECT | `PyScanCodeKeystroke`->`PyKeyHandler`, Keystroke.py |
-| PyOverlay | NAME_FIX | py-only | DONE-PENDING-INJECT | Point2D/3D->Vec2f/3f across Overlay/DXOverlay/Map/UIManager |
-| Py2DRenderer | RE_HOMED -> PyDXOverlay | py-only | DONE-PENDING-INJECT | DXOverlay.py + __init__ import/re-export |
-| PyCombatEvents | RE_HOMED -> PyAgentEvents | py-only | DONE-PENDING-INJECT | CombatEvents.py rewritten to free-fn API; tester deferred |
-| PyInventory | API_SHAPE_REWRITE | py-only | DONE | Inventory.py (30 sites) + InventoryCache.py (25 sites) migrated, compile-clean. RawItemCache get_bags() loops correctly left untouched. Item.py/ItemArray.py Bag calls handled under PyItem (those files blocked on PyItem data class). |
-| PySkill | NEEDS_NATIVE_BINDING | native | DONE-PENDING-BUILD | module authored (3 new files + registration); names generated from reforged enums, NOT legacy table |
-| PyAgent | NEEDS_NATIVE_BINDING | native+py | DONE-PENDING-BUILD | native: get_agent_enc_name now returns raw UTF-16LE bytes (vector<uint8_t>, +stl.h/vector/cstring) - needs rebuild. py: Agent.py(3)/selectors.py(1)/json_bt_compiler.py(2) call sites -> get_agent_enc_name; AttributeClass dead import already removed. |
-| PyItem | NEEDS_NATIVE_BINDING | native+py | DONE-PENDING-BUILD | native: PyItem data class authored in item_bindings.cpp (item_type/dye/rarity/modifiers/async-name/composite-model-ids over GW::Context::Item) - needs rebuild. py: Item.py PyItem.PyItem calls unchanged (surface reproduced); Item.py/ItemArray.py/AccountStruct.py PyInventory.Bag->get_bag dict migrated. |
-| PyEffects | NEEDS_NATIVE_BINDING | native+py | DONE-PENDING-BUILD | native: EffectType/BuffType classes + get_effects/get_buffs added to effects_bindings.cpp (over Context::Effect/Buff) - needs rebuild. py: Effect.py rewritten to free funcs; EffectCache.py DropBuff; Upkeepers.py/upkeepers.py/Yield.py NAME_FIX; BuffStruct.py unchanged (names match). |
-| PyMerchant | NEEDS_NATIVE_BINDING | native+py | PARTIAL | native DONE: 6 getters (is_transaction_complete/get_quoted_item_id/get_quoted_value/get_trader_item_list=GetMerchantItems/get_merchant_item_list=GetMerchantWindowItems/get_trader_item_list2=empty) added over PY4GW::listeners::Merchant() - needs rebuild. py PENDING: MerchantCache.py + Merchant.py facade rewrite (class->free funcs + transact_items arg marshaling per spec; botting_src/helpers_src/Merchant.py indirect, no edit). |
-| PyQuest | NEEDS_NATIVE_BINDING | native | API-SHAPE | PyQuest binding exists (quest_bindings.cpp); API-SHAPE class->free function conversion needed |
-| PyCamera | NEEDS_NATIVE_BINDING | native | API-SHAPE | Binding exists; Camera field added to shared memory (2026-07-06). API-SHAPE class->free function conversion needed. |
-| PySkillbar | NEEDS_NATIVE_BINDING | native | DONE | Skillbar + SkillbarSkill classes migrated to native pybind (2026-07-04); GetPlayerSkillbar/GetHeroSkillbar/GetHoveredSkill/HeroUseSkill bound. |
-| PyParty | API_SHAPE_REWRITE | native+py | PARTIAL | mostly py free-fn rewrite; UseHeroSkill needs native binding |
-| PyPlayer | RE_HOMED_REPOINT | native+py | PARTIAL | mostly py repoint; chat-history trio needs native binding |
+| PyAgent | MATCH | native | DONE | Native: PyAgent class with full legacy surface preserved. `get_agent_enc_name` returns raw UTF-16LE bytes (vector<uint8_t>). Profession class preserved. Python Agent.py calls `.GetAgentEncName()` — verify byte return type matches caller expectation. |
+| PyPlayer | MATCH | native | DONE | Native: PyPlayer class with full legacy surface preserved (all data members + methods including chat history, SendFakeChat, GetPlayerStatus). Python Player.py uses `PyPlayer.PyPlayer()` directly. |
+| PyParty | MATCH | native | DONE | Native: PyParty, Hero, PartyTick, PlayerPartyMember, HeroPartyMember, HenchmanPartyMember, PetInfo classes all preserved with full legacy API. Python Party.py uses all these directly. NOTE: HeroPartyMember.hero_id is an int in Reforged (not Hero object) — verify Party.py line 171 `.hero_id.GetID()`. |
+| PyInventory | MATCH | native | DONE | Native: Bag(id, name) + PyInventory() classes preserved with full legacy surface. `get_bag(id)` dict snapshots also available. Python Inventory.py uses both patterns. |
+| PyItem | MATCH | native | DONE | Native: ItemModifier, PyItemType, PyItem classes preserved. Rarity enum. Python Item.py uses PyItem.PyItem. |
+| PyEffects | MATCH | native | DONE | Native: PyEffects(agent_id) class preserved with .GetEffects()/.GetBuffs()/.EffectExists()/.BuffExists()/.DropBuff(). EffectType + BuffType classes preserved. Module-level free functions also available. |
+| PyMerchant | MATCH | native | DONE | Native: PyMerchant class preserved with .GetMerchantItems()/.GetTraderItems()/.GetQuotedValue()/.GetQuotedItemID()/.IsTransactionComplete()/.TransactItems(). |
+| PyQuest | MATCH | native | DONE | Native: PyQuest class preserved (static .GetQuest()/.GetQuestLog()/.RequestQuestInfo()). QuestData class preserved. |
+| PyCamera | MATCH | native | DONE | Native: PyCamera class preserved with full legacy surface. Camera field added to shared memory (2026-07-06). |
+| PySkillbar | MATCH | native | DONE | Native: Skillbar + SkillbarSkill classes migrated to native pybind (2026-07-04). |
+| PySkill | MATCH | native | DONE | Native: PySkill embedded module built 2026-07-04; names from reforged enums. |
+| PyKeystroke | NAME_FIX | py-only | DONE-PENDING-INJECT | `PyScanCodeKeystroke`→`PyKeyHandler` |
+| PyOverlay | NAME_FIX | py-only | DONE-PENDING-INJECT | Point2D/3D→Vec2f/3f across Overlay/DXOverlay/Map/UIManager |
+| Py2DRenderer | RELOCATED → PyDXOverlay | py-only | DONE-PENDING-INJECT | Rename import |
+| PyCombatEvents | RELOCATED → PyAgentEvents | py-only | DONE-PENDING-INJECT | Rename import |
+| PyPointers | RETIRED → shared memory | py-only | PENDING | Remove dead `import PyPointers` from 11 context files |
+| PyDialogCatalog | RETIRED → PyDialog | py-only | PENDING | Already guarded try/except |
 
 ## Shared memory / pointer sourcing (workstream 2 — in progress)
 
@@ -291,28 +301,30 @@ call `Py4GW.Console.*` before removing. Py4GW.SharedMemory + ImGui submodules st
   module; owns GetSkillConstantData), namespace `GW::skillbar`. Skill constant data
   itself is `GW::Context::Skill`.
 
-## Next action / pick-up point
+## Next action / pick-up point (revised 2026-07-06)
 
-Two tracks remain:
+**Native binding work is COMPLETE.** All major modules (PyAgent, PyPlayer, PyParty,
+PyInventory, PyItem, PyMerchant, PyEffects, PyQuest, PyCamera, PySkillbar, PySkill)
+preserve the legacy class API. The Python-side migration is now:
 
-A) Finish the remaining py-only unit: PyInventory (Inventory.py + InventoryCache.py
-   + ItemCache.py) using the get_bag dict snapshots + PyItem/PyInventory free
-   functions from `specs/PyInventory.json`. Defer Item.py/ItemArray.py Bag calls to
-   the PyItem unit so those files are not left half-migrated.
+1. **Import surface** (`Py4GWCoreLib/__init__.py`): Add `PySystem`, `PyGameThread`,
+   `PyCallback`, `PyAgentEvents`, `PyDXOverlay`. Remove `Py2DRenderer`, `PyCombatEvents`.
+   Fix logger: `Py4GW.Console.Log` → `PySystem.Console.Log`.
 
-B) Native binding work (needs owner rebuild). Recommended order, PySkill FIRST
-   because it unblocks the whole import:
-   1. PySkill  - AUTHORED; awaiting owner CMake reconfigure + 32-bit rebuild +
-      inject to confirm import unblocks and sanity checks pass.
-   2. PyAgent  - change get_agent_enc_name to return raw bytes (vector<uint8_t>).
-   3. PyItem, PyEffects, PyMerchant, PyQuest, PySkillbar, PyCamera (+ shared-memory
-      Camera field), PyParty.UseHeroSkill, PyPlayer chat-history.
-   Each: author binding over existing GW::* methods (no shim), then owner rebuilds +
-   injects, then error-by-error triage.
+2. **Console/Game repoints** (~8 files): `Py4GW.Console.*` → `PySystem.Console.*`,
+   `Py4GW.Game.enqueue` → `PyGameThread.enqueue`,
+   `Py4GW.Game.get_shared_memory_name` → `PySystem.get_shared_memory_name`.
 
-Per-module edit plans: session scratchpad `specs/<Module>.json` (call_mapping +
-spec_markdown). DECISION NEEDED from owner: do the native bindings as one batch for
-a single rebuild, or module-by-module (PySkill first) with a rebuild each.
+3. **Dead module cleanup**: Remove `import PyPointers` from 11 context files,
+   repoint `Py2DRenderer`→`PyDXOverlay`, `PyCombatEvents`→`PyAgentEvents`.
+
+4. **Shared memory**: Add `Camera` field to `PointersSSM.py`. Repoint
+   `SysShaMem.py` name source to `PySystem.get_shared_memory_name()`.
+
+5. **Verify**: `import Py4GWCoreLib` completes, widgets load, console visible.
+
+See the intake at `.opencode/tasks/active/migrate-bindings-pointers-shmem/intake.md`
+in the Python project for the detailed scope and file inventory.
 
 ## Update 2026-07-04: PySkillbar legacy CLASSES migrated (Skillbar + SkillbarSkill)
 

@@ -58,46 +58,54 @@ PyTrade, PyUIManager.
 
 ### Reconciliation of the modules Py4GWCoreLib imports
 
-Categories: MATCH (compatible today), API-SHAPE (module exists but surface changed
-from legacy class to flat `snake_case` free functions), NAME (specific symbol
-renamed), RE-HOMED (functionality moved to a differently-named module),
+**CORRECTED 2026-07-06:** The original survey was written before the reforged C++
+bindings were completed. The native bindings have since been built to **preserve
+the legacy class API**. The "API-SHAPE" category below was incorrect; nearly all
+modules expose the same classes and methods as the legacy DLL. See each module's
+`*_bindings.cpp` for the authoritative surface.
+
+Categories: MATCH (compatible today — class API preserved), NAME (specific symbol
+renamed), RELOCATED (functionality moved to a differently-named module),
 RETIRED (removed by design).
 
 | Python imports | Native reality | Category | Notes |
-|---|---|---|---|---|
+|---|---|---|---|
 | PyScanner | `scanner_bindings.cpp` (`PyScanner` class) | MATCH | class + static methods preserved |
 | PyImGui | `imgui/imgui_bindings.cpp` | MATCH | both function-based; ImGui 1.92.x adapted |
 | PyPathing | `pathing_bindings.cpp` (`PathPlanner`, `PathStatus`) | MATCH | classes present |
 | PyUIManager | `ui/ui_bindings.cpp` (`UIManager`, `UIFrame`, ...) | MATCH | present |
-| PyAgent | `agent/agent_bindings.cpp` | API-SHAPE | native = flat `snake_case`; no `PyAgent.PyAgent` class |
-| PyPlayer | `player/player_bindings.cpp` | API-SHAPE | no `PyPlayer` class |
-| PyParty | `party/party_bindings.cpp` | API-SHAPE | free funcs; no `PyParty`/`Hero` classes |
-| PyItem | `item/item_bindings.cpp` | API-SHAPE | only `ItemModifier` class; no `Item`/`PyItem` |
-| PyInventory | `item/inventory_bindings.cpp` | API-SHAPE | no `Bag`/`PyInventory` class |
-| PySkillbar | `skillbar/skillbar_bindings.cpp` | API-SHAPE | free funcs; no `Skillbar` class |
-| PyMerchant | `merchant/merchant_bindings.cpp` | API-SHAPE | no class |
-| PyEffects | `effects/effects_bindings.cpp` | API-SHAPE | no class |
-| PyQuest | `quest/quest_bindings.cpp` | API-SHAPE | no class |
-| PyCamera | `camera/camera_bindings.cpp` | API-SHAPE | no class; Camera field added to shared memory (2026-07-06) |
-| PyKeystroke | `virtual_input/virtual_input_bindings.cpp` | NAME | class is `PyKeyHandler`; Python wants `PyScanCodeKeystroke` |
-| PyOverlay | `overlay/overlay_bindings.cpp` | NAME | `Overlay` OK; `Point2D`/`Point3D` -> `Vec2f`/`Vec3f` (intentional) |
-| PySkill | native skill DATA exists: `GW::Context::Skill` in `include/GW/context/skill.h`; binding in `skill_bindings.cpp` | MATCH | PySkill embedded module built 2026-07-04 |
-| Py2DRenderer | migrated into `DXOverlay` (`src/overlay/dx_overlay.cpp`), bound as `PyDXOverlay` | RELOCATED | Python `Py2DRenderer.Py2DRenderer()` maps to PyDXOverlay |
-| PyCombatEvents | migrated + reworked into `listeners/agent_events_listener.h`, bound as `PyAgentEvents` | RELOCATED | header notes it derives from legacy `CombatEventQueue` |
-| PyPointers | replaced by shared memory (`Pointers_SHMemStruct`); 11/12 getters matched, 1 gap (AreaInfo) | RELOCATED | dead `import PyPointers` lines removed from contexts |
+| PyAgent | `agent/agent_bindings.cpp` | MATCH | **PyAgent(agent_id) class preserved** — `.GetAgentID()`, `.GetName()`, `.GetPrimary()`, `.GetLevel()`, `.GetHP()`, `.GetPos()`, `.GetIsLiving()`, `.GetIsDead()`, `.GetIsMoving()`, `.GetIsAttacking()`, `.GetIsCasting()`, `.GetAllegiance()`, `.GetIsGadget()`, `.GetIsItem()`, static `.GetAgentEncName()`, `.GetTargetId()`, `.GetControlledCharacterId()`, `.GetObservingId()`. Also `Profession` class. Modern free-function surface available alongside. |
+| PyPlayer | `player/player_bindings.cpp` | MATCH | **PyPlayer() class preserved** — `.id`, `.agent`, `.target_id`, `.observing_id`, `.account_name`, `.account_email`, `.player_uuid`, `.wins`, `.losses`, `.rating`, `.morale`, `.experience`, `.level`, `.missions_completed`, `.unlocked_maps`, `.GetContext()`, `.SendDialog()`, `.ChangeTarget()`, `.InteractAgent()`, `.CallTarget()`, `.IsAgentIDValid()`, `.GetChatHistory()`, `.RequestChatHistory()`, `.IsChatHistoryReady()`, `.Istyping()`, `.SendChatCommand()`, `.SendChat()`, `.SendWhisper()`, `.SendFakeChat()`, `.SendFakeChatColored()`, `.GetPlayerStatus()`, `.SetPlayerStatus()`. |
+| PyParty | `party/party_bindings.cpp` | MATCH | **PyParty() class preserved** — `.players`, `.heroes`, `.henchmen`, `.party_size`, `.GetContext()`, `.AddHero()`, `.KickHero()`, `.KickAllHeroes()`, `.AddHenchman()`, `.KickHenchman()`, `.FlagHero()`, `.FlagAllHeroes()`, `.UnflagHero()`, `.UnflagAllHeroes()`, `.SetHardMode()`, `.ReturnToOutpost()`, `.UseHeroSkill()`, `.SetHeroSkillAIEnabled()`, `.GetPartyContextPtr()`, etc. **Hero(id/name) class preserved** — `.GetID()`, `.GetName()`. **PartyTick class preserved** — `.IsTicked()`, `.SetTicked()`, `.ToggleTicked()`. |
+| PyItem | `item/item_bindings.cpp` | MATCH | **ItemModifier**, **PyItemType**, **PyItem class preserved** — `.GetName()`, `.GetInfoString()`, `.RequestName()`, `.IsItemNameReady()`, `.item_id`, etc. Rarity enum present. |
+| PyInventory | `item/inventory_bindings.cpp` | MATCH | **Bag(id, name) class preserved** — `.GetItems()`, `.GetSize()`, `.id`, `.name`, `.container_item`, `.items_count`, `.is_inventory_bag`, `.is_storage_bag`, `.is_material_storage`. **PyInventory() class preserved** — `.OpenXunlaiWindow()`, `.GetIsStorageOpen()`, `.PickUpItem()`, `.DropItem()`, `.Salvage()`, `.IdentifyItem()`, `.AcceptSalvageWindow()`, etc. `get_bag(id)` dict snapshots also available. |
+| PySkillbar | `skillbar/skillbar_bindings.cpp` | MATCH | **Skillbar() + SkillbarSkill classes migrated** (2026-07-04). Free functions retained alongside. |
+| PyMerchant | `merchant/merchant_bindings.cpp` | MATCH | **PyMerchant class preserved** — `.GetMerchantItems()`, `.GetTraderItems()`, `.GetQuotedValue()`, `.GetQuotedItemID()`, `.IsTransactionComplete()`, `.TransactItems()`, etc. |
+| PyEffects | `effects/effects_bindings.cpp` | MATCH | **PyEffects(agent_id) class preserved** — `.GetEffects()`, `.GetBuffs()`, `.EffectExists()`, `.BuffExists()`, `.DropBuff()`. **EffectType + BuffType classes preserved**. `get_alcohol_level()`, `drop_buff()`, `get_effects()`, `get_buffs()` also available as module-level functions. |
+| PyQuest | `quest/quest_bindings.cpp` | MATCH | **PyQuest class preserved** — static `.GetQuest()`, `.GetQuestLog()`, `.GetQuestLogIds()`, `.RequestQuestInfo()`. **QuestData class preserved** — `.quest_id`, `.log_state`, `.name`, `.description`, `.objectives`, `.is_completed`, etc. |
+| PyCamera | `camera/camera_bindings.cpp` | MATCH | **PyCamera class preserved** — `.GetContext()`, `.SetYaw()`, `.SetPitch()`, `.SetCameraPos()`, `.SetLookAtTarget()`, `.SetMaxDist()`, `.SetFieldOfView()`, `.UnlockCam()`, `.GetCameraUnlock()`, `.SetFog()`, `.ForwardMovement()`, `.VerticalMovement()`, `.SideMovement()`, `.RotateMovement()`, `.ComputeCameraPos()`, `.UpdateCameraPos()`. Camera field added to shared memory (2026-07-06). |
+| PyKeystroke | `virtual_input/virtual_input_bindings.cpp` | NAME | Python code references `PyScanCodeKeystroke`; Reforged exports `PyKeyHandler`. Also `PyMouse` module exists (previously unnamed). |
+| PyOverlay | `overlay/overlay_bindings.cpp` | NAME | `Overlay` class preserved. `Point2D`/`Point3D` intentionally renamed to `Vec2f`/`Vec3f`. |
+| PySkill | `skillbar/skill_bindings.cpp` | MATCH | PySkill embedded module built 2026-07-04; skill/type/profession names generated from reforged enums. |
+| Py2DRenderer | migrated into `DXOverlay`, bound as `PyDXOverlay` | RELOCATED | Python `import Py2DRenderer` → `import PyDXOverlay` |
+| PyCombatEvents | reworked into `listeners/`, bound as `PyAgentEvents` | RELOCATED | Python `import PyCombatEvents` → `import PyAgentEvents` |
+| PyPointers | replaced by shared memory (`Pointers_SHMemStruct`); 11/12 getters matched, 1 gap (AreaInfo) | RELOCATED | Dead `import PyPointers` lines must be removed from 11 context files |
 | PyDialogCatalog | folded into `PyDialog` (`read_dialog_*` accessors) | RELOCATED | Python import is already guarded try/except |
 
-### Binding-layer implications
+### Binding-layer implications (revised)
 
-- API-SHAPE is the largest chunk of work: ~10 wrapper modules (`Agent.py`,
-  `Player.py`, `Party.py`, `Item.py`, `Inventory.py`, `Skillbar.py`,
-  `Merchant.py`, `Effect.py`, `Quest.py`, `Camera.py`) call a legacy class API
-  that the native module no longer exposes. A per-module function-by-function
-  signature diff is still required (not done here - agents deliberately stopped at
-  module level to avoid a giant speculative diff).
-- RELOCATED modules: Python wrappers must be re-pointed at the new native
-  module name (`Py2DRenderer` -> PyDXOverlay, `PyCombatEvents` -> PyAgentEvents,
-  `PyPointers` -> shared memory, `PyDialogCatalog` -> PyDialog).
+- **The legacy class API is preserved** for all major modules: PyAgent, PyPlayer,
+  PyParty, PyInventory, PyItem, PyMerchant, PyEffects, PyQuest, PyCamera,
+  PySkillbar. The Python wrapper classes (`Agent.py`, `Player.py`, `Party.py`,
+  etc.) should work with **minimal or no changes** — they call `PyAgent.PyAgent(...)`,
+  `PyPlayer.PyPlayer()`, `PyParty.PyParty()` which all exist.
+- **RELOCATED modules only**: Python imports must be repointed (`Py2DRenderer` →
+  PyDXOverlay, `PyCombatEvents` → PyAgentEvents, `PyPointers` → shared memory,
+  `PyDialogCatalog` → PyDialog).
+- **Console/Game repoints**: `Py4GW.Console.*` → `PySystem.Console.*`,
+  `Py4GW.Game.enqueue` → `PyGameThread.enqueue`, `Py4GW.Game.get_shared_memory_name`
+  → `PySystem.get_shared_memory_name`, `Py4GW.Game.get_tick_count64` →
+  `PySystem.get_tick_count64`.
 - PyScanner and PyTrade are registered in kEmbeddedModules (2026-07-06).
 - Camera shared memory field added to Pointers_SHMemStruct (2026-07-06).
 
@@ -214,19 +222,28 @@ Helpers: `native_src/internals/native_symbol.py` (scan+deref),
 
 ---
 
-## Suggested attack order (per owner direction)
+## Suggested attack order (per owner direction, revised 2026-07-06)
 
-1. Bindings first. Reconcile the `Py*` surface: build the un-built binding
-   (`PySkill`), re-point RE-HOMED wrappers (`Py2DRenderer` -> PyDXOverlay,
-   `PyCombatEvents` -> PyAgentEvents), fix NAME renames (PyKeystroke, PyOverlay
-   points), and work the API-SHAPE class->function conversions module by module.
-   Remove dead imports (`PyPointers`, `PyDialogCatalog`).
-2. Pointer sourcing. Confirm `Pointers_SHMemStruct` layout parity with the C++
-   publisher; resolve the 2 scan-based deviations; confirm every field is populated.
-3. Contexts load. With bindings and pointer source correct, the context ctypes
+1. **Bindings first.** The reforged bindings preserve the legacy class API for all
+   major modules (PyAgent, PyPlayer, PyParty, PyInventory, PyItem, PyMerchant,
+   PyEffects, PyQuest, PyCamera, PySkillbar). The Python wrapper classes should
+   work with minimal changes. Migration tasks:
+   - Add imports for new modules: `PySystem`, `PyGameThread`, `PyCallback`,
+     `PyAgentEvents`, `PyDXOverlay` (in `Py4GWCoreLib/__init__.py`).
+   - Repoint RELOCATED modules: `Py2DRenderer` → `PyDXOverlay`,
+     `PyCombatEvents` → `PyAgentEvents`, `PyDialogCatalog` → `PyDialog`.
+   - Console/Game repoints: `Py4GW.Console.*` → `PySystem.Console.*`,
+     `Py4GW.Game.enqueue` → `PyGameThread.enqueue`,
+     `Py4GW.Game.get_shared_memory_name` → `PySystem.get_shared_memory_name`,
+     `Py4GW.Game.get_tick_count64` → `PySystem.get_tick_count64`.
+   - Remove dead `import PyPointers` from 11 context files.
+   - Fix NAME differences (PyKeystroke→PyKeyHandler, Point2D/3D→Vec2f/3f).
+2. **Shared memory.** Add `Camera` field to `PointersSSM.py` (matches Reforged
+   Native's 16-field Pointers_SHMemStruct). Repoint `SysShaMem.py` name source.
+   Resolve the 2 scan-based context deviations (AgentContext, InstanceInfoContext).
+3. **Contexts load.** With bindings and pointer source correct, the context ctypes
    overlays materialize; validate field offsets against the native struct layouts.
 
-Open items that still need a decision or a deeper pass:
-- Per-module function signature diff for the 10 API-SHAPE modules.
+Open items:
 - Whether `AgentContext`/`InstanceInfo` should move fully onto shmem.
 - Exact bound surface of `PyDXOverlay` vs the `Py2DRenderer` demand.

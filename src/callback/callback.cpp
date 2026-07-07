@@ -132,8 +132,12 @@ bool PyCallback::IsRegistered(CallbackId id) {
 // are enabled. Compile-time only on purpose - no Python control, because reaching
 // Python requires the surface to already inject.
 static constexpr PyCallback::Phase g_max_enabled_phase = PyCallback::Phase::Update;
+static bool g_allow_phase_execute = true;
 
 void PyCallback::ExecutePhase(Phase phase, Context context) {
+    if (!g_allow_phase_execute) {
+        return;
+	}
     if (static_cast<uint8_t>(phase) > static_cast<uint8_t>(g_max_enabled_phase)) {
         return;
     }
