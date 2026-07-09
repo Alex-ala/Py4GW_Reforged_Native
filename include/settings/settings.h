@@ -56,6 +56,7 @@ public:
     bool IsBound() const;
     const std::string& Name() const;
     SettingsScope Scope() const;
+    std::filesystem::path Path() const;
 
 private:
     friend class SettingsManager;

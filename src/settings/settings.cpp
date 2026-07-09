@@ -81,6 +81,11 @@ void IniFile::Bind(const std::filesystem::path& path) {
 
     std::error_code ec;
     std::filesystem::create_directories(path_.parent_path(), ec);
+    if (ec) {
+        Logger::Instance().LogError("Settings: failed to create directory '" +
+                                    path_.parent_path().string() + "' for '" + name_ +
+                                    "' - " + ec.message());
+    }
 
     sections_.clear();
     LoadLocked();
@@ -105,8 +110,16 @@ void IniFile::AutosaveTick(uint64_t now_ms) {
 }
 
 bool IniFile::LoadLocked() {
+    std::error_code exists_ec;
+    const bool file_exists = std::filesystem::exists(path_, exists_ec);
     std::ifstream file(path_);
     if (!file.is_open()) {
+        // A missing file is normal (first run); a file that exists but won't
+        // open is a real error worth surfacing rather than swallowing.
+        if (file_exists) {
+            Logger::Instance().LogError("Settings: '" + path_.string() +
+                                        "' exists but could not be opened for reading");
+        }
         return false;
     }
     std::stringstream buffer;
@@ -292,6 +305,12 @@ IniFile& SettingsManager::Open(const std::string& name, SettingsScope scope) {
     } else if (scope == SettingsScope::Root) {
         // Project/module root, shared by every account (e.g. Py4GW.ini).
         document->Bind(process_manager::GetModuleDirectory() / sanitized);
+    } else if (scope == SettingsScope::Account && System::Instance().HasAccountEmail()) {
+        // Account anchor already resolved: bind (and load from disk) immediately
+        // so a read right after Open() sees the file, matching the legacy
+        // synchronous handler. If the anchor is not ready yet, Update() binds it
+        // once it resolves. Bind() is idempotent, so there is no double-bind.
+        document->Bind(System::Instance().GetSettingsDirectory() / sanitized);
     }
     return *document;
 }

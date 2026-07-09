@@ -181,4 +181,9 @@ SettingsScope IniFile::Scope() const {
     return scope_;
 }
 
+std::filesystem::path IniFile::Path() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return path_;
+}
+
 }  // namespace PY4GW

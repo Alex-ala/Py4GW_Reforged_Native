@@ -109,6 +109,9 @@ PYBIND11_EMBEDDED_MODULE(PySettings, m) {
     cls.def("reload", &PY4GW::IniFile::Reload, "Re-read from disk, discarding unsaved changes");
     cls.def("is_dirty", &PY4GW::IniFile::IsDirty);
     cls.def("is_bound", &PY4GW::IniFile::IsBound, "Whether the document is attached to disk yet");
+    cls.def("path", [](const PY4GW::IniFile& self) -> std::string {
+        return self.Path().string();
+    }, "Absolute on-disk path of this document (empty until bound)");
     cls.def("has_key", [](const PY4GW::IniFile& self, const std::string& key) {
         const auto [section, k] = SplitKey(key);
         return self.HasKey(section, k);
@@ -121,6 +124,57 @@ PYBIND11_EMBEDDED_MODULE(PySettings, m) {
         const auto [section, k] = SplitKey(key);
         return self.DeleteKey(section, k);
     }, py::arg("key"));
+    cls.def("delete_section", [](PY4GW::IniFile& self, const std::string& section) {
+        return self.DeleteSection(section);
+    }, py::arg("section"));
+
+    // Explicit (section, key) API. Unlike write/read above, these take section
+    // and key as SEPARATE arguments and never parse a delimiter, so names may
+    // contain '/', '\\', ':' or spaces (e.g. "Widget:Guild Wars\\Triggers/Foo.py").
+    // bool is registered before int because Python bool subclasses int.
+    cls.def("set", [](PY4GW::IniFile& self, const std::string& section, const std::string& key, bool value) {
+        self.SetBool(section, key, value);
+    }, py::arg("section"), py::arg("key"), py::arg("value"));
+    cls.def("set", [](PY4GW::IniFile& self, const std::string& section, const std::string& key, long long value) {
+        self.SetInt(section, key, value);
+    }, py::arg("section"), py::arg("key"), py::arg("value"));
+    cls.def("set", [](PY4GW::IniFile& self, const std::string& section, const std::string& key, double value) {
+        self.SetFloat(section, key, value);
+    }, py::arg("section"), py::arg("key"), py::arg("value"));
+    cls.def("set", [](PY4GW::IniFile& self, const std::string& section, const std::string& key, const std::string& value) {
+        self.SetString(section, key, value);
+    }, py::arg("section"), py::arg("key"), py::arg("value"));
+
+    cls.def("get", [](PY4GW::IniFile& self, const std::string& section, const std::string& key,
+                      py::object default_or_type) -> py::object {
+        PyObject* ptr = default_or_type.ptr();
+        if (PyType_Check(ptr)) {
+            if (ptr == reinterpret_cast<PyObject*>(&PyBool_Type)) return py::bool_(self.GetBool(section, key, false));
+            if (ptr == reinterpret_cast<PyObject*>(&PyLong_Type)) return py::int_(self.GetInt(section, key, 0));
+            if (ptr == reinterpret_cast<PyObject*>(&PyFloat_Type)) return py::float_(self.GetFloat(section, key, 0.0));
+            if (ptr == reinterpret_cast<PyObject*>(&PyUnicode_Type)) return py::str(self.GetString(section, key, ""));
+            throw py::type_error("get(): unsupported type token; use bool, int, float, or str");
+        }
+        if (py::isinstance<py::bool_>(default_or_type)) return py::bool_(self.GetBool(section, key, default_or_type.cast<bool>()));
+        if (py::isinstance<py::int_>(default_or_type)) return py::int_(self.GetInt(section, key, default_or_type.cast<long long>()));
+        if (py::isinstance<py::float_>(default_or_type)) return py::float_(self.GetFloat(section, key, default_or_type.cast<double>()));
+        if (py::isinstance<py::str>(default_or_type)) return py::str(self.GetString(section, key, default_or_type.cast<std::string>()));
+        throw py::type_error("get(): default must be bool, int, float, or str, or one of those types");
+    }, py::arg("section"), py::arg("key"), py::arg("default") = py::str(""));
+
+    cls.def("has", [](const PY4GW::IniFile& self, const std::string& section, const std::string& key) {
+        return self.HasKey(section, key);
+    }, py::arg("section"), py::arg("key"));
+    cls.def("remove", [](PY4GW::IniFile& self, const std::string& section, const std::string& key) {
+        return self.DeleteKey(section, key);
+    }, py::arg("section"), py::arg("key"));
+    cls.def("items", [](const PY4GW::IniFile& self, const std::string& section) {
+        std::vector<std::pair<std::string, std::string>> out;
+        for (const auto& k : self.GetKeys(section)) {
+            out.emplace_back(k, self.GetString(section, k, ""));
+        }
+        return out;
+    }, py::arg("section"), "Return (key, value) string pairs for a section");
 
     m.def("is_anchored", []() {
         return PY4GW::System::Instance().HasAccountEmail();
