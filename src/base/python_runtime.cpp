@@ -198,7 +198,14 @@ public:
             return true;
         }
         if (!Load()) {
-            Reset(false);
+            {
+                // Reset() clears module_/*_fn_, decref-ing the module Load() just
+                // exec'd. The console UI runs off-GIL, so this must hold the GIL like
+                // Load()/Stop() do - otherwise the off-GIL decref crashes the game
+                // thread. Only a script with no main()/update()/draw() reaches here.
+                py::gil_scoped_acquire gil;
+                Reset(false);
+            }
             state_ = ScriptState::Stopped;
             timer_.stop();
             System::Instance().WriteConsoleMessage(console_name_, MessageType::Notice, display_ + " stopped.");

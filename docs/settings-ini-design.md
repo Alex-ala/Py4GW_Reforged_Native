@@ -62,9 +62,11 @@ verbatim (and skipped semantically) rather than destroyed on rewrite.
 Process-wide singleton owning every `IniFile`.
 
 - `Open(name, scope)` returns a reference to a named document. Names are
-  sanitized: a bare filename like `Py4GW.ini` or `mybot.ini`, no path
-  separators, no traversal. Opening the same (name, scope) twice returns
-  the same document.
+  sanitized to a safe **relative subpath**: folders are preserved
+  (`bots/foo/config.ini` nests under the scope root), but `..`, `.`, and
+  drive/absolute segments are stripped, so a document can never escape the
+  settings tree. Opening the same (name, scope) twice returns the same
+  document. Parent folders are created on bind.
 - Scopes (multi-account environment):
   - `Scope::Account` (default): `settings/<email>/<name>`. Staged in
     memory until the account anchor resolves.

@@ -62,6 +62,7 @@ void register_enums(py::module_& m) {
         .value("NoNavInputs", ImGuiWindowFlags_NoNavInputs).value("NoNavFocus", ImGuiWindowFlags_NoNavFocus)
         .value("UnsavedDocument", ImGuiWindowFlags_UnsavedDocument).value("NoDocking", ImGuiWindowFlags_NoDocking)
         .value("NoInputs", ImGuiWindowFlags_NoInputs)
+        .value("Docking", static_cast<ImGuiWindowFlags_>(kWindowFlags_Docking))
     BIND_FLAGS_END(ImGuiWindowFlags_);
 
     BIND_FLAGS_ENUM("ChildFlags", ImGuiChildFlags_)

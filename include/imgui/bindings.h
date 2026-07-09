@@ -17,6 +17,13 @@ namespace PY4GW::imgui_bindings {
 
 namespace py = pybind11;
 
+// Fabricated opt-in docking flag (NOT a real ImGuiWindowFlags bit; picked above
+// the internal ImGui flag range). Docking is opt-in: windows are non-dockable by
+// default, and DefaultWindowFlags injects ImGuiWindowFlags_NoDocking unless this
+// bit is present. The bit is always stripped before reaching ImGui. Exposed to
+// Python as PyImGui.WindowFlags.Docking.
+constexpr int kWindowFlags_Docking = 1 << 30;
+
 // Value types: Vec2, Vec4, and color packing helpers. Tuples/lists convert
 // implicitly to Vec2/Vec4 so callers never have to construct them explicitly.
 // Must be registered before anything that uses ImVec2/ImVec4.

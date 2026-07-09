@@ -81,8 +81,12 @@ static void BulletTextV(const std::string& fmt, const std::vector<std::string>& 
     ImGui::BulletText("%s", s.c_str());
 }
 static ImGuiWindowFlags DefaultWindowFlags(int flags, bool allow_docking = false) {
-    ImGuiWindowFlags window_flags = static_cast<ImGuiWindowFlags>(flags);
-    if (!allow_docking) {
+    // Docking is opt-in: a window is dockable only if it carries the fabricated
+    // WindowFlags.Docking bit (or the legacy allow_docking arg). Otherwise inject
+    // NoDocking. The fabricated bit is always stripped before it reaches ImGui.
+    const bool docking = allow_docking || (flags & PY4GW::imgui_bindings::kWindowFlags_Docking);
+    ImGuiWindowFlags window_flags = static_cast<ImGuiWindowFlags>(flags & ~PY4GW::imgui_bindings::kWindowFlags_Docking);
+    if (!docking) {
         window_flags = static_cast<ImGuiWindowFlags>(window_flags | ImGuiWindowFlags_NoDocking);
     }
     return window_flags;
@@ -133,12 +137,20 @@ PYBIND11_EMBEDDED_MODULE(PyImGui, m) {
     }, py::arg("name"), py::arg("p_open") = py::none(), py::arg("flags") = 0, py::arg("dockable") = false);
     // Legacy explicit close-button window (restored). Returns (visible, still_open).
     m.def("begin_with_close", [](const char* name, bool p_open, int flags) -> py::tuple {
-        bool open = p_open; bool vis = ImGui::Begin(name, &open, flags); return py::make_tuple(vis, open);
+        bool open = p_open; bool vis = ImGui::Begin(name, &open, DefaultWindowFlags(flags)); return py::make_tuple(vis, open);
     }, py::arg("name"), py::arg("p_open"), py::arg("flags") = 0);
     m.def("end", &ImGui::End);
 
-    m.def("begin_child", py::overload_cast<const char*, const ImVec2&, ImGuiChildFlags, ImGuiWindowFlags>(&ImGui::BeginChild),
-          py::arg("id"), py::arg("size") = ImVec2(0,0), py::arg("border") = 0, py::arg("flags") = 0);  // legacy kwarg names id/size/border/flags
+    // Current ImGui requires a matching EndChild() for EVERY BeginChild() call,
+    // regardless of its return value (older ImGui only needed it when the child
+    // was visible). Legacy Python uses `if begin_child(): ...; end_child()`, which
+    // skips end_child() when BeginChild returns false (collapsed/clipped parent) —
+    // corrupting the child stack. Always return true so the paired end_child()
+    // always runs; ImGui still clips content that isn't visible.
+    m.def("begin_child", [](const char* id, const ImVec2& size, ImGuiChildFlags border, ImGuiWindowFlags flags) -> bool {
+        ImGui::BeginChild(id, size, border, flags);
+        return true;
+    }, py::arg("id"), py::arg("size") = ImVec2(0,0), py::arg("border") = 0, py::arg("flags") = 0);  // legacy kwarg names id/size/border/flags
     m.def("end_child", &ImGui::EndChild);
     m.def("begin_group", &ImGui::BeginGroup); m.def("end_group", &ImGui::EndGroup);
     m.def("begin_disabled", &ImGui::BeginDisabled, py::arg("disabled") = true);

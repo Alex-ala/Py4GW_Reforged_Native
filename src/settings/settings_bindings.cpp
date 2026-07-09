@@ -21,7 +21,10 @@ PY4GW::SettingsScope ParseScope(const std::string& scope) {
     if (scope == "account") {
         return PY4GW::SettingsScope::Account;
     }
-    throw py::value_error("scope must be \"account\" or \"global\"");
+    if (scope == "root") {
+        return PY4GW::SettingsScope::Root;
+    }
+    throw py::value_error("scope must be \"account\", \"global\", or \"root\"");
 }
 
 // Flat keys land in the default section; "section/key" addresses one explicitly.

@@ -14,11 +14,16 @@ namespace PY4GW {
 // INI-backed settings per docs/settings-ini-design.md. Documents are owned by
 // SettingsManager and anchored inside the DLL-side settings tree:
 //   Scope::Account -> settings/<email>/<name>  (staged until anchor resolves)
-//   Scope::Global  -> settings/<name>          (bound immediately)
+//   Scope::Global  -> settings/Global/<name>   (bound immediately, shared)
+//   Scope::Root    -> <name>                   (module/project root, shared;
+//                                               bound immediately). Reserved for
+//                                               core files that must live at the
+//                                               project root, e.g. Py4GW.ini.
 
 enum class SettingsScope {
     Account,
-    Global
+    Global,
+    Root
 };
 
 class IniFile {

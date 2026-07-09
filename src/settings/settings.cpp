@@ -25,6 +25,33 @@ std::string Trim(const std::string& str) {
     return (start == std::string::npos) ? "" : str.substr(start, end - start + 1);
 }
 
+// Sanitize a document name into a safe RELATIVE subpath. Preserves folders
+// ("bots/foo/config.ini" stays nested) but blocks traversal: empty, ".", ".."
+// and any segment carrying a drive/colon are dropped. Segments join with '/'.
+std::string SanitizeRelativePath(const std::string& name) {
+    std::string result;
+    std::string segment;
+    const auto flush = [&]() {
+        if (!segment.empty() && segment != "." && segment != ".." &&
+            segment.find(':') == std::string::npos) {
+            if (!result.empty()) {
+                result += '/';
+            }
+            result += segment;
+        }
+        segment.clear();
+    };
+    for (const char c : name) {
+        if (c == '/' || c == '\\') {
+            flush();
+        } else {
+            segment += c;
+        }
+    }
+    flush();
+    return result;
+}
+
 }  // namespace
 
 /* ---------------- IniFile internals ---------------- */
@@ -245,9 +272,9 @@ SettingsManager& SettingsManager::Instance() {
 }
 
 IniFile& SettingsManager::Open(const std::string& name, SettingsScope scope) {
-    // Sanitize to a bare filename: no separators, no traversal.
-    std::string sanitized = std::filesystem::path(name).filename().string();
-    if (sanitized.empty() || sanitized == "." || sanitized == "..") {
+    // Sanitize to a safe relative subpath: folders preserved, no traversal.
+    std::string sanitized = SanitizeRelativePath(name);
+    if (sanitized.empty()) {
         sanitized = "unnamed.ini";
     }
 
@@ -260,7 +287,11 @@ IniFile& SettingsManager::Open(const std::string& name, SettingsScope scope) {
 
     auto& document = documents_.emplace_back(std::unique_ptr<IniFile>(new IniFile(sanitized, scope)));
     if (scope == SettingsScope::Global) {
-        document->Bind(process_manager::GetModuleDirectory() / "settings" / sanitized);
+        // Legacy layout: settings/Global/<name>, shared by every account.
+        document->Bind(process_manager::GetModuleDirectory() / "settings" / "Global" / sanitized);
+    } else if (scope == SettingsScope::Root) {
+        // Project/module root, shared by every account (e.g. Py4GW.ini).
+        document->Bind(process_manager::GetModuleDirectory() / sanitized);
     }
     return *document;
 }
