@@ -81,6 +81,7 @@ private:
     void AutosaveTick(uint64_t now_ms);
 
     bool LoadLocked();
+    void SeedFromTemplateLocked();
     bool SaveLocked();
     std::string SerializeLocked() const;
     void ParseLocked(const std::string& content);

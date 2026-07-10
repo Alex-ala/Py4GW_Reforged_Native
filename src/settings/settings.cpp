@@ -88,7 +88,11 @@ void IniFile::Bind(const std::filesystem::path& path) {
     }
 
     sections_.clear();
-    LoadLocked();
+    if (!LoadLocked()) {
+        // File did not exist on disk: seed a brand-new document from its
+        // template (settings/Defaults/<name>.cfg, then default_template.cfg).
+        SeedFromTemplateLocked();
+    }
 
     for (const auto& [section, key, value] : staged) {
         SetValueLocked(section, key, value);
@@ -96,6 +100,37 @@ void IniFile::Bind(const std::filesystem::path& path) {
     if (!staged.empty()) {
         MarkDirtyLocked();
     }
+}
+
+void IniFile::SeedFromTemplateLocked() {
+    const std::filesystem::path defaults =
+        process_manager::GetModuleDirectory() / "settings" / "Defaults";
+
+    // Template name mirrors the document name with a .cfg extension; fall back
+    // to a shared default_template.cfg. Keys in these templates are already
+    // lowercase (matching the on-disk key convention), so no case fixup is needed.
+    std::filesystem::path specialized = defaults / name_;
+    specialized.replace_extension(".cfg");
+    const std::filesystem::path fallback = defaults / "default_template.cfg";
+
+    std::error_code ec;
+    std::filesystem::path template_path;
+    if (std::filesystem::exists(specialized, ec)) {
+        template_path = specialized;
+    } else if (std::filesystem::exists(fallback, ec)) {
+        template_path = fallback;
+    } else {
+        return;
+    }
+
+    std::ifstream file(template_path);
+    if (!file.is_open()) {
+        return;
+    }
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    ParseLocked(buffer.str());
+    MarkDirtyLocked();
 }
 
 void IniFile::AutosaveTick(uint64_t now_ms) {
