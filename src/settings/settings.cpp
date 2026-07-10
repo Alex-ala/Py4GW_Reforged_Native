@@ -52,6 +52,20 @@ std::string SanitizeRelativePath(const std::string& name) {
     return result;
 }
 
+// A safe single path segment for an account-email folder: non-empty, not a
+// traversal token, and free of separators/drive markers.
+bool IsSafeEmailSegment(const std::string& email) {
+    if (email.empty() || email == "." || email == "..") {
+        return false;
+    }
+    for (const char c : email) {
+        if (c == '/' || c == '\\' || c == ':') {
+            return false;
+        }
+    }
+    return true;
+}
+
 }  // namespace
 
 /* ---------------- IniFile internals ---------------- */
@@ -371,6 +385,86 @@ void SettingsManager::FlushAll() {
             document->SaveLocked();
         }
     }
+}
+
+bool SettingsManager::WriteTriplesToAccount(
+    const std::string& name,
+    const std::vector<std::tuple<std::string, std::string, std::string>>& triples,
+    const std::string& target_email) {
+    if (!IsSafeEmailSegment(target_email)) {
+        Logger::Instance().LogError(
+            "Settings: copy rejected unsafe target email '" + target_email + "'");
+        return false;
+    }
+    std::string sanitized = SanitizeRelativePath(name);
+    if (sanitized.empty()) {
+        return false;
+    }
+    if (triples.empty()) {
+        return true;  // nothing to copy is not a failure
+    }
+
+    // Load the target account's file (or seed a new one), overlay, atomic save.
+    // A local, unregistered document is used so we never touch another account's
+    // slot in the registry. Bind()/*Locked are private but SettingsManager is a
+    // friend of IniFile.
+    const std::filesystem::path target_path =
+        process_manager::GetModuleDirectory() / "settings" / target_email / sanitized;
+
+    IniFile target(sanitized, SettingsScope::Account);
+    target.Bind(target_path);
+    std::lock_guard<std::mutex> lock(target.mutex_);
+    for (const auto& [section, key, value] : triples) {
+        target.SetValueLocked(section, key, value);
+    }
+    return target.SaveLocked();
+}
+
+bool SettingsManager::CopyKeysToAccount(const std::string& name, const std::string& section,
+                                        const std::vector<std::string>& keys,
+                                        const std::string& target_email) {
+    IniFile& source = Open(SanitizeRelativePath(name), SettingsScope::Account);
+    std::vector<std::tuple<std::string, std::string, std::string>> triples;
+    triples.reserve(keys.size());
+    for (const auto& key : keys) {
+        if (source.HasKey(section, key)) {
+            triples.emplace_back(section, key, source.GetString(section, key, ""));
+        }
+    }
+    return WriteTriplesToAccount(name, triples, target_email);
+}
+
+bool SettingsManager::CopySectionToAccount(const std::string& name, const std::string& section,
+                                           const std::string& target_email) {
+    IniFile& source = Open(SanitizeRelativePath(name), SettingsScope::Account);
+    return CopyKeysToAccount(name, section, source.GetKeys(section), target_email);
+}
+
+bool SettingsManager::ApplySectionToAccount(
+    const std::string& name, const std::string& section,
+    const std::vector<std::pair<std::string, std::string>>& values,
+    const std::string& target_email) {
+    std::vector<std::tuple<std::string, std::string, std::string>> triples;
+    triples.reserve(values.size());
+    for (const auto& [key, value] : values) {
+        triples.emplace_back(section, key, value);
+    }
+    return WriteTriplesToAccount(name, triples, target_email);
+}
+
+bool SettingsManager::CopyDocumentToAccount(const std::string& name, const std::string& target_email) {
+    IniFile& source = Open(SanitizeRelativePath(name), SettingsScope::Account);
+    std::vector<std::tuple<std::string, std::string, std::string>> triples;
+    // "" is the unnamed preamble section (keys before the first header); GetSections()
+    // omits it, so include it explicitly for a genuine whole-file copy.
+    std::vector<std::string> sections = source.GetSections();
+    sections.insert(sections.begin(), std::string());
+    for (const auto& section : sections) {
+        for (const auto& key : source.GetKeys(section)) {
+            triples.emplace_back(section, key, source.GetString(section, key, ""));
+        }
+    }
+    return WriteTriplesToAccount(name, triples, target_email);
 }
 
 }  // namespace PY4GW

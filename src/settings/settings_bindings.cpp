@@ -176,6 +176,30 @@ PYBIND11_EMBEDDED_MODULE(PySettings, m) {
         return out;
     }, py::arg("section"), "Return (key, value) string pairs for a section");
 
+    // Copy this account's config into ANOTHER account's document on disk. Three
+    // granularities: whole file, one section, or a named subset of keys. The
+    // target's running client applies the change on its next reload.
+    m.def("copy_document_to_account", [](const std::string& name, const std::string& target_email) {
+        return PY4GW::SettingsManager::Instance().CopyDocumentToAccount(name, target_email);
+    }, py::arg("name"), py::arg("target_email"),
+        "Copy an entire document (all sections) into another account's file on disk");
+    m.def("copy_section_to_account", [](const std::string& name, const std::string& section,
+                                        const std::string& target_email) {
+        return PY4GW::SettingsManager::Instance().CopySectionToAccount(name, section, target_email);
+    }, py::arg("name"), py::arg("section"), py::arg("target_email"),
+        "Copy one whole section into another account's file on disk");
+    m.def("copy_keys_to_account", [](const std::string& name, const std::string& section,
+                                     const std::vector<std::string>& keys, const std::string& target_email) {
+        return PY4GW::SettingsManager::Instance().CopyKeysToAccount(name, section, keys, target_email);
+    }, py::arg("name"), py::arg("section"), py::arg("keys"), py::arg("target_email"),
+        "Copy a named subset of a section's keys into another account's file on disk");
+    m.def("apply_section_to_account", [](const std::string& name, const std::string& section,
+                                         const std::vector<std::pair<std::string, std::string>>& values,
+                                         const std::string& target_email) {
+        return PY4GW::SettingsManager::Instance().ApplySectionToAccount(name, section, values, target_email);
+    }, py::arg("name"), py::arg("section"), py::arg("values"), py::arg("target_email"),
+        "Overlay a caller-supplied key/value mapping into another account's section on disk");
+
     m.def("is_anchored", []() {
         return PY4GW::System::Instance().HasAccountEmail();
     }, "Whether account-scoped documents are bound to disk yet");

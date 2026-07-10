@@ -7,6 +7,8 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 namespace PY4GW {
@@ -118,7 +120,41 @@ public:
     // Saves every dirty bound document; wired into shutdown.
     void FlushAll();
 
+    // Copy config from THIS account's (name, Account) document into ANOTHER
+    // account's document on disk (settings/<target_email>/<name>). The caller
+    // reads its own live document; the values are overlaid onto the target's file
+    // (existing target keys not present in the source are left untouched). The
+    // target account's running client sees them on its next reload
+    // (message-triggered or throttled) - this is a disk write, not a live
+    // cross-process mutation. Returns false on a rejected email / save failure;
+    // copying zero matching keys is a success. `keys` are matched verbatim (the
+    // Python wrapper lowercases them to match on-disk key casing).
+    //   ...Document -> the whole file (every section + key)
+    //   ...Section  -> one section (all its keys)
+    //   ...Keys     -> a named subset of keys within one section
+    bool CopyDocumentToAccount(const std::string& name, const std::string& target_email);
+    bool CopySectionToAccount(const std::string& name, const std::string& section,
+                              const std::string& target_email);
+    bool CopyKeysToAccount(const std::string& name, const std::string& section,
+                           const std::vector<std::string>& keys,
+                           const std::string& target_email);
+
+    // Like Copy*, but the values are SUPPLIED by the caller (an explicit
+    // key->value mapping - e.g. a saved profile or transformed settings) rather
+    // than read from the caller's own document. Overlaid onto the target's
+    // section in settings/<target_email>/<name>.
+    bool ApplySectionToAccount(const std::string& name, const std::string& section,
+                               const std::vector<std::pair<std::string, std::string>>& values,
+                               const std::string& target_email);
+
 private:
+    // Shared writer: overlay (section, key, value) triples read from the caller's
+    // own document onto settings/<target_email>/<name>, then save.
+    bool WriteTriplesToAccount(
+        const std::string& name,
+        const std::vector<std::tuple<std::string, std::string, std::string>>& triples,
+        const std::string& target_email);
+
     SettingsManager() = default;
     ~SettingsManager() = default;
     SettingsManager(const SettingsManager&) = delete;

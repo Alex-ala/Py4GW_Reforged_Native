@@ -88,6 +88,24 @@ Process-wide singleton owning every `IniFile`.
      ~2 seconds, or at most ~10 seconds after the first unsaved change.
 - `FlushAll()` - wired into shutdown before the Python runtime tears
   down, so nothing is lost on exit.
+- Cross-account copy - push this account's config into **another** account's
+  document on disk (`settings/<target_email>/<name>`), at three
+  granularities:
+  - `CopyDocumentToAccount(name, target_email)` - the whole file.
+  - `CopySectionToAccount(name, section, target_email)` - one section.
+  - `CopyKeysToAccount(name, section, keys, target_email)` - a named key
+    subset.
+  The caller reads its own live `(name, Account)` document (current
+  in-memory state, including unsaved edits); values are **overlaid** onto
+  the target file (existing target keys not in the source are left
+  untouched), then atomically saved. A local unregistered `IniFile` does
+  the target write, so another account's registry slot is never touched.
+  The `target_email` is validated as a safe single path segment.
+  This is a **disk write**, not a live cross-process mutation: the target
+  account's running client picks the change up on its **next reload**
+  (message-triggered or a throttled reload) - deliberately not
+  instantaneous. Races with the target's own autosave are last-writer-wins,
+  the same tradeoff as any shared-file edit.
 
 ## Write Safety
 
@@ -152,6 +170,12 @@ shared = settings("global.ini", scope="global")   # cross-account
   `is_dirty()`, `has_key()`, `keys()`, `delete(key)`.
 - Module-level helpers: `is_anchored()` (whether account documents are
   bound to disk yet), `get_settings_directory()` (mirrors `PySystem`).
+- Cross-account copy helpers (write this account's config into another
+  account's file on disk; the target sees it on its next reload):
+  `copy_document_to_account(name, target_email)`,
+  `copy_section_to_account(name, section, target_email)`,
+  `copy_keys_to_account(name, section, keys, target_email)`. All overlay
+  onto the target and return a bool (copying zero keys is success).
 
 ## Document Conventions
 
