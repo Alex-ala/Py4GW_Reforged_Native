@@ -9,6 +9,7 @@
 #include "GW/context/map.h"
 #include "GW/context/pregame.h"
 #include "GW/map/map.h"
+#include "GW/player/player.h"
 #include "GW/render/render.h"
 
 #include <cstdio>
@@ -281,9 +282,11 @@ bool Manager::UpdatePointersRegion() {
     // Legacy sourced this from GetGameContext()->cinematic; there is no dedicated accessor.
     payload->CinematicContext = reinterpret_cast<uintptr_t>(game ? game->cinematic : nullptr);
     payload->GuildContext = reinterpret_cast<uintptr_t>(GW::Context::GetGuildContext());
-    // Deviation: the reforged native has no standalone AvailableCharacters pointer accessor.
-    // The login-character buffer lives on PreGameContext; publish its address.
-    payload->AvailableCharacters = reinterpret_cast<uintptr_t>(pregame ? pregame->chars_buffer : nullptr);
+    // Account-wide available-characters roster (login/character-select list), the
+    // game's global GW::Array<AvailableCharacterInfo> container. Parity with legacy
+    // PyPlayer::GetAvailableCharactersPtr() -> AccountMgr::GetAvailableChars(). This is
+    // distinct from PreGameContext::chars_buffer (the login-screen preview buffer).
+    payload->AvailableCharacters = GW::player::GetAvailableCharactersPtr();
     payload->PartyContext = reinterpret_cast<uintptr_t>(GW::Context::GetPartyContext());
     payload->ServerRegionContext = GW::map::GetServerRegionPtr();
     payload->Camera = reinterpret_cast<uintptr_t>(GW::Context::GetCamera());

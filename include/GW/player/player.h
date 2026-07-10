@@ -1,6 +1,8 @@
 #pragma once
 
 #include "GW/common/constants/constants.h"
+#include "GW/common/gw_array.h"
+#include "GW/context/account.h"
 #include "GW/context/player.h"
 #include "GW/context/title.h"
 #include "GW/skillbar/skillbar.h"
@@ -38,5 +40,12 @@ std::vector<int> GetTitleIDs();
 Context::TitleClientData* GetTitleData(GW::Constants::TitleID title_id);
 
 bool DepositFaction(uint32_t allegiance);
+
+// Account-wide available-characters roster (login/character-select list).
+// Distinct from PreGameContext's chars_buffer preview array. Returns the game's
+// global GW::Array<AvailableCharacterInfo> container, or nullptr if unresolved.
+GWArray<Context::AvailableCharacterInfo>* GetAvailableChars();
+Context::AvailableCharacterInfo* GetAvailableCharacter(const wchar_t* name);
+uintptr_t GetAvailableCharactersPtr();
 
 }  // namespace GW::player

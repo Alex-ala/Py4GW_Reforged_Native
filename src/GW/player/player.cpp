@@ -19,6 +19,7 @@ bool ResolveSetActiveTitle();
 bool ResolveRemoveActiveTitle();
 bool ResolveDepositFaction();
 bool ResolveTitleData();
+bool ResolveAvailableChars();
 
 bool Init();
 void EnableHooks();
@@ -28,14 +29,22 @@ void Exit();
 RemoveActiveTitleFn g_remove_active_title_func = nullptr;
 SetActiveTitleFn g_set_active_title_func = nullptr;
 DepositFactionFn g_deposit_faction_func = nullptr;
+GWArray<Context::AvailableCharacterInfo>* g_available_chars = nullptr;
 std::atomic<bool> g_initialized = false;
 
 bool Init() {
     CrashContextScope context("startup", "player", "init");
-    return ResolveSetActiveTitle() &&
-        ResolveRemoveActiveTitle() &&
-        ResolveDepositFaction() &&
-        ResolveTitleData();
+    if (!(ResolveSetActiveTitle() &&
+          ResolveRemoveActiveTitle() &&
+          ResolveDepositFaction() &&
+          ResolveTitleData())) {
+        return false;
+    }
+    // Non-fatal: the account-roster global is also resolved lazily on first use
+    // (parity with legacy AccountMgr::GetAvailableChars). A miss must not abort
+    // the whole player module / GW init.
+    ResolveAvailableChars();
+    return true;
 }
 
 void EnableHooks() {
@@ -49,6 +58,7 @@ void Exit() {
     g_remove_active_title_func = nullptr;
     g_set_active_title_func = nullptr;
     g_deposit_faction_func = nullptr;
+    g_available_chars = nullptr;
 }
 
 bool Initialize() {

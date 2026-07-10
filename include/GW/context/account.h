@@ -2,6 +2,7 @@
 
 #include "base/error_handling.h"
 
+#include "GW/common/constants/constants.h"
 #include "GW/common/gw_array.h"
 
 #include <cstddef>
@@ -15,6 +16,26 @@ struct AccountUnlockedCount {
     uint32_t unk2;
 };
 static_assert(sizeof(AccountUnlockedCount) == 0xC, "AccountUnlockedCount size mismatch");
+
+// Entry of the account-wide available-characters list (the login/account roster,
+// distinct from PreGameContext's login-screen preview buffer). Layout parity with
+// legacy GW::AvailableCharacterInfo.
+struct AvailableCharacterInfo {
+    /* +h0000 */ uint32_t h0000[2];
+    /* +h0008 */ uint32_t uuid[4];        // possibly pvp/campaign flags
+    /* +h0018 */ wchar_t  player_name[20];
+    /* +h0040 */ uint32_t props[17];      // packed map_id/profession/campaign/level/pvp bitfields
+
+    GW::Constants::MapID map_id() const {
+        return static_cast<GW::Constants::MapID>((props[0] >> 16) & 0xffff);
+    }
+    uint32_t primary() const { return (props[2] >> 20) & 0xf; }
+    uint32_t secondary() const { return (props[7] >> 10) & 0xf; }
+    uint32_t campaign() const { return props[7] & 0xf; }
+    uint32_t level() const { return (props[7] >> 4) & 0x3f; }
+    bool is_pvp() const { return ((props[7] >> 9) & 0x1) == 0x1; }
+};
+static_assert(sizeof(AvailableCharacterInfo) == 0x84, "AvailableCharacterInfo size mismatch");
 
 struct AccountUnlockedItemInfo {
     uint32_t name_id;

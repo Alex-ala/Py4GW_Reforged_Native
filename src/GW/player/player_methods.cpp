@@ -43,6 +43,33 @@ using DepositFactionFn = void(__cdecl*)(uint32_t always_0, uint32_t allegiance, 
 extern RemoveActiveTitleFn g_remove_active_title_func;
 extern SetActiveTitleFn g_set_active_title_func;
 extern DepositFactionFn g_deposit_faction_func;
+extern GWArray<Context::AvailableCharacterInfo>* g_available_chars;
+bool ResolveAvailableChars();
+
+GWArray<Context::AvailableCharacterInfo>* GetAvailableChars() {
+    if (!g_available_chars) {
+        // Lazy resolve + cache, mirroring legacy AccountMgr::GetAvailableChars.
+        ResolveAvailableChars();
+    }
+    return g_available_chars;
+}
+
+Context::AvailableCharacterInfo* GetAvailableCharacter(const wchar_t* name) {
+    auto* characters = name ? GetAvailableChars() : nullptr;
+    if (!characters) {
+        return nullptr;
+    }
+    for (auto& ac : *characters) {
+        if (wcscmp(ac.player_name, name) == 0) {
+            return &ac;
+        }
+    }
+    return nullptr;
+}
+
+uintptr_t GetAvailableCharactersPtr() {
+    return reinterpret_cast<uintptr_t>(GetAvailableChars());
+}
 
 bool SetActiveTitle(GW::Constants::TitleID title_id) {
     if (!g_set_active_title_func) {

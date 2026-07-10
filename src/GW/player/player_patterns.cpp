@@ -18,6 +18,7 @@ using DepositFactionFn = void(__cdecl*)(uint32_t always_0, uint32_t allegiance, 
 extern RemoveActiveTitleFn g_remove_active_title_func;
 extern SetActiveTitleFn g_set_active_title_func;
 extern DepositFactionFn g_deposit_faction_func;
+extern GWArray<Context::AvailableCharacterInfo>* g_available_chars;
 
 bool ResolveSetActiveTitle() {
     CrashContextScope context("startup", "player", "resolve_set_active_title");
@@ -37,6 +38,11 @@ bool ResolveDepositFaction() {
 bool ResolveTitleData() {
     CrashContextScope context("startup", "player", "resolve_title_data");
     return PY4GW::Patterns::Resolve("player.title_data_addr", &Context::g_title_data_addr);
+}
+
+bool ResolveAvailableChars() {
+    CrashContextScope context("startup", "player", "resolve_available_chars");
+    return PY4GW::Patterns::Resolve("player.available_characters_addr", &g_available_chars);
 }
 
 }  // namespace GW::player
