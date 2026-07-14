@@ -6,7 +6,10 @@
 #include "overlay/overlay.h"
 
 #include <cstdint>
+#include <functional>
+#include <mutex>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include <d3d9.h>
@@ -27,6 +30,12 @@ private:
     std::vector<std::vector<GW::Vec2f>> primitives;
 
 public:
+    // Process-wide shared instance. Prefer this over constructing a DXOverlay: the
+    // occluded-draw pipeline we will add incrementally is owned by the ONE instance,
+    // so every caller funnels into a single world callback + draw list. Construction
+    // (py::init) is kept for now for backward compatibility.
+    static DXOverlay& Instance();
+
     void set_primitives(const std::vector<std::vector<GW::Vec2f>>& prims, D3DCOLOR color);
     void set_world_zoom_x(float zoom);
     void set_world_zoom_y(float zoom);
@@ -65,6 +74,16 @@ public:
     void DrawBeam3D(float x, float y, float z, float height, float radius, uint32_t argb,
                     float top_alpha = 0.0f, bool additive = true);
 
+    // Low-level building block for Python-built effects: draw a list of shader-colored
+    // 3D triangles occluded in the world pass. Each vertex is (x, y, z, argb) in WORLD
+    // space (up = -z, same convention as DrawBeam3D); every 3 vertices = one triangle.
+    // The color's alpha + the blend mode (additive light vs. alpha) are what make it
+    // read as glow. Python constructs the geometry (billboards, gradients, ...) and
+    // calls this; C++ only provides the HDR-correct shader draw. Appends to the draw
+    // list like the other Draw*3D, so it participates in occlusion + the lifecycle.
+    void DrawShaded3D(std::vector<std::tuple<float, float, float, uint32_t>> vertices,
+                      bool additive = true, bool use_occlusion = true);
+
     // Runtime depth/occlusion tuning for Setup3DView (diagnostic-driven, so the
     // exact GW depth convention can be dialed in live). zfunc is a D3DCMPFUNC
     // value (LESSEQUAL=4, GREATEREQUAL=7, ...). reverse_z swaps near/far.
@@ -73,6 +92,7 @@ public:
     // Reports live render-target / depth-stencil / viewport state (for
     // diagnosing why occlusion fails: mismatched/absent depth surface, etc.).
     std::string GetDepthDiagnostics();
+
 
     // Self-contained depth-hardware test (clears depth, draws overlapping quads
     // at explicit depths). Proves whether our depth read+write path works,
@@ -108,6 +128,34 @@ public:
 
 private:
     void SetupProjection();
+
+    // Bind the world-space vertex/pixel shader + view/proj constants + blend/depth for
+    // an HDR-correct occluded draw (shared by the shaded-geometry path). Returns false
+    // if the shaders/camera aren't ready.
+    bool SetupWorldShaderDraw(IDirect3DDevice9* device, bool additive, bool use_occlusion);
+    void DrawShaded3DImpl(IDirect3DDevice9* device,
+                          const std::vector<std::tuple<float, float, float, uint32_t>>& vertices,
+                          bool additive, bool use_occlusion);
+
+    // Transparent occluded-draw pipeline (render-thread only). A script's Draw*3D call
+    // appends a command to m_draw_list (implicit keepalive - no explicit register/ping);
+    // OccludedTick (the ONE lazily-registered world callback) draws the WHOLE list on
+    // EVERY world pass without consuming it (GW hits the draw opcode more than once per
+    // frame, and only redrawing on every pass reaches the visible pass). m_epoch_drawn
+    // makes the next append start a fresh frame's list. If no Draw*3D arrives for
+    // kOccludedTimeoutMs, the class deactivates (unregister + clear).
+    void EnqueueDraw(std::function<void(IDirect3DDevice9*)> cmd);
+    void EnsureRegistered();
+    void Deactivate();
+    void OccludedTick(IDirect3DDevice9* device);
+
+    std::vector<std::function<void(IDirect3DDevice9*)>> m_draw_list;
+    std::mutex m_list_mutex;
+    int m_occ_token = -1;
+    bool m_occ_registered = false;
+    bool m_draining = false;     // true only while OccludedTick executes the list
+    bool m_epoch_drawn = false;  // list drawn since last feed; next append starts fresh
+    unsigned long m_occ_last_feed_ms = 0;  // GetTickCount() at last Draw*3D; time-based timeout
 
     struct D3DVertex {
         float x, y, z, rhw;

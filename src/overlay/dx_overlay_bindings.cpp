@@ -4,6 +4,9 @@
 
 #include "overlay/dx_overlay.h"
 
+#include <memory>
+#include <utility>
+
 namespace py = pybind11;
 
 using PY4GW::overlay::DXOverlay;
@@ -60,6 +63,12 @@ void bind_dx_overlay(py::module_& m) {
             py::arg("top_alpha") = 0.0f, py::arg("additive") = true,
             "Shader-based light beam (no texture). top_alpha 0..1 = top fade; "
             "additive = light blend. Call from a PyWorldRender.register_draw callback to occlude.")
+        .def("draw_shaded_3d", &DXOverlay::DrawShaded3D,
+            py::arg("vertices"), py::arg("additive") = true, py::arg("use_occlusion") = true,
+            "Draw shader-colored 3D triangles occluded in the world pass. vertices = list "
+            "of (x, y, z, argb) world-space tuples (up = -z), 3 per triangle. The alpha in "
+            "argb + additive (light) vs alpha blend make it read as glow. Build the geometry "
+            "in Python (billboards, gradients) and call this. Occludes + rides the lifecycle.")
         .def("set_occlusion_tuning", &DXOverlay::SetOcclusionTuning,
             py::arg("near_z"), py::arg("far_z"), py::arg("zfunc"), py::arg("reverse_z"))
         .def("get_depth_diagnostics", &DXOverlay::GetDepthDiagnostics)
@@ -72,6 +81,13 @@ void bind_dx_overlay(py::module_& m) {
             py::arg("p1"), py::arg("p2"), py::arg("p3"), py::arg("p4"),
             py::arg("use_occlusion") = true, py::arg("int_tint") = 0xFFFFFFFF)
         .def("SaveGeometryToFile", &DXOverlay::SaveGeometryToFile, py::arg("filename"), py::arg("min_x"), py::arg("min_y"), py::arg("max_x"), py::arg("max_y"));
+
+    // Singleton accessor: returns the ONE shared DXOverlay (non-owning reference, so
+    // Python never destroys it). Prefer this over PyDXOverlay.DXOverlay(); construction
+    // stays bound for backward compatibility.
+    m.def("get_overlay", []() -> DXOverlay& { return DXOverlay::Instance(); },
+          py::return_value_policy::reference,
+          "Shared DXOverlay singleton (same object every call).");
 }
 
 PYBIND11_EMBEDDED_MODULE(PyDXOverlay, m) {

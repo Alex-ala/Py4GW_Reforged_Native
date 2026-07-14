@@ -68,4 +68,8 @@ PYBIND11_EMBEDDED_MODULE(PyWorldRender, m) {
     m.def("set_scan_enabled", [](bool enabled) { GW::world_render::SetScanEnabled(enabled); },
           py::arg("enabled"),
           "Enable the diagnostic per-opcode depth scan (off by default).");
+
+    m.def("heartbeat", []() { GW::world_render::Heartbeat(); },
+          "Ping the idle watchdog. Call every frame while alive; if pings stop (script "
+          "closed) the draw callbacks are cleared so nothing is left drawn.");
 }

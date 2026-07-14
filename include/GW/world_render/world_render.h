@@ -50,6 +50,11 @@ void SetDrawOpcode(int opcode);
 // GPU occlusion query per frame and is only for finding the draw opcode).
 void SetScanEnabled(bool enabled);
 
+// Idle watchdog: a consumer pings this every frame while alive. If pings stop for a
+// short while (script closed), the registered draw callbacks are cleared natively so
+// a dead Python callback is never invoked again and nothing is left drawn.
+void Heartbeat();
+
 // GW Dx9 DDI command dispatcher (FUN_006c6c40):
 //   uint32_t __cdecl(void* p1, void* ddi_ctx, uint32_t* cmd, uint32_t* out)
 //   cmd[1] = DDI opcode (0x0F = present); device = *(IDirect3DDevice9**)(ddi_ctx+0x1B8).

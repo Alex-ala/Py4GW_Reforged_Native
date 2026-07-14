@@ -8,11 +8,14 @@
 #include "GW/map/map.h"
 #include "GW/render/render.h"
 #include "GW/textures/texture_manager.h"
+#include "GW/world_render/world_render.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 #include <windows.h>
@@ -105,6 +108,82 @@ bool MapValidForDraw() {
 }
 
 }  // namespace
+
+DXOverlay& DXOverlay::Instance() {
+    // Meyers singleton: one shared instance, constructed on first use, destroyed at
+    // process exit. All future occluded-draw state will live on this one object.
+    static DXOverlay s_instance;
+    return s_instance;
+}
+
+namespace {
+// Wall-clock gap since the last Draw*3D before the class deactivates. Time-based (not
+// world-pass count) so a slow/hitching frame can't prematurely trip it and flicker.
+// ~6 frames at 60fps: ample, only fires when drawing genuinely stops (hidden / closed).
+constexpr unsigned long kOccludedTimeoutMs = 100;
+}  // namespace
+
+void DXOverlay::EnqueueDraw(std::function<void(IDirect3DDevice9*)> cmd) {
+    if (!MapValidForDraw()) return;  // no valid scene/depth -> drop (would never draw)
+    {
+        std::lock_guard<std::mutex> lock(m_list_mutex);
+        if (m_epoch_drawn) {          // first append after a draw -> start this frame's list fresh
+            m_draw_list.clear();
+            m_epoch_drawn = false;
+        }
+        m_draw_list.push_back(std::move(cmd));
+    }
+    m_occ_last_feed_ms = GetTickCount();  // implicit keepalive: drawing IS the liveness signal
+    EnsureRegistered();
+}
+
+void DXOverlay::EnsureRegistered() {
+    if (m_occ_registered) return;
+    m_occ_token = GW::world_render::RegisterDraw(
+        [this](IDirect3DDevice9* device) { OccludedTick(device); });
+    m_occ_registered = (m_occ_token >= 0);
+    m_occ_last_feed_ms = GetTickCount();
+}
+
+void DXOverlay::Deactivate() {
+    if (m_occ_token >= 0) {
+        GW::world_render::UnregisterDraw(m_occ_token);
+        m_occ_token = -1;
+    }
+    m_occ_registered = false;
+    std::lock_guard<std::mutex> lock(m_list_mutex);
+    m_draw_list.clear();
+}
+
+void DXOverlay::OccludedTick(IDirect3DDevice9* device) {
+    // Lazy timeout: Draw*3D stamps m_occ_last_feed_ms. If nothing has been drawn for
+    // kOccludedTimeoutMs (hidden / script closed), deactivate - nothing left drawn.
+    if (GetTickCount() - m_occ_last_feed_ms > kOccludedTimeoutMs) {
+        Deactivate();
+        return;
+    }
+    // Draw the WHOLE list on EVERY world pass - do NOT consume it. GW hits the draw
+    // opcode more than once per frame (pre/shadow pass + visible pass); consuming on the
+    // first pass would land the draw on the non-visible one. Redrawing every pass (as the
+    // immediate baseline did) reaches the visible pass. The list is replaced by the next
+    // feed (EnqueueDraw clears on the first append after this draw).
+    std::vector<std::function<void(IDirect3DDevice9*)>> local;
+    {
+        std::lock_guard<std::mutex> lock(m_list_mutex);
+        local = m_draw_list;
+        m_epoch_drawn = true;
+    }
+    if (local.empty()) {
+        return;
+    }
+    m_draining = true;  // Draw*3D now run their immediate body instead of enqueueing
+    for (auto& cmd : local) {
+        if (cmd) {
+            cmd(device);
+        }
+    }
+    m_draining = false;
+}
 
 void DXOverlay::set_primitives(const std::vector<std::vector<GW::Vec2f>>& prims, D3DCOLOR draw_color) {
     primitives = prims;
@@ -917,6 +996,12 @@ void DXOverlay::Setup3DView() {
 
 void DXOverlay::DrawBeam3D(float x, float y, float z, float height, float radius, uint32_t argb,
                           float top_alpha, bool additive) {
+    if (!m_draining) {
+        EnqueueDraw([this, x, y, z, height, radius, argb, top_alpha, additive](IDirect3DDevice9*) {
+            DrawBeam3D(x, y, z, height, radius, argb, top_alpha, additive);
+        });
+        return;
+    }
     IDirect3DDevice9* device = GW::render::GetDevice();
     if (!device || !MapValidForDraw()) return;
     if (!EnsureWorldShaders(device)) return;
@@ -991,12 +1076,88 @@ void DXOverlay::DrawBeam3D(float x, float y, float z, float height, float radius
     device->SetPixelShader(nullptr);
 }
 
+bool DXOverlay::SetupWorldShaderDraw(IDirect3DDevice9* device, bool additive, bool use_occlusion) {
+    if (!EnsureWorldShaders(device)) return false;
+    auto* cam = GW::Context::GetCamera();
+    if (!cam) return false;
+
+    // Same LH view/projection as DrawBeam3D (up = -z), uploaded to the shader as
+    // constants (transposed for HLSL column-major registers c0=view, c4=proj).
+    XMFLOAT3 eye(cam->position.x, cam->position.y, cam->position.z);
+    XMFLOAT3 at(cam->look_at_target.x, cam->look_at_target.y, cam->look_at_target.z);
+    XMFLOAT3 up(0.0f, 0.0f, -1.0f);
+    XMMATRIX view = XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&at), XMLoadFloat3(&up));
+    const float fov = GW::render::GetFieldOfView();
+    const float aspect = static_cast<float>(GW::render::GetViewportWidth()) /
+                         static_cast<float>(GW::render::GetViewportHeight());
+    const float near_plane = g_occ_reverse_z ? g_occ_far : g_occ_near;
+    const float far_plane = g_occ_reverse_z ? g_occ_near : g_occ_far;
+    XMMATRIX proj = XMMatrixPerspectiveFovLH(fov, aspect, near_plane, far_plane);
+    XMMATRIX view_t = XMMatrixTranspose(view);
+    XMMATRIX proj_t = XMMatrixTranspose(proj);
+
+    device->SetVertexShader(g_world_vs);
+    device->SetPixelShader(g_world_ps);
+    device->SetVertexShaderConstantF(0, reinterpret_cast<const float*>(&view_t), 4);
+    device->SetVertexShaderConstantF(4, reinterpret_cast<const float*>(&proj_t), 4);
+    device->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE);
+    device->SetTexture(0, nullptr);
+
+    device->SetRenderState(D3DRS_LIGHTING, FALSE);
+    device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+    device->SetRenderState(D3DRS_ZENABLE, use_occlusion ? D3DZB_TRUE : D3DZB_FALSE);
+    device->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);   // test only, don't write
+    device->SetRenderState(D3DRS_ZFUNC, static_cast<DWORD>(g_occ_zfunc));
+    device->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+    device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+    device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+    device->SetRenderState(D3DRS_DESTBLEND, additive ? D3DBLEND_ONE : D3DBLEND_INVSRCALPHA);
+    return true;
+}
+
+void DXOverlay::DrawShaded3DImpl(IDirect3DDevice9* device,
+                                 const std::vector<std::tuple<float, float, float, uint32_t>>& vertices,
+                                 bool additive, bool use_occlusion) {
+    if (!device || !MapValidForDraw()) return;
+    if (vertices.size() < 3) return;
+    if (!SetupWorldShaderDraw(device, additive, use_occlusion)) return;
+
+    struct V { float x, y, z; D3DCOLOR c; };
+    std::vector<V> buf;
+    buf.reserve(vertices.size());
+    for (const auto& t : vertices) {
+        buf.push_back({ std::get<0>(t), std::get<1>(t), std::get<2>(t),
+                        static_cast<D3DCOLOR>(std::get<3>(t)) });
+    }
+    const UINT tri_count = static_cast<UINT>(buf.size() / 3);
+    if (tri_count > 0) {
+        device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, tri_count, buf.data(), sizeof(V));
+    }
+    device->SetVertexShader(nullptr);
+    device->SetPixelShader(nullptr);
+}
+
+void DXOverlay::DrawShaded3D(std::vector<std::tuple<float, float, float, uint32_t>> vertices,
+                             bool additive, bool use_occlusion) {
+    // Append like the other Draw*3D: the geometry (built in Python) is drawn in the
+    // world pass, so it occludes and rides the list lifecycle. The vertex list is moved
+    // into the queued command.
+    EnqueueDraw([this, vertices = std::move(vertices), additive, use_occlusion](IDirect3DDevice9* device) {
+        DrawShaded3DImpl(device, vertices, additive, use_occlusion);
+    });
+}
+
 void DXOverlay::DrawLine3D(GW::Vec3f from, GW::Vec3f to, D3DCOLOR color, bool use_occlusion, int segments, float floor_offset) {
+    if (!m_draining) {
+        EnqueueDraw([this, from, to, color, use_occlusion, segments, floor_offset](IDirect3DDevice9*) {
+            DrawLine3D(from, to, color, use_occlusion, segments, floor_offset);
+        });
+        return;
+    }
     IDirect3DDevice9* device = GW::render::GetDevice();
     if (!device || !MapValidForDraw()) return;
 
     Setup3DView();
-
     if (!use_occlusion) {
         device->SetRenderState(D3DRS_ZENABLE, FALSE);
         device->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
@@ -1038,6 +1199,12 @@ void DXOverlay::DrawLine3D(GW::Vec3f from, GW::Vec3f to, D3DCOLOR color, bool us
 
 // ---------- TRIANGLE (outline) ----------
 void DXOverlay::DrawTriangle3D(GW::Vec3f p1, GW::Vec3f p2, GW::Vec3f p3, D3DCOLOR color, bool use_occlusion, int edge_segments, float floor_offset) {
+    if (!m_draining) {
+        EnqueueDraw([this, p1, p2, p3, color, use_occlusion, edge_segments, floor_offset](IDirect3DDevice9*) {
+            DrawTriangle3D(p1, p2, p3, color, use_occlusion, edge_segments, floor_offset);
+        });
+        return;
+    }
     IDirect3DDevice9* device = GW::render::GetDevice();
     if (!device) return;
     // Reuse the line routine (per-segment FindZ, RH flip, etc.)
@@ -1047,6 +1214,12 @@ void DXOverlay::DrawTriangle3D(GW::Vec3f p1, GW::Vec3f p2, GW::Vec3f p3, D3DCOLO
 }
 
 void DXOverlay::DrawTriangleFilled3D(GW::Vec3f p1, GW::Vec3f p2, GW::Vec3f p3, D3DCOLOR color, bool use_occlusion, int segments, float floor_offset) {
+    if (!m_draining) {
+        EnqueueDraw([this, p1, p2, p3, color, use_occlusion, segments, floor_offset](IDirect3DDevice9*) {
+            DrawTriangleFilled3D(p1, p2, p3, color, use_occlusion, segments, floor_offset);
+        });
+        return;
+    }
     IDirect3DDevice9* device = GW::render::GetDevice();
     if (!device || !MapValidForDraw()) return;
     Setup3DView();
@@ -1108,6 +1281,12 @@ void DXOverlay::DrawTriangleFilled3D(GW::Vec3f p1, GW::Vec3f p2, GW::Vec3f p3, D
 
 // ---------- QUAD (outline) ----------
 void DXOverlay::DrawQuad3D(GW::Vec3f p1, GW::Vec3f p2, GW::Vec3f p3, GW::Vec3f p4, D3DCOLOR color, bool use_occlusion, int edge_segments, float floor_offset) {
+    if (!m_draining) {
+        EnqueueDraw([this, p1, p2, p3, p4, color, use_occlusion, edge_segments, floor_offset](IDirect3DDevice9*) {
+            DrawQuad3D(p1, p2, p3, p4, color, use_occlusion, edge_segments, floor_offset);
+        });
+        return;
+    }
     IDirect3DDevice9* device = GW::render::GetDevice();
     if (!device) return;
     DrawLine3D(p1, p2, color, use_occlusion, edge_segments, floor_offset);
@@ -1117,6 +1296,12 @@ void DXOverlay::DrawQuad3D(GW::Vec3f p1, GW::Vec3f p2, GW::Vec3f p3, GW::Vec3f p
 }
 
 void DXOverlay::DrawQuadFilled3D(GW::Vec3f p1, GW::Vec3f p2, GW::Vec3f p3, GW::Vec3f p4, D3DCOLOR color, bool use_occlusion, int segments, float floor_offset) {
+    if (!m_draining) {
+        EnqueueDraw([this, p1, p2, p3, p4, color, use_occlusion, segments, floor_offset](IDirect3DDevice9*) {
+            DrawQuadFilled3D(p1, p2, p3, p4, color, use_occlusion, segments, floor_offset);
+        });
+        return;
+    }
     IDirect3DDevice9* device = GW::render::GetDevice();
     if (!device) return;
     // Split into two triangles; reuse the draped triangle filler
@@ -1128,6 +1313,12 @@ void DXOverlay::DrawQuadFilled3D(GW::Vec3f p1, GW::Vec3f p2, GW::Vec3f p3, GW::V
 // 'numSegments' = number of polygon sides (existing meaning).
 // 'segments' = per-edge snapping subdivisions.
 void DXOverlay::DrawPoly3D(GW::Vec3f center, float radius, D3DCOLOR color, int numSegments, bool autoZ, bool use_occlusion, int segments, float floor_offset) {
+    if (!m_draining) {
+        EnqueueDraw([this, center, radius, color, numSegments, autoZ, use_occlusion, segments, floor_offset](IDirect3DDevice9*) {
+            DrawPoly3D(center, radius, color, numSegments, autoZ, use_occlusion, segments, floor_offset);
+        });
+        return;
+    }
     IDirect3DDevice9* device = GW::render::GetDevice();
     if (!device || !MapValidForDraw()) return;
     Setup3DView();
@@ -1181,6 +1372,12 @@ void DXOverlay::DrawPoly3D(GW::Vec3f center, float radius, D3DCOLOR color, int n
 
 // ---------- POLY (filled, draped by triangulating each fan triangle and snapping per sub-tri) ----------
 void DXOverlay::DrawPolyFilled3D(GW::Vec3f center, float radius, D3DCOLOR color, int numSegments, bool autoZ, bool use_occlusion, int segments, float floor_offset) {
+    if (!m_draining) {
+        EnqueueDraw([this, center, radius, color, numSegments, autoZ, use_occlusion, segments, floor_offset](IDirect3DDevice9*) {
+            DrawPolyFilled3D(center, radius, color, numSegments, autoZ, use_occlusion, segments, floor_offset);
+        });
+        return;
+    }
     IDirect3DDevice9* device = GW::render::GetDevice();
     if (!device || !MapValidForDraw()) return;
     Setup3DView();
@@ -1238,10 +1435,15 @@ void DXOverlay::DrawPolyFilled3D(GW::Vec3f center, float radius, D3DCOLOR color,
 }
 
 void DXOverlay::DrawCubeOutline(GW::Vec3f center, float size, D3DCOLOR color, bool use_occlusion) {
+    if (!m_draining) {
+        EnqueueDraw([this, center, size, color, use_occlusion](IDirect3DDevice9*) {
+            DrawCubeOutline(center, size, color, use_occlusion);
+        });
+        return;
+    }
     IDirect3DDevice9* device = GW::render::GetDevice();
     if (!device) return;
     Setup3DView();
-
     if (!use_occlusion) {
         device->SetRenderState(D3DRS_ZENABLE, FALSE);
         device->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
@@ -1272,10 +1474,15 @@ void DXOverlay::DrawCubeOutline(GW::Vec3f center, float size, D3DCOLOR color, bo
 }
 
 void DXOverlay::DrawCubeFilled(GW::Vec3f center, float size, D3DCOLOR color, bool use_occlusion) {
+    if (!m_draining) {
+        EnqueueDraw([this, center, size, color, use_occlusion](IDirect3DDevice9*) {
+            DrawCubeFilled(center, size, color, use_occlusion);
+        });
+        return;
+    }
     IDirect3DDevice9* device = GW::render::GetDevice();
     if (!device) return;
     Setup3DView();
-
     if (!use_occlusion) {
         device->SetRenderState(D3DRS_ZENABLE, FALSE);
         device->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
@@ -1350,6 +1557,12 @@ void DXOverlay::DrawTexture(const std::string& file_path, float screen_pos_x, fl
 }
 
 void DXOverlay::DrawTexture3D(const std::string& file_path, float world_pos_x, float world_pos_y, float world_pos_z, float width, float height, bool use_occlusion, uint32_t int_tint) {
+    if (!m_draining) {
+        EnqueueDraw([this, file_path, world_pos_x, world_pos_y, world_pos_z, width, height, use_occlusion, int_tint](IDirect3DDevice9*) {
+            DrawTexture3D(file_path, world_pos_x, world_pos_y, world_pos_z, width, height, use_occlusion, int_tint);
+        });
+        return;
+    }
     // Legacy forced the tint to opaque white here; the port respects int_tint.
     D3DCOLOR tint = D3DCOLOR_ARGB((int_tint >> 24) & 0xFF, (int_tint >> 16) & 0xFF, (int_tint >> 8) & 0xFF, int_tint & 0xFF);
 
@@ -1361,7 +1574,6 @@ void DXOverlay::DrawTexture3D(const std::string& file_path, float world_pos_x, f
     if (!MapValidForDraw()) return;
 
     Setup3DView();
-
     if (!use_occlusion) {
         device->SetRenderState(D3DRS_ZENABLE, FALSE);
         device->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
@@ -1407,6 +1619,12 @@ void DXOverlay::DrawQuadTextured3D(const std::string& file_path,
     GW::Vec3f p1, GW::Vec3f p2, GW::Vec3f p3, GW::Vec3f p4,
     bool use_occlusion,
     uint32_t int_tint) {
+    if (!m_draining) {
+        EnqueueDraw([this, file_path, p1, p2, p3, p4, use_occlusion, int_tint](IDirect3DDevice9*) {
+            DrawQuadTextured3D(file_path, p1, p2, p3, p4, use_occlusion, int_tint);
+        });
+        return;
+    }
     // Legacy forced the tint to opaque white here; the port respects int_tint.
     D3DCOLOR tint = D3DCOLOR_ARGB((int_tint >> 24) & 0xFF, (int_tint >> 16) & 0xFF, (int_tint >> 8) & 0xFF, int_tint & 0xFF);
 
@@ -1418,7 +1636,6 @@ void DXOverlay::DrawQuadTextured3D(const std::string& file_path,
     if (!MapValidForDraw()) return;
 
     Setup3DView();
-
     if (!use_occlusion) {
         device->SetRenderState(D3DRS_ZENABLE, FALSE);
         device->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);

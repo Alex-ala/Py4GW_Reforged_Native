@@ -53,6 +53,16 @@ std::atomic<bool> g_scan_enabled{false};   // per-opcode depth scan (diagnostic,
 std::atomic<bool> g_shutting_down{false};
 std::atomic<int> g_active{0};
 
+// Idle watchdog. A consumer (script) pings Heartbeat() every frame while it is
+// alive. Once armed, if no ping arrives for kIdleDeactivateFrames draw frames, we
+// assume the consumer stopped (e.g. the script was closed / its Python environment
+// reset) and DEACTIVATE by clearing the callbacks. This is done natively because
+// after a script closes its registered Python callback is unsafe to keep calling -
+// only native code can stop invoking it, so nothing is left drawn.
+std::atomic<uint32_t> g_frames_since_heartbeat{0};
+std::atomic<bool> g_watchdog_armed{false};
+constexpr uint32_t kIdleDeactivateFrames = 30;  // ~0.5s at 60fps
+
 // Hard map-validity check: only draw in a fully loaded, non-loading map. Anything
 // else (loading screen, char select, map transition) -> deactivate, so the hook
 // never touches D3D while the device/render targets are being torn down/rebuilt.
@@ -255,6 +265,17 @@ uint32_t __cdecl OnDdiDispatch(void* p1, void* ddi_ctx, uint32_t* cmd, uint32_t*
             }
 
             if (opcode == g_draw_opcode.load()) {
+                // Idle watchdog: once a consumer has pinged Heartbeat(), require a
+                // ping at least every kIdleDeactivateFrames draw frames. If the pings
+                // stop (script closed), clear the callbacks so we never invoke a dead
+                // Python callback again and nothing is left drawn.
+                if (g_watchdog_armed.load() &&
+                    g_frames_since_heartbeat.fetch_add(1, std::memory_order_relaxed) + 1
+                        >= kIdleDeactivateFrames) {
+                    g_watchdog_armed.store(false);
+                    ClearDraws();
+                }
+
                 g_diag_present.fetch_add(1, std::memory_order_relaxed);
                 g_diag_device.store(reinterpret_cast<uintptr_t>(device), std::memory_order_relaxed);
                 g_diag_dev_gw.store(reinterpret_cast<uintptr_t>(GW::render::GetDevice()),
@@ -402,6 +423,12 @@ void SetDrawOpcode(int opcode) {
 
 void SetScanEnabled(bool enabled) {
     g_scan_enabled = enabled;
+}
+
+void Heartbeat() {
+    // Arm + reset the idle watchdog. Call every frame while the consumer is alive.
+    g_frames_since_heartbeat.store(0, std::memory_order_relaxed);
+    g_watchdog_armed.store(true);
 }
 
 std::string GetDiagnostics() {
