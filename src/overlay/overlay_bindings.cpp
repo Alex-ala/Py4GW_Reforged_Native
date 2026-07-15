@@ -72,8 +72,40 @@ void bind_overlay(py::module_& m) {
         .def(py::init<>())
         .def("RefreshDrawList", &Overlay::RefreshDrawList)
         .def("GetMouseCoords", &Overlay::GetMouseCoords)
-        .def("FindZ", &Overlay::findZ, py::arg("x"), py::arg("y"), py::arg("pz") = 0)
+        // FindZ resolves the TOPMOST surface across all planes by default (bridges/
+        // slopes are planes > 0), independent of the player's plane. Pass
+        // multi_plane=False for the legacy player-plane behaviour. Single-plane maps
+        // take a fast path. See docs/RE/altitude_plane_reverse_engineering.md.
+        .def("FindZ", &Overlay::findZ,
+             py::arg("x"), py::arg("y"), py::arg("pz") = 0, py::arg("multi_plane") = true,
+             "Ground height at (x, y). multi_plane=True (default): topmost surface "
+             "across all planes, stable regardless of the player's plane. "
+             "multi_plane=False: legacy altitude at the player's plane.")
+        .def("FindZBatch", &Overlay::FindZBatch,
+             py::arg("points"), py::arg("multi_plane") = true,
+             "Batched FindZ for many points (path display, dozens/frame): points = "
+             "list of (x, y) -> list of z. Plane list fetched once; single-plane fast path.")
         .def("FindZPlane", &Overlay::FindZPlane, py::arg("x"), py::arg("y"), py::arg("z") = 0)
+        // Low-level / specialist helpers (FindZ covers the common cases).
+        .def("GetZPlaneCount", &Overlay::GetZPlaneCount,
+             "Number of z-planes (pmaps) in the map; 0 if not ready. <= 1 means "
+             "single-plane, so FindZ's fast path applies (cheap overlap gate).")
+        .def("QueryAltitudeAt", &Overlay::QueryAltitudeAt, py::arg("x"), py::arg("y"), py::arg("plane"),
+             "Altitude at a SPECIFIC plane -> (covered, z). covered=False if that "
+             "plane has no surface at (x,y).")
+        .def("GroundZNearest", &Overlay::GroundZNearest, py::arg("x"), py::arg("y"), py::arg("ref_z"),
+             "Specialist: covered surface whose altitude is nearest ref_z (feed the "
+             "object's own z to pick bridge-over vs under-bridge; FindZ's topmost can't).")
+        .def("GroundZNearestBatch", &Overlay::GroundZNearestBatch, py::arg("points"), py::arg("ref_zs"),
+             "Batched GroundZNearest: points = list of (x, y), ref_zs = list of "
+             "reference z (same length); returns list of z.")
+        .def("GroundZWalkable", &Overlay::GroundZWalkable, py::arg("x"), py::arg("y"),
+             "Option B: plane-less walkable height. MapQueryAltitude at plane 0 -> the "
+             "engine's PathEngineQueryAltitude (navmesh) where a path engine exists, "
+             "else base terrain. Plane-independent (stable, unlike FindZ); does NOT add "
+             "bridge/slope props (use FindZ multi_plane for those). One cheap call/point.")
+        .def("GroundZWalkableBatch", &Overlay::GroundZWalkableBatch, py::arg("points"),
+             "Batched GroundZWalkable: points = list of (x, y) -> list of z.")
         .def("WorldToScreen", &Overlay::WorldToScreen, py::arg("x"), py::arg("y"), py::arg("z"))
         .def("GetMouseWorldPos", &Overlay::GetMouseWorldPos)
         // Game <-> World

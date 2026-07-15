@@ -1147,6 +1147,42 @@ void DXOverlay::DrawShaded3D(std::vector<std::tuple<float, float, float, uint32_
     });
 }
 
+void DXOverlay::DrawShaded3DMaxImpl(IDirect3DDevice9* device,
+                                    const std::vector<std::tuple<float, float, float, uint32_t>>& vertices,
+                                    bool use_occlusion) {
+    if (!device || !MapValidForDraw()) return;
+    if (vertices.size() < 3) return;
+    // Reuse the shared shader/camera/state setup (alpha path), then switch only the
+    // blend OP to MAX so overlapping fragments take the brightest instead of summing.
+    if (!SetupWorldShaderDraw(device, /*additive=*/false, use_occlusion)) return;
+    device->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_MAX);
+    device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+    device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ONE);
+
+    struct V { float x, y, z; D3DCOLOR c; };
+    std::vector<V> buf;
+    buf.reserve(vertices.size());
+    for (const auto& t : vertices) {
+        buf.push_back({ std::get<0>(t), std::get<1>(t), std::get<2>(t),
+                        static_cast<D3DCOLOR>(std::get<3>(t)) });
+    }
+    const UINT tri_count = static_cast<UINT>(buf.size() / 3);
+    if (tri_count > 0) {
+        device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, tri_count, buf.data(), sizeof(V));
+    }
+    device->SetVertexShader(nullptr);
+    device->SetPixelShader(nullptr);
+    // Restore the default blend OP so this doesn't leak into later draws.
+    device->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
+}
+
+void DXOverlay::DrawShaded3DMax(std::vector<std::tuple<float, float, float, uint32_t>> vertices,
+                                bool use_occlusion) {
+    EnqueueDraw([this, vertices = std::move(vertices), use_occlusion](IDirect3DDevice9* device) {
+        DrawShaded3DMaxImpl(device, vertices, use_occlusion);
+    });
+}
+
 void DXOverlay::DrawLine3D(GW::Vec3f from, GW::Vec3f to, D3DCOLOR color, bool use_occlusion, int segments, float floor_offset) {
     if (!m_draining) {
         EnqueueDraw([this, from, to, color, use_occlusion, segments, floor_offset](IDirect3DDevice9*) {

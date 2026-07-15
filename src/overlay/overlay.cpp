@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cmath>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <windows.h>
@@ -217,6 +218,59 @@ float QueryZ(float x, float y, uint32_t plane) {
     return z;
 }
 
+// Coverage-aware per-plane query: unlike QueryZ, reports whether the plane
+// actually has a surface at (x,y) (QueryAltitude returns 0 when it doesn't), so
+// the resolvers can ignore planes that don't cover the point.
+bool QueryPlaneAltitude(float x, float y, uint32_t plane, float& out) {
+    auto* map = GW::Context::GetMapContext();
+    if (!map || !map->sub1 || !map->sub1->sub2)
+        return false;
+    if (map->sub1->sub2->pmaps.size() <= plane)
+        return false;
+
+    GW::GamePos gp(x, y, plane);
+    float z = 0.0f;
+    if (GW::map::QueryAltitude(gp, 5.0f, z) == 0)
+        return false;
+    out = z;
+    return true;
+}
+
+// Topmost covered surface across `planes` at (x,y). up = -z, so topmost = min z
+// (this is the same rule MapQueryAltitude uses internally when it min-combines
+// terrain and prop). Falls back to plain plane-0 altitude if nothing covers it.
+float ResolveTopZ(float x, float y, const std::vector<uint32_t>& planes) {
+    bool any = false;
+    float best = 0.0f;
+    for (uint32_t p : planes) {
+        float z = 0.0f;
+        if (QueryPlaneAltitude(x, y, p, z) && (!any || z < best)) {
+            best = z;
+            any = true;
+        }
+    }
+    return any ? best : QueryZ(x, y, 0);
+}
+
+// Covered surface whose altitude is nearest ref_z (bridge-over vs under-bridge).
+float ResolveNearestZ(float x, float y, float ref_z, const std::vector<uint32_t>& planes) {
+    bool any = false;
+    float best = 0.0f;
+    float best_d = 0.0f;
+    for (uint32_t p : planes) {
+        float z = 0.0f;
+        if (QueryPlaneAltitude(x, y, p, z)) {
+            float d = std::abs(z - ref_z);
+            if (!any || d < best_d) {
+                best = z;
+                best_d = d;
+                any = true;
+            }
+        }
+    }
+    return any ? best : QueryZ(x, y, 0);
+}
+
 struct ZResult {
     float z;
     uint32_t plane;
@@ -262,16 +316,49 @@ bool IsMapReady() {
 }  // namespace
 
 // ---------------- PUBLIC API ----------------
-float Overlay::findZ(float x, float y, uint32_t /*zplane_hint*/) {
+float Overlay::findZ(float x, float y, uint32_t /*zplane_hint*/, bool multi_plane) {
     if (!IsMapReady()) {
         return 0.0f;
     }
 
+    if (multi_plane) {
+        // Topmost surface across all planes -- independent of the player's plane,
+        // so a fixed point stays on its slope/bridge no matter where the player is.
+        return ResolveTopZ(x, y, GetValidZPlanes());
+    }
+
+    // Legacy: altitude at the player's plane.
     auto* player = GW::agent::GetControlledCharacter();
     if (!player)
         return 0.0f;
-
     return QueryZ(x, y, static_cast<uint32_t>(player->plane));
+}
+
+std::vector<float> Overlay::FindZBatch(const std::vector<std::pair<float, float>>& pts,
+                                       bool multi_plane) {
+    std::vector<float> out;
+    out.reserve(pts.size());
+    if (!IsMapReady()) {
+        out.assign(pts.size(), 0.0f);
+        return out;
+    }
+    if (!multi_plane) {
+        auto* player = GW::agent::GetControlledCharacter();
+        uint32_t pl = player ? static_cast<uint32_t>(player->plane) : 0;
+        for (const auto& p : pts)
+            out.push_back(QueryZ(p.first, p.second, pl));
+        return out;
+    }
+    // Fetch the plane list ONCE; single-plane maps take the cheap plane-0 path.
+    auto planes = GetValidZPlanes();
+    if (planes.size() <= 1) {
+        for (const auto& p : pts)
+            out.push_back(QueryZ(p.first, p.second, 0));
+        return out;
+    }
+    for (const auto& p : pts)
+        out.push_back(ResolveTopZ(p.first, p.second, planes));
+    return out;
 }
 
 uint32_t Overlay::FindZPlane(float x, float y, uint32_t /*zplane_hint*/) {
@@ -280,6 +367,68 @@ uint32_t Overlay::FindZPlane(float x, float y, uint32_t /*zplane_hint*/) {
     }
 
     return FindZ(x, y).plane;
+}
+
+uint32_t Overlay::GetZPlaneCount() {
+    auto* map = GW::Context::GetMapContext();
+    if (!map || !map->sub1 || !map->sub1->sub2)
+        return 0;
+    return static_cast<uint32_t>(map->sub1->sub2->pmaps.size());
+}
+
+std::pair<bool, float> Overlay::QueryAltitudeAt(float x, float y, uint32_t plane) {
+    if (!IsMapReady())
+        return { false, 0.0f };
+    float z = 0.0f;
+    bool covered = QueryPlaneAltitude(x, y, plane, z);
+    return { covered, covered ? z : 0.0f };
+}
+
+float Overlay::GroundZNearest(float x, float y, float ref_z) {
+    if (!IsMapReady())
+        return 0.0f;
+    return ResolveNearestZ(x, y, ref_z, GetValidZPlanes());
+}
+
+std::vector<float> Overlay::GroundZNearestBatch(const std::vector<std::pair<float, float>>& pts,
+                                                const std::vector<float>& ref_zs) {
+    std::vector<float> out;
+    out.reserve(pts.size());
+    if (!IsMapReady()) {
+        out.assign(pts.size(), 0.0f);
+        return out;
+    }
+    auto planes = GetValidZPlanes();
+    const bool single = planes.size() <= 1;
+    for (size_t i = 0; i < pts.size(); ++i) {
+        if (single) {
+            out.push_back(QueryZ(pts[i].first, pts[i].second, 0));
+        } else {
+            float ref = i < ref_zs.size() ? ref_zs[i] : 0.0f;
+            out.push_back(ResolveNearestZ(pts[i].first, pts[i].second, ref, planes));
+        }
+    }
+    return out;
+}
+
+float Overlay::GroundZWalkable(float x, float y) {
+    if (!IsMapReady())
+        return 0.0f;
+    // Plane 0: MapQueryAltitude routes through PathEngineQueryAltitude when a path
+    // engine exists (walkable navmesh height), else base terrain. Plane-independent.
+    return QueryZ(x, y, 0);
+}
+
+std::vector<float> Overlay::GroundZWalkableBatch(const std::vector<std::pair<float, float>>& pts) {
+    std::vector<float> out;
+    out.reserve(pts.size());
+    if (!IsMapReady()) {
+        out.assign(pts.size(), 0.0f);
+        return out;
+    }
+    for (const auto& p : pts)
+        out.push_back(QueryZ(p.first, p.second, 0));
+    return out;
 }
 
 GW::Vec2f Overlay::WorldToScreen(float x, float y, float z) {

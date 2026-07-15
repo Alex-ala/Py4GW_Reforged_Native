@@ -69,6 +69,12 @@ void bind_dx_overlay(py::module_& m) {
             "of (x, y, z, argb) world-space tuples (up = -z), 3 per triangle. The alpha in "
             "argb + additive (light) vs alpha blend make it read as glow. Build the geometry "
             "in Python (billboards, gradients) and call this. Occludes + rides the lifecycle.")
+        .def("draw_shaded_3d_max", &DXOverlay::DrawShaded3DMax,
+            py::arg("vertices"), py::arg("use_occlusion") = true,
+            "Like draw_shaded_3d but with a MAX blend op: overlapping fragments take the "
+            "brightest of source/dest instead of summing, so crossed/overlapping quads do "
+            "NOT accumulate at their seam (each quad reads as if drawn alone). Alpha still "
+            "fades where the vertex alpha is low.")
         .def("set_occlusion_tuning", &DXOverlay::SetOcclusionTuning,
             py::arg("near_z"), py::arg("far_z"), py::arg("zfunc"), py::arg("reverse_z"))
         .def("get_depth_diagnostics", &DXOverlay::GetDepthDiagnostics)

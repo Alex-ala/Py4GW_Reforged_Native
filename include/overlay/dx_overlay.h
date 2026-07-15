@@ -84,6 +84,13 @@ public:
     void DrawShaded3D(std::vector<std::tuple<float, float, float, uint32_t>> vertices,
                       bool additive = true, bool use_occlusion = true);
 
+    // Same as DrawShaded3D but with a MAX blend op: overlapping fragments take the
+    // brightest of source/dest instead of summing, so crossed/overlapping quads do
+    // NOT accumulate at their seam (each quad reads as if drawn alone). Separate
+    // entry point so DrawShaded3D's blend path is untouched.
+    void DrawShaded3DMax(std::vector<std::tuple<float, float, float, uint32_t>> vertices,
+                         bool use_occlusion = true);
+
     // Runtime depth/occlusion tuning for Setup3DView (diagnostic-driven, so the
     // exact GW depth convention can be dialed in live). zfunc is a D3DCMPFUNC
     // value (LESSEQUAL=4, GREATEREQUAL=7, ...). reverse_z swaps near/far.
@@ -136,6 +143,10 @@ private:
     void DrawShaded3DImpl(IDirect3DDevice9* device,
                           const std::vector<std::tuple<float, float, float, uint32_t>>& vertices,
                           bool additive, bool use_occlusion);
+    // Draw the shaded triangles with a MAX blend op (no overlap accumulation).
+    void DrawShaded3DMaxImpl(IDirect3DDevice9* device,
+                             const std::vector<std::tuple<float, float, float, uint32_t>>& vertices,
+                             bool use_occlusion);
 
     // Transparent occluded-draw pipeline (render-thread only). A script's Draw*3D call
     // appends a command to m_draw_list (implicit keepalive - no explicit register/ping);
