@@ -29,6 +29,8 @@ using PingWeaponSetFn = void(__cdecl*)(uint32_t agent_id, uint32_t weapon_item_i
 using ChangeGoldFn = void(__cdecl*)(uint32_t character_gold, uint32_t storage_gold);
 using ChangeEquipmentVisibilityFn = void(__cdecl*)(uint32_t equipment_state, uint32_t equip_type);
 using GetPvPItemUpgradeInfoNameFn = void(__cdecl*)(uint32_t pvp_item_upgrade_id, uint32_t name_or_description, wchar_t** name_out, wchar_t** description_out);
+using ConstItemPvpGetUnlockDefFn = const uint32_t*(__cdecl*)(uint32_t unlock_index);
+using ItemCliPvpUnlockGetNameFn = void(__cdecl*)(uint32_t unlock_index, uint32_t flag, uint32_t code_count, const uint32_t* codes, wchar_t** name_out, wchar_t** description_out);
 
 extern DoActionFn g_use_item_func;
 extern EquipItemFn g_equip_item_func;
@@ -43,6 +45,8 @@ extern DoActionFn g_destroy_item_func;
 extern VoidFn g_salvage_session_complete_func;
 extern ChangeEquipmentVisibilityFn g_change_equipment_visibility_func;
 extern GetPvPItemUpgradeInfoNameFn g_pvp_item_upgrade_name_func;
+extern ConstItemPvpGetUnlockDefFn g_const_item_pvp_get_unlock_def_func;
+extern ItemCliPvpUnlockGetNameFn g_item_cli_pvp_unlock_get_name_func;
 extern std::unordered_map<PY4GW::HookEntry*, ItemClickCallback> g_item_click_callbacks;
 
 static uint32_t GetSalvageSessionId() {
@@ -473,6 +477,29 @@ bool GetPvPItemUpgradeEncodedDescription(uint32_t pvp_item_upgrade_idx, wchar_t*
     wchar_t* tmp;
     g_pvp_item_upgrade_name_func(pvp_item_upgrade_idx, false, &tmp, out);
     return *out != nullptr;
+}
+
+// Number of entries in the static PvP-unlock (upgrade-component) table (ITEM_PVP_UNLOCK_COUNT).
+uint32_t GetPvpUnlockCount() {
+    return 390;
+}
+
+// Compose the game's own name + description for a static PvP unlock (any of the 390, regardless of
+// account unlock state). Outputs are ENCODED wchar strings (decode client-side via the string table).
+bool GetPvpUnlockEncodedName(uint32_t unlock_index, wchar_t** name_out, wchar_t** description_out) {
+    if (!(g_const_item_pvp_get_unlock_def_func && g_item_cli_pvp_unlock_get_name_func && name_out && description_out))
+        return false;
+    if (unlock_index >= GetPvpUnlockCount())
+        return false;
+    *name_out = nullptr;
+    *description_out = nullptr;
+    const uint32_t* def = g_const_item_pvp_get_unlock_def_func(unlock_index);
+    if (!def)
+        return false;
+    const uint32_t code_count = def[8];                                  // unlock def +0x20 = mod-code count
+    const uint32_t* codes = reinterpret_cast<const uint32_t*>(def[9]);   // unlock def +0x24 = mod-codes pointer
+    g_item_cli_pvp_unlock_get_name_func(unlock_index, 0, code_count, codes, name_out, description_out);
+    return *name_out != nullptr || *description_out != nullptr;
 }
 
 const ItemFormula* GetItemFormula(const Item* item) {

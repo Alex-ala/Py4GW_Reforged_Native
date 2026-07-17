@@ -30,6 +30,8 @@ using PingWeaponSetFn = void(__cdecl*)(uint32_t agent_id, uint32_t weapon_item_i
 using ChangeGoldFn = void(__cdecl*)(uint32_t character_gold, uint32_t storage_gold);
 using ChangeEquipmentVisibilityFn = void(__cdecl*)(uint32_t equipment_state, uint32_t equip_type);
 using GetPvPItemUpgradeInfoNameFn = void(__cdecl*)(uint32_t pvp_item_upgrade_id, uint32_t name_or_description, wchar_t** name_out, wchar_t** description_out);
+using ConstItemPvpGetUnlockDefFn = const uint32_t*(__cdecl*)(uint32_t unlock_index);
+using ItemCliPvpUnlockGetNameFn = void(__cdecl*)(uint32_t unlock_index, uint32_t flag, uint32_t code_count, const uint32_t* codes, wchar_t** name_out, wchar_t** description_out);
 
 extern DoActionFn g_use_item_func;
 extern EquipItemFn g_equip_item_func;
@@ -49,6 +51,8 @@ extern ChangeGoldFn g_change_gold_func;
 extern DoActionFn g_open_locked_chest_func;
 extern PingWeaponSetFn g_ping_weapon_set_func;
 extern GetPvPItemUpgradeInfoNameFn g_pvp_item_upgrade_name_func;
+extern ConstItemPvpGetUnlockDefFn g_const_item_pvp_get_unlock_def_func;
+extern ItemCliPvpUnlockGetNameFn g_item_cli_pvp_unlock_get_name_func;
 
 bool ResolveStorageOpenAddress() {
     CrashContextScope context("startup", "item", "resolve_storage_open");
@@ -154,6 +158,16 @@ bool ResolveItemFormulas() {
     CrashContextScope context("startup", "item", "resolve_item_formulas");
     return PY4GW::Patterns::Resolve("item.item_formulas_addr", &Context::g_item_formulas) &&
         PY4GW::Patterns::Resolve("item.item_formulas_count", &Context::g_item_formula_count);
+}
+
+bool ResolveConstItemPvpGetUnlockDefFunction() {
+    CrashContextScope context("startup", "item", "resolve_const_item_pvp_get_unlock_def");
+    return PY4GW::Patterns::Resolve("item.const_item_pvp_get_unlock_def_func", &g_const_item_pvp_get_unlock_def_func);
+}
+
+bool ResolveItemCliPvpUnlockGetNameFunction() {
+    CrashContextScope context("startup", "item", "resolve_item_cli_pvp_unlock_get_name");
+    return PY4GW::Patterns::Resolve("item.item_cli_pvp_unlock_get_name_func", &g_item_cli_pvp_unlock_get_name_func);
 }
 
 }  // namespace GW::item

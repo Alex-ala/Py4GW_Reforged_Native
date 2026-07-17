@@ -33,6 +33,10 @@ using PingWeaponSetFn = void(__cdecl*)(uint32_t agent_id, uint32_t weapon_item_i
 using ChangeGoldFn = void(__cdecl*)(uint32_t character_gold, uint32_t storage_gold);
 using ChangeEquipmentVisibilityFn = void(__cdecl*)(uint32_t equipment_state, uint32_t equip_type);
 using GetPvPItemUpgradeInfoNameFn = void(__cdecl*)(uint32_t pvp_item_upgrade_id, uint32_t name_or_description, wchar_t** name_out, wchar_t** description_out);
+// Static PvP-unlock (upgrade-component) definition table accessors. ConstItemPvpGetUnlockDef
+// returns the 40-byte unlock def (uint32[]): [+0x20]=code_count, [+0x24]=mod-codes pointer.
+using ConstItemPvpGetUnlockDefFn = const uint32_t*(__cdecl*)(uint32_t unlock_index);
+using ItemCliPvpUnlockGetNameFn = void(__cdecl*)(uint32_t unlock_index, uint32_t flag, uint32_t code_count, const uint32_t* codes, wchar_t** name_out, wchar_t** description_out);
 
 bool ResolveStorageOpenAddress();
 bool ResolveItemClickFunction();
@@ -54,6 +58,8 @@ bool ResolvePvPItemArray();
 bool ResolveCompositeModelInfoArray();
 bool ResolvePvPItemUpgradeNameFunction();
 bool ResolveItemFormulas();
+bool ResolveConstItemPvpGetUnlockDefFunction();
+bool ResolveItemCliPvpUnlockGetNameFunction();
 
 bool Init();
 void EnableHooks();
@@ -93,6 +99,8 @@ DoActionFn g_open_locked_chest_func = nullptr;
 PingWeaponSetFn g_ping_weapon_set_func = nullptr;
 PingWeaponSetFn g_ping_weapon_set_original = nullptr;
 GetPvPItemUpgradeInfoNameFn g_pvp_item_upgrade_name_func = nullptr;
+ConstItemPvpGetUnlockDefFn g_const_item_pvp_get_unlock_def_func = nullptr;
+ItemCliPvpUnlockGetNameFn g_item_cli_pvp_unlock_get_name_func = nullptr;
 PY4GW::HookEntry g_ui_message_entry;
 const std::array<ui::UIMessage, 3> g_ui_messages_to_hook = {
     ui::UIMessage::kSendUseItem,
@@ -237,7 +245,9 @@ bool Init() {
         !ResolvePvPItemArray() ||
         !ResolveCompositeModelInfoArray() ||
         !ResolvePvPItemUpgradeNameFunction() ||
-        !ResolveItemFormulas()) {
+        !ResolveItemFormulas() ||
+        !ResolveConstItemPvpGetUnlockDefFunction() ||
+        !ResolveItemCliPvpUnlockGetNameFunction()) {
         return false;
     }
 
@@ -385,6 +395,8 @@ void Exit() {
     g_ping_weapon_set_func = nullptr;
     g_ping_weapon_set_original = nullptr;
     g_pvp_item_upgrade_name_func = nullptr;
+    g_const_item_pvp_get_unlock_def_func = nullptr;
+    g_item_cli_pvp_unlock_get_name_func = nullptr;
     Context::g_salvage_context = nullptr;
     g_item_click_callbacks.clear();
 }

@@ -76,6 +76,8 @@ const CompositeModelInfo* GetCompositeModelInfo(uint32_t model_file_id);
 const CompositeModelInfoArray& GetCompositeModelInfoArray();
 bool GetPvPItemUpgradeEncodedName(uint32_t pvp_item_upgrade_idx, wchar_t** out);
 bool GetPvPItemUpgradeEncodedDescription(uint32_t pvp_item_upgrade_idx, wchar_t** out);
+uint32_t GetPvpUnlockCount();
+bool GetPvpUnlockEncodedName(uint32_t unlock_index, wchar_t** name_out, wchar_t** description_out);
 const ItemFormula* GetItemFormula(const Item* item);
 bool PickUpItem(const Item* item, uint32_t call_target = 0);
 bool CanAccessXunlaiChest();
