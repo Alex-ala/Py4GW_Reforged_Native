@@ -13,7 +13,7 @@ set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)
 
 # ── Python 3.13 32-bit from the gw_wine prefix ───────────────────────────────
-set(PY_DIR "../gw_wine/drive_c/Program Files (x86)/Python313-32")
+set(PY_DIR "${CMAKE_CURRENT_LIST_DIR}/../gw_wine/drive_c/Program Files (x86)/Python313-32")
 
 # Native interpreter for build-time scripts (pybind11 version detection etc.)
 set(PYTHON_EXECUTABLE "/usr/bin/python3" CACHE FILEPATH "" FORCE)
