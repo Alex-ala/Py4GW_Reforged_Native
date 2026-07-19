@@ -7,6 +7,7 @@
 #include "GW/context/game.h"
 #include "GW/context/gadget.h"
 #include "GW/context/item.h"
+#include "GW/context/party.h"
 #include "GW/context/world.h"
 #include "GW/item/item.h"
 #include "GW/map/map.h"
@@ -237,9 +238,19 @@ namespace GW::agent {
     }
 
     AgentID GetHeroAgentID(uint32_t hero_index) {
-        auto* world = Context::GetWorldContext();
-        auto* hero_flags = world && world->hero_flags.valid() ? &world->hero_flags : nullptr;
-        return hero_flags && hero_index < hero_flags->size() ? hero_flags->at(hero_index).agent_id : 0;
+        // GWCA semantics (PartyMgr::GetHeroAgentID): 0 = the controlled
+        // character, otherwise a 1-based index into the party hero array.
+        // Every caller (skillbar template loading, hero flagging,
+        // GetHeroSkillbar, ...) passes indices under this contract.
+        if (hero_index == 0)
+            return GetControlledCharacterId();
+        hero_index--;
+        const auto* party_ctx = Context::GetPartyContext();
+        Context::PartyInfo* party = party_ctx ? party_ctx->player_party : nullptr;
+        if (!party)
+            return 0;
+        Context::HeroPartyMemberArray& heroes = party->heroes;
+        return heroes.valid() && hero_index < heroes.size() ? heroes[hero_index].agent_id : 0;
     }
 
     wchar_t* GetAgentEncName(uint32_t agent_id) {
