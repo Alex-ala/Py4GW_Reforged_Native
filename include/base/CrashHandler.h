@@ -3,6 +3,7 @@
 #include "base/error_handling.h"
 
 #include <array>
+#include <cstdint>
 #include <string>
 #include <windows.h>
 

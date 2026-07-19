@@ -9,14 +9,56 @@ endif()
 if(CMAKE_SIZEOF_VOID_P AND NOT CMAKE_SIZEOF_VOID_P EQUAL 4)
     message(FATAL_ERROR "Py4GW must be configured as a 32-bit build. Use -A Win32.")
 endif()
+# i686-w64-mingw32 cross build (Linux -> 32-bit Windows DLL, run under Wine).
+# CMAKE_SYSTEM_NAME=Windows keeps WIN32 true above; this flag gates every
+# MSVC-only construct below (force-includes, .lib names, /MP, MSVC-only find).
+set(PY4GW_MINGW OFF)
+if(MINGW OR (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32))
+    set(PY4GW_MINGW ON)
+    message(STATUS "Py4GW: MinGW cross-compile build enabled.")
+    # 32-bit i686 defaults to no SSE; GW itself requires SSE2, and several TUs
+    # use <xmmintrin.h>/<emmintrin.h> intrinsics that are always_inline and fail
+    # to inline without the ISA enabled.
+    add_compile_options(-msse2 -mfpmath=sse)
+endif()
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+# GCC/MinGW needs GNU extensions on for the MSVC-isms (anonymous structs,
+# __try macro handling via mingw_compat.h, ms_abi bits in headers).
+if(PY4GW_MINGW)
+    set(CMAKE_CXX_EXTENSIONS ON)
+else()
+    set(CMAKE_CXX_EXTENSIONS OFF)
+endif()
 
 if(MSVC)
     # Compile translation units in parallel within each target.
     add_compile_options(/MP)
+endif()
+
+# Translate the MSVC force-include flag (/FI<hdr>) used on several targets. On
+# MinGW every Py4GW TU force-includes mingw_compat.h (which pulls in
+# base/error_handling.h itself), supplying the __try/__except/_ReturnAddress
+# shims the MSVC source assumes.
+if(PY4GW_MINGW)
+    set(PY4GW_FORCE_INCLUDE_ERRH "-include${CMAKE_CURRENT_SOURCE_DIR}/include/mingw_compat.h")
+else()
+    set(PY4GW_FORCE_INCLUDE_ERRH "/FIbase/error_handling.h")
+endif()
+
+# System library names differ between MSVC (import-lib filenames) and MinGW
+# (-l names resolved from the cross sysroot).
+if(PY4GW_MINGW)
+    set(PY4GW_D3D9_LIB   d3d9)
+    set(PY4GW_SYS_LIBS
+        d3d9 d3dcompiler dbghelp winmm windowscodecs ole32 oleaut32
+        gdiplus comctl32 gdi32 user32 shell32 uuid version imm32 dwmapi psapi)
+else()
+    set(PY4GW_D3D9_LIB   d3d9.lib)
+    set(PY4GW_SYS_LIBS
+        d3d9.lib d3dcompiler.lib dbghelp.lib winmm.lib windowscodecs.lib
+        ole32.lib gdiplus.lib comctl32.lib)
 endif()
 
 option(PY4GW_BUILD_IMGUI_DEMO "Compile Dear ImGui demo sources." ON)
@@ -33,7 +75,19 @@ foreach(config DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_${config} "${PY4GW_RUNTIME_OUTPUT_DIRECTORY}")
 endforeach()
 
-find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
+if(PY4GW_MINGW)
+    # Cross build: there is no target-arch Python to probe. The toolchain file
+    # pre-seeds the 32-bit headers/import-lib; expose them as the same
+    # Python3::Python target the rest of the file links against.
+    find_package(Python3 QUIET COMPONENTS Interpreter)  # host interpreter only, optional
+    add_library(Python3::Python INTERFACE IMPORTED)
+    set_target_properties(Python3::Python PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${PY4GW_PY_INCLUDE}"
+        INTERFACE_LINK_LIBRARIES "${PY4GW_PY_LIB}"
+    )
+else()
+    find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
+endif()
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/third_party/pybind11)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/third_party/minhook)
@@ -85,7 +139,7 @@ target_compile_definitions(imgui
         NOMINMAX
         WIN32_LEAN_AND_MEAN
 )
-target_link_libraries(imgui PUBLIC d3d9.lib)
+target_link_libraries(imgui PUBLIC ${PY4GW_D3D9_LIB})
 
 if(PY4GW_ENABLE_FREETYPE)
     # Compile imgui_draw.cpp + imgui_freetype.cpp with IMGUI_ENABLE_FREETYPE so the
@@ -125,8 +179,8 @@ target_compile_definitions(imgui_addons
         WIN32_LEAN_AND_MEAN
         _CRT_SECURE_NO_WARNINGS
 )
-target_compile_options(imgui_addons PRIVATE /FIbase/error_handling.h)
-target_link_libraries(imgui_addons PUBLIC imgui d3d9.lib)
+target_compile_options(imgui_addons PRIVATE ${PY4GW_FORCE_INCLUDE_ERRH})
+target_link_libraries(imgui_addons PUBLIC imgui ${PY4GW_D3D9_LIB})
 
 file(GLOB_RECURSE PY4GW_ALL_SOURCE_FILES CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
@@ -134,6 +188,19 @@ file(GLOB_RECURSE PY4GW_ALL_SOURCE_FILES CONFIGURE_DEPENDS
 
 set(PY4GW_SOURCES ${PY4GW_ALL_SOURCE_FILES})
 list(REMOVE_ITEM PY4GW_SOURCES ${PY4GW_IMGUI_ADDON_SOURCES})
+
+# arenanet_texture.cpp is pure MSVC __asm{}/__declspec(naked) ATEX decode that
+# GCC can't compile; arenanet_texture_stub.cpp is its MinGW replacement (empty
+# AtexDecompress -- texture decompression is unused by the scanner/pathing/bot
+# APIs). Exactly one of the two must be in the build to avoid a duplicate
+# AtexDecompress symbol.
+if(PY4GW_MINGW)
+    list(REMOVE_ITEM PY4GW_SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/GW/textures/arenanet_texture.cpp)
+else()
+    list(REMOVE_ITEM PY4GW_SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/GW/textures/arenanet_texture_stub.cpp)
+endif()
 
 file(GLOB_RECURSE PY4GW_HEADERS CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
@@ -168,7 +235,7 @@ target_compile_definitions(Py4GW
         _CRT_SECURE_NO_WARNINGS
         PYBIND11_DETAILED_ERROR_MESSAGES
 )
-target_compile_options(Py4GW PRIVATE /FIbase/error_handling.h)
+target_compile_options(Py4GW PRIVATE ${PY4GW_FORCE_INCLUDE_ERRH})
 
 target_link_libraries(Py4GW
     PRIVATE
@@ -177,13 +244,17 @@ target_link_libraries(Py4GW
         imgui_addons
         minhook
         Python3::Python
-        d3d9.lib
-        d3dcompiler.lib
-        dbghelp.lib
-        winmm.lib
-        windowscodecs.lib
-        ole32.lib
-        gdiplus.lib
-        comctl32.lib
+        ${PY4GW_SYS_LIBS}
 )
+
+if(PY4GW_MINGW)
+    # Self-contained DLL: static libgcc/libstdc++/winpthread, and tolerate the
+    # duplicate pybind11 embedded-module symbols GCC emits without a PCH.
+    target_link_options(Py4GW PRIVATE
+        -static-libgcc -static-libstdc++
+        -Wl,-Bstatic,--whole-archive -lwinpthread -Wl,-Bdynamic,--no-whole-archive
+        -Wl,--allow-multiple-definition
+    )
+    target_compile_options(Py4GW PRIVATE -fpermissive -Wno-attributes)
+endif()
 

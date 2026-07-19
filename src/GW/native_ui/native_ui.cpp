@@ -9,6 +9,14 @@
 
 #include <intrin.h>
 
+// MinGW's <intrin.h> declares _ReturnAddress() but emits no linkable body, so
+// map it onto the GCC builtin. Defined AFTER <intrin.h> so it patches the call
+// sites without clashing with the header's own declaration.
+#ifndef _MSC_VER
+#  undef  _ReturnAddress
+#  define _ReturnAddress() (__builtin_return_address(0))
+#endif
+
 #include <MinHook.h>
 
 #include <mutex>

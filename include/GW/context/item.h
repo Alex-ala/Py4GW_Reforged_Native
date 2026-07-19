@@ -25,11 +25,16 @@ namespace GW::Context {
     static_assert(sizeof(DyeInfo) == 0x3, "DyeInfo size mismatch");
 
     struct ItemData {
-        uint32_t model_file_id = 0;
-        GW::Constants::ItemType type = (GW::Constants::ItemType)0xff;
-        GW::Context::DyeInfo dye = {};
-        uint32_t value = 0;
-        uint32_t interaction = 0;
+        // No default member initializers: ItemData is a member of an anonymous
+        // union inside Equipment (agent.h), and GCC forbids anonymous-aggregate
+        // members whose type has a non-trivial default constructor. These are
+        // game-memory overlay structs (pointer-cast, never value-constructed),
+        // so the initializers were cosmetic.
+        uint32_t model_file_id;
+        GW::Constants::ItemType type;
+        GW::Context::DyeInfo dye;
+        uint32_t value;
+        uint32_t interaction;
     };
     static_assert(sizeof(ItemData) == 0x10, "ItemData size mismatch");
 

@@ -1,5 +1,6 @@
 # Generated build tree
 /build/
+/build-mingw/
 /.vs/
 /.build/
 /.artifacts/

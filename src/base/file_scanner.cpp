@@ -92,7 +92,25 @@ bool FileScanner::CreateFromPath(const wchar_t* path, FileScanner* result)
         return return_free(false, FileContent);
     }
 
+    // BasicInfo.RegionSize is only the run of pages sharing the header page's
+    // protection. On Windows that happens to span the whole image; under Wine
+    // VirtualQuery on a SEC_IMAGE mapping returns just the first sub-region
+    // (the 0x1000 header page), which made every section-bounds check below
+    // fail with "Not enough bytes for a section". Walk the contiguous mapped
+    // sub-regions of this view instead, so FileSize is the real SizeOfImage on
+    // both platforms.
     size_t FileSize = BasicInfo.RegionSize;
+    {
+        uint8_t* ViewBase = (uint8_t*)FileContent;
+        uint8_t* Probe = ViewBase + BasicInfo.RegionSize;
+        MEMORY_BASIC_INFORMATION RegionInfo;
+        while (VirtualQuery(Probe, &RegionInfo, sizeof(RegionInfo)) == sizeof(RegionInfo) &&
+               RegionInfo.State != MEM_FREE &&
+               (uint8_t*)RegionInfo.AllocationBase == ViewBase) {
+            Probe = (uint8_t*)RegionInfo.BaseAddress + RegionInfo.RegionSize;
+            FileSize = (size_t)(Probe - ViewBase);
+        }
+    }
     const uint8_t* FileBytes = (const uint8_t*)FileContent;
 
     IMAGE_DOS_HEADER DosHeader;

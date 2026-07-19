@@ -17,6 +17,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <functional>
 #include <limits>
@@ -758,7 +759,9 @@ bool ResolveLinkedIconTexturesFromDat(uint32_t model_file_id, std::shared_ptr<De
         return false;
     }
 
-    std::ifstream in(dat_path, std::ios::binary | std::ios::ate);
+    // std::ifstream(const std::wstring&) is an MSVC extension; MinGW's libstdc++
+    // only accepts std::string or a std::filesystem::path, so wrap the wide path.
+    std::ifstream in(std::filesystem::path(dat_path), std::ios::binary | std::ios::ate);
     if (!in) {
         return false;
     }
