@@ -57,4 +57,8 @@ void register_addons(py::module_& m);
 // ImPlot plotting library exposed as the PyImGui.implot submodule.
 void register_implot(py::module_& m);
 
+// NOTE: PyImGui.Ext lives in its OWN module + namespace (PY4GW::ext, see
+// imgui/ext/ext.h) so composite widgets don't share this imgui-bindings namespace.
+// It is assembled in imgui_bindings.cpp via PY4GW::ext::register_ext.
+
 }  // namespace PY4GW::imgui_bindings

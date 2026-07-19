@@ -5,6 +5,7 @@
 #include <imgui.h>
 
 #include "imgui/bindings.h"
+#include "imgui/ext/ext.h"
 #include "imgui/font_manager.h"
 #include "imgui/imgui_manager.h"
 
@@ -787,4 +788,5 @@ PYBIND11_EMBEDDED_MODULE(PyImGui, m) {
     PY4GW::imgui_bindings::register_io(m);
     PY4GW::imgui_bindings::register_addons(m);
     PY4GW::imgui_bindings::register_implot(m);
+    PY4GW::ext::register_ext(m);   // own module/namespace (imgui/ext/ext.h), not imgui_bindings
 }
