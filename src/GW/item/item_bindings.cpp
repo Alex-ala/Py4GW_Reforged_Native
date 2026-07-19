@@ -592,4 +592,17 @@ PYBIND11_EMBEDDED_MODULE(PyItem, m) {
     m.def("get_material_storage_stack_size", []() -> uint32_t {
         return GW::item::GetMaterialStorageStackSize();
     });
+
+    // Static PvP-unlock (item-mod) table: number of entries, and the game-composed
+    // encoded name + description for a given unlock index (decode client-side).
+    m.def("get_pvp_unlock_count", []() -> uint32_t {
+        return GW::item::GetPvpUnlockCount();
+    });
+
+    m.def("get_pvp_unlock_name_enc", [](uint32_t unlock_index) -> std::pair<std::vector<uint8_t>, std::vector<uint8_t>> {
+        wchar_t* name = nullptr;
+        wchar_t* desc = nullptr;
+        GW::item::GetPvpUnlockEncodedName(unlock_index, &name, &desc);
+        return { EncBytesFrom(name), EncBytesFrom(desc) };
+    });
 }

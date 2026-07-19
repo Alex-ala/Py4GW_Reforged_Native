@@ -196,6 +196,20 @@ PYBIND11_EMBEDDED_MODULE(PyImGui, m) {
     m.def("get_window_width", &ImGui::GetWindowWidth);
     m.def("get_window_height", &ImGui::GetWindowHeight);
     m.def("get_content_region_avail", &ImGui::GetContentRegionAvail);
+    // ImGui 1.92 removed GetWindowContentRegionMin/Max from the public API. Restored using public API
+    // only (avoiding imgui_internal.h, which adds internal overloads that make &ImGui::Func ambiguous
+    // for the other bindings in this TU). Equivalent when queried at the content start — which is how
+    // these were used (e.g. the pathing-map renderer calls them right after begin_child): the content
+    // region min is the initial cursor position (window-local), and max is that plus the avail size.
+    m.def("get_window_content_region_min", []() -> std::pair<float, float> {
+        ImVec2 start = ImGui::GetCursorStartPos();
+        return { start.x, start.y };
+    });
+    m.def("get_window_content_region_max", []() -> std::pair<float, float> {
+        ImVec2 start = ImGui::GetCursorStartPos();
+        ImVec2 avail = ImGui::GetContentRegionAvail();
+        return { start.x + avail.x, start.y + avail.y };
+    });
     m.def("is_window_appearing", &ImGui::IsWindowAppearing);
     m.def("is_window_collapsed", &ImGui::IsWindowCollapsed);
     m.def("is_window_focused", &ImGui::IsWindowFocused, py::arg("flags") = 0);
@@ -728,11 +742,17 @@ PYBIND11_EMBEDDED_MODULE(PyImGui, m) {
     m.def("get_window_dpi_scale", &ImGui::GetWindowDpiScale);
 
     // ═══════════════ PLOTTING ═══════════════════════════════════
-    m.def("plot_lines", [](const char* label, const std::vector<float>& values, int offset, const char* overlay, float scale_min, float scale_max, const ImVec2& graph_size) {
+    // Take `values` BY VALUE (not const&): ImGui's Plot_ArrayGetter reads values.data()
+    // synchronously, and reading it off a marshalled temporary was faulting (access
+    // violation in the getter). A by-value parameter is a buffer the lambda owns for the
+    // whole call. Also guard empty input so PlotLines never sees a null/degenerate array.
+    m.def("plot_lines", [](const char* label, std::vector<float> values, int offset, const char* overlay, float scale_min, float scale_max, const ImVec2& graph_size) {
+        if (values.empty()) return;
         ImGui::PlotLines(label, values.data(), (int)values.size(), offset, overlay, scale_min, scale_max, graph_size);
     }, py::arg("label"), py::arg("values"), py::arg("values_offset") = 0, py::arg("overlay_text") = nullptr,
        py::arg("scale_min") = FLT_MAX, py::arg("scale_max") = FLT_MAX, py::arg("graph_size") = ImVec2(0,0));
-    m.def("plot_histogram", [](const char* label, const std::vector<float>& values, int offset, const char* overlay, float scale_min, float scale_max, const ImVec2& graph_size) {
+    m.def("plot_histogram", [](const char* label, std::vector<float> values, int offset, const char* overlay, float scale_min, float scale_max, const ImVec2& graph_size) {
+        if (values.empty()) return;
         ImGui::PlotHistogram(label, values.data(), (int)values.size(), offset, overlay, scale_min, scale_max, graph_size);
     }, py::arg("label"), py::arg("values"), py::arg("values_offset") = 0, py::arg("overlay_text") = nullptr,
        py::arg("scale_min") = FLT_MAX, py::arg("scale_max") = FLT_MAX, py::arg("graph_size") = ImVec2(0,0));
@@ -766,4 +786,5 @@ PYBIND11_EMBEDDED_MODULE(PyImGui, m) {
     PY4GW::imgui_bindings::register_drawlist(m);
     PY4GW::imgui_bindings::register_io(m);
     PY4GW::imgui_bindings::register_addons(m);
+    PY4GW::imgui_bindings::register_implot(m);
 }

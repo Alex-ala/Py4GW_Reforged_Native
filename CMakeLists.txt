@@ -159,6 +159,10 @@ set(IMGUI_ADDON_SOURCES
     ${PY4GW_IMGUI_ADDON_SOURCES}
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/addons/imgui-filebrowser/ImGuiFileBrowser.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/addons/ImAnim/im_anim.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/addons/ImGuiColorTextEdit/TextEditor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/addons/implot/implot.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/addons/implot/implot_items.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/addons/implot/implot_demo.cpp
 )
 
 add_library(imgui_addons STATIC ${IMGUI_ADDON_SOURCES})
@@ -172,6 +176,8 @@ target_include_directories(imgui_addons
         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/addons/imgui_markdown
         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/addons/ImAnim
         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/addons/imgui_club/imgui_memory_editor
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/addons/ImGuiColorTextEdit
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui/addons/implot
 )
 target_compile_definitions(imgui_addons
     PRIVATE

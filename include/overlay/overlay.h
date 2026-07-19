@@ -9,6 +9,8 @@
 #include <cstdint>
 #include <string>
 #include <tuple>
+#include <utility>
+#include <vector>
 
 #include <imgui.h>
 
@@ -64,8 +66,43 @@ public:
 
     void RefreshDrawList();
     GW::Vec2f GetMouseCoords();
-    float findZ(float x, float y, uint32_t pz);
+    // multi_plane = true (default): resolve the TOPMOST surface across all planes
+    // (bridges/slopes are planes > 0), independent of where the player stands.
+    // multi_plane = false: legacy behaviour (altitude at the PLAYER's plane).
+    // Single-plane maps take a fast path, so the flag is free there.
+    float findZ(float x, float y, uint32_t pz = 0, bool multi_plane = true);
+    // Batched FindZ for many points (path display, dozens/frame): plane list fetched
+    // once, single-plane fast path. Same multi_plane meaning as findZ.
+    std::vector<float> FindZBatch(const std::vector<std::pair<float, float>>& pts,
+                                  bool multi_plane = true);
     uint32_t FindZPlane(float x, float y, uint32_t zplane);
+
+    // --- multi-plane ground sampling ------------------------------------------
+    // Bridges/slopes live on planes > 0 (props); plane 0 is the base terrain. The
+    // engine's own MapQueryAltitude trusts the plane you pass, so FindZ (which uses
+    // the PLAYER's plane) returns the wrong surface for any point not on the
+    // player's plane. These resolve the surface without knowing the plane up front.
+    //
+    // Cheap gate: number of z-planes (pmaps) in the map, 0 if not ready. <= 1 means
+    // single-plane -> plane-0 altitude is always correct, no iteration needed.
+    uint32_t GetZPlaneCount();
+    // Altitude at a SPECIFIC plane: {covered, z}. covered=false when that plane has
+    // no surface at (x,y) (or the map isn't ready).
+    std::pair<bool, float> QueryAltitudeAt(float x, float y, uint32_t plane);
+    // Specialist: covered plane whose altitude is nearest ref_z. Feed the object's
+    // own z to disambiguate bridge-over vs under-bridge (FindZ's topmost can't).
+    float GroundZNearest(float x, float y, float ref_z);
+    std::vector<float> GroundZNearestBatch(const std::vector<std::pair<float, float>>& pts,
+                                           const std::vector<float>& ref_zs);
+
+    // "Option B": plane-less walkable height. Queries the resolved MapQueryAltitude
+    // at plane 0, which the engine routes through PathEngineQueryAltitude
+    // (Gw.exe 0x00731ae0, navmesh) whenever a path engine exists, else base terrain.
+    // Unlike FindZ this is independent of the player's plane, so it's stable for
+    // arbitrary points (path display). It does NOT add props, so it won't raise onto
+    // a bridge/slope prop -- use FindZ (multi_plane) for that. One cheap call/point.
+    float GroundZWalkable(float x, float y);
+    std::vector<float> GroundZWalkableBatch(const std::vector<std::pair<float, float>>& pts);
     GW::Vec2f WorldToScreen(float x, float y, float z);
     GW::Vec3f GetMouseWorldPos();
 
